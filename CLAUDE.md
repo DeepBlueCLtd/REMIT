@@ -2,20 +2,32 @@
 
 Guidance for Claude (and human contributors) working in this repository.
 
-> This file ships with the project template. The **patterns** below — project
-> memory, the spec-driven workflow, the blog pipeline, Playwright-in-cloud, and
-> Pages deployment — are ready to use. Fill in the project-specific
-> **placeholders** marked `TODO`.
+> This repository is a concrete instance of the reusable project template. The
+> **patterns** below — project memory, the spec-driven workflow, the blog
+> pipeline, Playwright-in-cloud, and Pages deployment — are installed and active
+> here (spec-kit is installed and customised; see below).
 
 ---
 
 ## Project overview
 
-<!-- TODO: one paragraph on what this project is and does. -->
+REMIT is a concrete project instance created from the reusable repository
+template. It ships a static demo app plus the full template toolchain: GitHub
+Pages deployment with per-PR previews, a Jekyll blog generated from specs,
+project memory, cloud-capable Playwright tooling, and an installed-and-customised
+spec-kit workflow.
 
-- **Tech stack:** <!-- TODO -->
-- **Build / run locally:** <!-- TODO -->
-- **Key directories:** <!-- TODO -->
+- **Tech stack:** static HTML/CSS/JS app (no build step); Node.js + Playwright
+  (`@sparticuz/chromium` for cloud screenshots) for e2e tests and evidence;
+  Jekyll for the blog on `gh-pages`; GitHub Actions for deploy/preview; spec-kit
+  (bash scripts + skills) for the spec-driven workflow.
+- **Build / run locally:** no build — serve the app with `npx http-server app`
+  (or open `app/index.html`). Tests: `npm install`, then `npm run test:e2e`
+  (cloud wrapper) or `npm run test:e2e:local`.
+- **Key directories:** `app/` (the app), `site/` (landing page + Jekyll/blog
+  shell), `specs/` (specs, each with a `blog/` subfolder), `e2e/` (Playwright
+  tests), `docs/project_notes/` (project memory), `.specify/` (spec-kit toolchain
+  + REMIT customisations), `.claude/skills/` (spec-kit skills).
 
 ---
 
@@ -47,21 +59,27 @@ them after acting, so context survives across sessions and contributors.
 
 ## Spec-driven workflow (spec-kit)
 
-This project uses [GitHub spec-kit](https://github.com/github/spec-kit)
-(`/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement`).
+This project uses [GitHub spec-kit](https://github.com/github/spec-kit), installed
+and customised in this repo: `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`,
+`/speckit-implement` (skills under `.claude/skills/`).
 
-### Installing spec-kit (always the newest version)
+### spec-kit is installed and customised here
 
-spec-kit is **not** vendored in this repo — install it fresh so you get the latest
-commands and templates. Run once, when setting the project up:
+spec-kit lives under `.specify/` (scripts, templates, extensions) and
+`.claude/skills/`. It was installed with:
 
 ```bash
-# Start a new project (creates the directory):
-uvx --from git+https://github.com/github/spec-kit.git specify init <project-name>
-
-# Or initialise spec-kit inside an existing repo:
-uvx --from git+https://github.com/github/spec-kit.git specify init --here
+uvx --from git+https://github.com/github/spec-kit.git \
+  specify init --here --integration claude --script sh --force --ignore-agent-tools
 ```
+
+> **Do not re-run `specify init` casually.** It overwrites
+> `.specify/scripts/bash/common.sh` and the skill bodies, discarding the REMIT
+> customisations (3-tier active-feature resolution and blog generation). Each
+> customisation is fenced with `REMIT addition` comments and must be re-applied
+> after a spec-kit upgrade — see `docs/project_notes/decisions.md` (ADR-0004). The
+> custom logic itself lives in `.specify/scripts/bash/active-feature.sh` and
+> `.specify/scripts/bash/blog-scaffold.sh`, which `init` does not touch.
 
 ### Active feature resolution
 
@@ -76,6 +94,13 @@ spec-kit commands operate on a single spec directory, resolved in this order:
    (e.g. `220-fix-foo`, `claude/220-fix-foo-xyz`, `feature/220-foo`).
 
 If none resolve, the scripts list the available specs and show a recovery hint.
+
+This 3-tier order is implemented on top of spec-kit's own resolver:
+`.specify/scripts/bash/active-feature.sh` adds tier 2 (`.active-feature`) and the
+recovery hint, wired in by two small fenced hunks in
+`.specify/scripts/bash/common.sh` (`get_current_branch`, `get_feature_paths`).
+Tier 1 (`SPECIFY_FEATURE`) and tier 3 (branch `NNN-` token) are handled by spec-kit
+itself.
 
 #### Cloud sessions (Claude Code web)
 
@@ -112,9 +137,15 @@ readers in; when unsure what to feature, offer the maintainer options to choose 
 feature is graphical). Hook points in
 the spec-kit lifecycle:
 
-- **At `/speckit.plan`:** sketch the post's structure and note which screenshots
+- **At `/speckit-plan`:** sketch the post's structure and note which screenshots
   will be most illustrative.
-- **At `/speckit.implement`:** write `post.md` and gather the screenshots.
+- **At `/speckit-implement`:** write `post.md` and gather the screenshots.
+
+These hooks are wired into the installed skills (`.claude/skills/speckit-plan` and
+`speckit-implement`, fenced with `REMIT addition` comments): plan sketches the
+post; implement runs `.specify/scripts/bash/blog-scaffold.sh` (which seeds
+`specs/<spec>/blog/post.md` from `docs/blog-post-template.md` and creates
+`screenshots/`) and authors the post.
 
 The post doubles as a fast PR review aid — reading it summarises the problem,
 approach, and results before diving into the diff.
@@ -195,3 +226,8 @@ app and previews are served as untouched static files (see `site/_config.yml`).
 
 See `README.md` for the one-time GitHub settings (enable Pages from the `gh-pages`
 branch; allow workflows to write).
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->

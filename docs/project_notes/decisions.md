@@ -55,4 +55,35 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   config; the static-vs-Jekyll boundary stays simply "has front-matter?", so the app
   and previews remain untouched. Custom domains are handled via the CNAME check.
 
+## ADR-0004 (2026-06-08) — Install and customise spec-kit in this child instance
+
+- **Context:** REMIT is a concrete instance of the template (not the template
+  library), so spec-kit should be installed and the documented patterns made
+  functional. Two documented capabilities were only described, not wired up:
+  (#7) the 3-tier active-feature resolution naming `.specify/.active-feature`, and
+  (#5) blog-post generation hooked into the spec-kit lifecycle. Upstream spec-kit
+  resolves the active feature via `SPECIFY_FEATURE` → `.specify/feature.json` /
+  `SPECIFY_FEATURE_DIRECTORY` → branch prefix — it does **not** read the
+  `.specify/.active-feature` file our `CLAUDE.md` and `.gitignore` already commit
+  to, and emits no "available specs + recovery hint" on a miss.
+- **Decision:** install spec-kit
+  (`specify init --here --integration claude --script sh --force --ignore-agent-tools`),
+  and add REMIT customisations: (a) `.specify/scripts/bash/active-feature.sh`
+  (tier-2 `.active-feature` reader + recovery hint) wired into `common.sh`
+  via two small fenced hunks in `get_current_branch` / `get_feature_paths`;
+  (b) `.specify/scripts/bash/blog-scaffold.sh` plus fenced blog steps in the
+  `speckit-plan` / `speckit-implement` skill bodies.
+- **Options considered:** (a) adopt upstream `feature.json`/`SPECIFY_FEATURE_DIRECTORY`
+  and abandon `.active-feature` — rejected: diverges from the documented contract
+  and the existing `.gitignore` entry; (b) hand-build a custom spec-kit *extension*
+  (manifest + `.registry` + hooks) for the blog — rejected: fragile (manifest-hash
+  integrity, registry wiring) for little gain; (c) patch `common.sh` + edit skill
+  bodies, keeping custom logic in our own un-managed helper scripts — **chosen**.
+- **Consequences:** the custom helper scripts survive `specify init` re-runs, but
+  the fenced hunks in `common.sh` and the two skill bodies are overwritten on
+  re-init and must be re-applied (each is marked `REMIT addition`). Commit the
+  `.specify/` toolchain and `.claude/skills/`; gitignore only per-worktree state
+  (`.specify/.active-feature`, `.specify/feature.json`). The blog *publisher*
+  (`deploy.yml`) is unchanged — it already consumes `specs/*/blog/`.
+
 <!-- Add new ADRs above this line. -->

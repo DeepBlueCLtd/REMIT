@@ -144,8 +144,10 @@ vite.config.ts.timestamp-*
 
 # --- Repo template additions ---
 
-# spec-kit active-feature override (per-worktree; see CLAUDE.md -> Active feature)
+# spec-kit per-worktree state (the rest of .specify/ is committed). See CLAUDE.md
+# -> Active feature, and decisions.md ADR-0004.
 .specify/.active-feature
+.specify/feature.json
 
 # Playwright run artifacts (evidence screenshots are committed under specs/*/evidence)
 /test-results/

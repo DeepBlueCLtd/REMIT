@@ -9,6 +9,18 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
 
 ---
 
+## 2026-06-08 — spec-kit re-init silently drops REMIT customisations
+
+- **Symptom:** after re-running `specify init` (e.g. to upgrade spec-kit), the
+  3-tier active-feature resolution and the blog hooks stop working.
+- **Root cause:** `init` overwrites `.specify/scripts/bash/common.sh` and the skill
+  bodies (`.claude/skills/speckit-{plan,implement}/SKILL.md`), discarding the fenced
+  `REMIT addition` hunks. Upstream spec-kit does not read `.specify/.active-feature`.
+- **Fix:** re-apply the fenced `REMIT addition` hunks. The helper scripts
+  (`active-feature.sh`, `blog-scaffold.sh`) are not managed by `init` and survive.
+- **Prevention:** avoid casual re-init; when upgrading, diff and re-apply the hunks.
+  See `decisions.md` ADR-0004.
+
 ## 2026-06-08 — Example: PR preview 404s on deep links
 
 - **Symptom:** the PR preview loaded at `/` but deep links returned 404.
