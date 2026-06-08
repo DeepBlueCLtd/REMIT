@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="476" viewBox="0 0 780 476" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect x="1" y="1" width="778" height="474" rx="14" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="40" y="48" font-size="22" font-weight="700" fill="#1f2328">Template capabilities — 4 activated in this PR</text>
+  <line x1="40" y1="66" x2="740" y2="66" stroke="#d0d7de"/>
+
+  <!-- Row 1: working -->
+  <circle cx="55" cy="106" r="15" fill="#2da44e"/>
+  <text x="55" y="111" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="86" y="111" font-size="16" fill="#1f2328">GitHub Pages deploy + PR previews</text>
+  <rect x="600" y="92" width="140" height="28" rx="14" fill="#dafbe1"/>
+  <text x="670" y="111" font-size="13" font-weight="600" fill="#1a7f37" text-anchor="middle">working</text>
+
+  <!-- Row 2: activated -->
+  <circle cx="55" cy="158" r="15" fill="#8250df"/>
+  <text x="55" y="163" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="86" y="163" font-size="16" fill="#1f2328">spec-kit installed &amp; customised</text>
+  <rect x="600" y="144" width="140" height="28" rx="14" fill="#f3e3ff"/>
+  <text x="670" y="163" font-size="13" font-weight="600" fill="#8250df" text-anchor="middle">activated</text>
+
+  <!-- Row 3: working -->
+  <circle cx="55" cy="210" r="15" fill="#2da44e"/>
+  <text x="55" y="215" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="86" y="215" font-size="16" fill="#1f2328">Project memory</text>
+  <rect x="600" y="196" width="140" height="28" rx="14" fill="#dafbe1"/>
+  <text x="670" y="215" font-size="13" font-weight="600" fill="#1a7f37" text-anchor="middle">working</text>
+
+  <!-- Row 4: working -->
+  <circle cx="55" cy="262" r="15" fill="#2da44e"/>
+  <text x="55" y="267" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">4</text>
+  <text x="86" y="267" font-size="16" fill="#1f2328">Memory-aware protocols</text>
+  <rect x="600" y="248" width="140" height="28" rx="14" fill="#dafbe1"/>
+  <text x="670" y="267" font-size="13" font-weight="600" fill="#1a7f37" text-anchor="middle">working</text>
+
+  <!-- Row 5: activated -->
+  <circle cx="55" cy="314" r="15" fill="#8250df"/>
+  <text x="55" y="319" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">5</text>
+  <text x="86" y="319" font-size="16" fill="#1f2328">Blog generated from specs</text>
+  <rect x="600" y="300" width="140" height="28" rx="14" fill="#f3e3ff"/>
+  <text x="670" y="319" font-size="13" font-weight="600" fill="#8250df" text-anchor="middle">activated</text>
+
+  <!-- Row 6: activated -->
+  <circle cx="55" cy="366" r="15" fill="#8250df"/>
+  <text x="55" y="371" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">6</text>
+  <text x="86" y="371" font-size="16" fill="#1f2328">Playwright in cloud (wired up)</text>
+  <rect x="600" y="352" width="140" height="28" rx="14" fill="#f3e3ff"/>
+  <text x="670" y="371" font-size="13" font-weight="600" fill="#8250df" text-anchor="middle">activated</text>
+
+  <!-- Row 7: activated -->
+  <circle cx="55" cy="418" r="15" fill="#8250df"/>
+  <text x="55" y="423" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">7</text>
+  <text x="86" y="423" font-size="16" fill="#1f2328">Active-feature resolution</text>
+  <rect x="600" y="404" width="140" height="28" rx="14" fill="#f3e3ff"/>
+  <text x="670" y="423" font-size="13" font-weight="600" fill="#8250df" text-anchor="middle">activated</text>
+
+  <text x="40" y="462" font-size="12.5" fill="#656d76">working = already in the template   •   activated = made functional in PR #1</text>
+</svg>
