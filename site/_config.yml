@@ -1,0 +1,32 @@
+# Jekyll configuration for the published site (served from the gh-pages branch).
+#
+# WHY THIS IS HERE
+# The published site mixes Jekyll-rendered content (the blog under /blog/) with
+# plain static files that must NOT be transformed: the built app (/app/) and the
+# per-PR previews (/pr-preview/pr-<n>/). Jekyll only renders files that carry YAML
+# front-matter, so those static folders -- whose files have none -- pass through
+# verbatim. In effect, Jekyll processes only /blog/.
+
+title: "Project site"
+description: "Live app, per-PR previews, and the project blog."
+
+# Blog posts live in blog/_posts and are served at /blog/<name>/.
+permalink: /blog/:title/
+
+# Don't let a rebuild remove the deployed app or PR previews (they are pushed to
+# gh-pages by the workflows, not authored in this source tree).
+keep_files:
+  - app
+  - pr-preview
+
+# If your built app ships underscore-prefixed folders (Jekyll ignores these by
+# default -- e.g. SvelteKit's `_app`), un-ignore them so they are served:
+# include:
+#   - "_app"
+
+exclude:
+  - node_modules
+  - vendor
+  - Gemfile
+  - Gemfile.lock
+  - README.md

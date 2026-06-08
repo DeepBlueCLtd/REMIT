@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} &middot; {% endif %}{{ site.title }}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 44rem; margin: 2.5rem auto; padding: 0 1rem; line-height: 1.6; }
+    header.site { display: flex; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #8884; margin-bottom: 2rem; }
+    header.site a { text-decoration: none; }
+    .post-meta { color: #777; font-size: .9rem; margin-top: -0.5rem; }
+    img { max-width: 100%; height: auto; }
+    pre, code { font-family: ui-monospace, monospace; }
+    pre { background: #8881; padding: 1rem; overflow-x: auto; border-radius: .4rem; }
+    ul.post-list { list-style: none; padding: 0; }
+    ul.post-list li { padding: .35rem 0; }
+    ul.post-list time { color: #777; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <a href="{{ '/' | relative_url }}">Home</a>
+    <a href="{{ '/blog/' | relative_url }}">Blog</a>
+  </header>
+  <main>
+    {% if page.title %}<h1>{{ page.title }}</h1>{% endif %}
+    {% if page.date %}<p class="post-meta">{{ page.date | date: "%-d %B %Y" }}</p>{% endif %}
+    {{ content }}
+  </main>
+</body>
+</html>

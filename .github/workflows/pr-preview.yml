@@ -1,0 +1,86 @@
+name: PR preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read pages.config.yml
+        id: cfg
+        if: github.event.action != 'closed'
+        run: |
+          set -euo pipefail
+          # Portable reader for a top-level "key: value" scalar (no yq dependency,
+          # so behaviour is identical regardless of the runner's yq variant).
+          read_cfg() {
+            local line v
+            line="$(grep -m1 -E "^[[:space:]]*$1:" pages.config.yml || true)"
+            v="${line#*:}"
+            v="$(printf '%s' "$v" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+            case "$v" in
+              \"*\") v="${v#\"}"; v="${v%\"}" ;;
+              \'*\') v="${v#\'}"; v="${v%\'}" ;;
+            esac
+            [ -n "$v" ] || v="$2"
+            printf '%s' "$v"
+          }
+          {
+            echo "build_command=$(read_cfg build_command '')"
+            echo "dist_dir=$(read_cfg dist_dir 'app')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        if: github.event.action != 'closed'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build app (only if a build command is configured)
+        if: github.event.action != 'closed'
+        env:
+          BUILD_COMMAND: ${{ steps.cfg.outputs.build_command }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BUILD_COMMAND}" ]; then
+            bash -lc "${BUILD_COMMAND}"
+          else
+            echo "No build_command — assuming a static app."
+          fi
+
+      - name: Assemble preview (the app only)
+        if: github.event.action != 'closed'
+        env:
+          DIST_DIR: ${{ steps.cfg.outputs.dist_dir }}
+        run: |
+          set -euo pipefail
+          rm -rf _preview
+          mkdir -p _preview
+          if [ -n "${DIST_DIR}" ] && [ -d "${DIST_DIR}" ]; then
+            cp -r "${DIST_DIR}/." _preview/
+          else
+            printf '%s\n' \
+              '<!doctype html><meta charset="utf-8"><title>PR preview</title>' \
+              '<p>No app is configured yet. Set <code>build_command</code> / <code>dist_dir</code> in <code>pages.config.yml</code> to publish a real preview here.</p>' \
+              > _preview/index.html
+          fi
+
+      - name: Deploy preview to gh-pages
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./_preview
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview

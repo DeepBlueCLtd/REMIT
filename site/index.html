@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project site</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { margin-bottom: .25rem; }
+    .lede { color: #777; margin-top: 0; }
+    ul.nav { list-style: none; padding: 0; display: grid; gap: .75rem; margin-top: 2rem; }
+    ul.nav a { display: block; padding: 1rem 1.25rem; border: 1px solid #8884; border-radius: .5rem; text-decoration: none; color: inherit; }
+    ul.nav a:hover { border-color: #888; }
+    ul.nav strong { display: block; }
+    ul.nav span { color: #777; font-size: .9rem; }
+    footer { margin-top: 3rem; color: #888; font-size: .85rem; }
+    code { font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <h1>Project site</h1>
+  <p class="lede">Navigation hub for the live app, per-PR previews, and the blog.</p>
+
+  <ul class="nav">
+    <li><a href="app/"><strong>Live app &rarr;</strong><span>The current build of the application.</span></a></li>
+    <li><a href="blog/"><strong>Blog &rarr;</strong><span>Posts generated from completed specs.</span></a></li>
+  </ul>
+
+  <footer>
+    This landing page ships with the project template &mdash; edit <code>site/index.html</code> to customise it.
+    Per-PR previews are published under <code>pr-preview/pr-&lt;n&gt;/</code>.
+  </footer>
+</body>
+</html>

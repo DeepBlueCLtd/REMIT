@@ -1,0 +1,180 @@
+name: Deploy site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Serialise every writer to the gh-pages branch. Deploy AND blog publishing happen
+# in this single workflow run (one push to gh-pages), so a merge can never have one
+# cancel the other on a shared concurrency group; PR previews share this same group
+# from their own workflow (a different, staggered event, so they queue rather than
+# race).
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so the blog step can diff this push (before..after) and
+          # publish only the spec blog content it introduced.
+          fetch-depth: 0
+
+      - name: Read pages.config.yml
+        id: cfg
+        run: |
+          set -euo pipefail
+          # Portable reader for a top-level "key: value" scalar (no yq dependency,
+          # so behaviour is identical regardless of the runner's yq variant).
+          read_cfg() {
+            local line v
+            line="$(grep -m1 -E "^[[:space:]]*$1:" pages.config.yml || true)"
+            v="${line#*:}"
+            v="$(printf '%s' "$v" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+            case "$v" in
+              \"*\") v="${v#\"}"; v="${v%\"}" ;;
+              \'*\') v="${v#\'}"; v="${v%\'}" ;;
+            esac
+            [ -n "$v" ] || v="$2"
+            printf '%s' "$v"
+          }
+          {
+            echo "app_name=$(read_cfg app_name 'App')"
+            echo "build_command=$(read_cfg build_command '')"
+            echo "dist_dir=$(read_cfg dist_dir 'app')"
+            echo "app_path=$(read_cfg app_path 'app')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build app (only if a build command is configured)
+        env:
+          BUILD_COMMAND: ${{ steps.cfg.outputs.build_command }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BUILD_COMMAND}" ]; then
+            echo "Running configured build: ${BUILD_COMMAND}"
+            bash -lc "${BUILD_COMMAND}"
+          else
+            echo "No build_command in pages.config.yml — nothing to build (static app)."
+          fi
+
+      - name: Assemble site (scaffolding + app)
+        env:
+          DIST_DIR: ${{ steps.cfg.outputs.dist_dir }}
+          APP_PATH: ${{ steps.cfg.outputs.app_path }}
+        run: |
+          set -euo pipefail
+          rm -rf _site_publish
+          mkdir -p _site_publish
+          # 1) Static scaffolding: landing page, Jekyll config + layout, blog shell.
+          if [ -d site ]; then cp -r site/. _site_publish/; fi
+          # 1b) Tell Jekyll the site's base path so the blog's `relative_url` links
+          #     resolve. Derive it from the repo (no hardcoded project name): a custom
+          #     domain (CNAME) or a user/org root site (<owner>.github.io) is served at
+          #     the domain root (baseurl ""); any other repo is served under /<repo>.
+          repo="${GITHUB_REPOSITORY##*/}"
+          if [ -f _site_publish/CNAME ] || [ "${repo%.github.io}" != "$repo" ]; then
+            base=""
+          else
+            base="/$repo"
+          fi
+          printf '\n# Injected by deploy.yml so the blog renders with the right base path.\nbaseurl: "%s"\n' "$base" >> _site_publish/_config.yml
+          echo "Set Jekyll baseurl to '${base}'."
+          # 2) The built app under /<app_path>/ — only if this project has one yet.
+          if [ -n "${DIST_DIR}" ] && [ -d "${DIST_DIR}" ]; then
+            mkdir -p "_site_publish/${APP_PATH}"
+            cp -r "${DIST_DIR}/." "_site_publish/${APP_PATH}/"
+          else
+            echo "No app at '${DIST_DIR}' yet — publishing scaffolding only."
+          fi
+
+      - name: Add blog posts introduced by this push
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p _site_publish/blog/_posts _site_publish/blog/assets
+          shopt -s nullglob
+
+          # Act only on the specs/<NNN>/blog/ folders this push changed (keep_files
+          # on publish preserves everything already on gh-pages). Fall back to
+          # scanning all specs when there is no usable base commit -- a manual
+          # workflow_dispatch or a first/force push -- so a manual run rebuilds all.
+          if [ -n "${BEFORE:-}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            # grep exits 1 when this push changed no blog files; tolerate that with
+            # `|| true` so the step does not abort under `set -o pipefail` / `bash -e`.
+            changed_specs="$(git diff --name-only "${BEFORE}" "${AFTER}" -- specs \
+                             | { grep -E '^specs/[^/]+/blog/' || true; } \
+                             | sed -E 's#^(specs/[^/]+)/blog/.*#\1/blog#' | sort -u)"
+          else
+            changed_specs="$(printf '%s\n' specs/*/blog | sort -u)"
+          fi
+
+          for specdir in ${changed_specs}; do
+            [ -f "$specdir/post.md" ] || continue
+            spec="$(basename "$(dirname "$specdir")")"
+            # Date: first YYYY-MM-DD on the front-matter `date:` line, else today.
+            date="$(grep -m1 -iE '^date:' "$specdir/post.md" 2>/dev/null \
+                    | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -n1 || true)"
+            [ -n "$date" ] || date="$(date +%F)"
+            post="_site_publish/blog/_posts/${date}-${spec}.md"
+            cp "$specdir/post.md" "$post"
+            if [ -d "$specdir/screenshots" ]; then
+              mkdir -p "_site_publish/blog/assets/${spec}"
+              cp -r "$specdir/screenshots/." "_site_publish/blog/assets/${spec}/"
+              # Rewrite in-post image paths to the published, baseurl-safe location
+              # relative to the post URL (/blog/<spec>/ -> ../assets/<spec>/).
+              sed -i "s#screenshots/#../assets/${spec}/#g" "$post"
+            fi
+            echo "Prepared blog post: ${date}-${spec}.md"
+          done
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site_publish
+          publish_branch: gh-pages
+          keep_files: true
+          enable_jekyll: true   # do not write .nojekyll — /blog/ is rendered by Jekyll
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_message: "Deploy site + blog for ${{ github.sha }}"
+
+      - name: Remove stale .nojekyll so GitHub renders /blog/ with Jekyll
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Earlier deploys (peaceiris' default) wrote a root .nojekyll that disables
+          # Jekyll site-wide, so /blog/ served raw Liquid. We now publish with
+          # enable_jekyll: true, but keep_files preserves the old file -- delete it
+          # once. Idempotent: a no-op (no push) once it is gone.
+          tmp="$(mktemp -d)"
+          git clone --depth 1 --single-branch --branch gh-pages \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$tmp"
+          if [ -f "$tmp/.nojekyll" ]; then
+            git -C "$tmp" rm -q .nojekyll
+            git -C "$tmp" \
+              -c user.name="github-actions[bot]" \
+              -c user.email="github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Remove .nojekyll so Jekyll renders /blog/"
+            git -C "$tmp" push -q origin gh-pages
+            echo "Removed stale .nojekyll."
+          else
+            echo "No .nojekyll present -- nothing to do."
+          fi

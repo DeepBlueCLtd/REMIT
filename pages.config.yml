@@ -1,0 +1,22 @@
+# pages.config.yml — configuration for the GitHub Pages deploy + PR-preview workflows.
+#
+# Edit these values for your project. The workflow YAML reads them, so the same
+# workflows work unmodified across projects — you should not need to touch the
+# files under .github/workflows/.
+
+# Human-readable app name (used in logs / the landing page).
+app_name: "Repo Template Demo"
+
+# Command that builds your app into `dist_dir`. Leave blank ("") for a static app
+# that needs no build step. Examples:
+#   build_command: "npm ci && npm run build"
+#   build_command: "pnpm install && pnpm build"
+build_command: ""
+
+# Directory containing the built static site to publish. For a no-build static
+# app, point this at the folder that already holds your index.html.
+dist_dir: "app"
+
+# Path under the Pages site where the app is served:
+#   https://<user>.github.io/<repo>/<app_path>/
+app_path: "app"

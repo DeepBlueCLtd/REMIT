@@ -1,0 +1,18 @@
+---
+layout: default
+title: Blog
+---
+<p>Posts are generated from completed specs and published automatically on merge.</p>
+
+{% if site.posts.size > 0 %}
+<ul class="post-list">
+  {% for post in site.posts %}
+  <li>
+    <a href="{{ post.url | relative_url }}">{{ post.title | default: post.name }}</a>
+    {% if post.date %}<time>&middot; {{ post.date | date: "%Y-%m-%d" }}</time>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p><em>No posts yet &mdash; they appear here once a spec with a <code>blog/</code> folder is merged.</em></p>
+{% endif %}
