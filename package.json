@@ -1,0 +1,17 @@
+{
+  "name": "remit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "REMIT — static app plus Playwright e2e/evidence tooling (cloud-capable) and spec-kit workflow.",
+  "license": "EPL-2.0",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "node run-playwright.mjs",
+    "test:e2e:local": "playwright test",
+    "playwright:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@sparticuz/chromium": "^149.0.0"
+  }
+}

@@ -27,10 +27,13 @@ starts from a proven foundation instead of re-deriving the same patterns.
 ## Getting started
 
 1. **Create a repo from this template** (GitHub → *Use this template*).
-2. **Install spec-kit** (newest version):
+2. **Install spec-kit** — already installed and customised in this repo; the
+   command used was:
    ```bash
-   uvx --from git+https://github.com/github/spec-kit.git specify init --here
+   uvx --from git+https://github.com/github/spec-kit.git \
+     specify init --here --integration claude --script sh --force --ignore-agent-tools
    ```
+   See `CLAUDE.md` → *spec-kit is installed and customised here* before re-running it.
 3. **Configure deployment** — edit `pages.config.yml` (app name, build command,
    dist directory, app path).
 4. **Enable GitHub Pages** (see the checklist below), then push.
@@ -66,14 +69,15 @@ CLAUDE.md            agent + contributor guide for everything above
 
 ## Playwright (cloud screenshots)
 
-Cloud sessions **can** produce real screenshots. In a Node project:
+Cloud sessions **can** produce real screenshots. The dev deps are declared in
+`package.json` (`@playwright/test`, `@sparticuz/chromium`):
 
 ```bash
-npm i -D @playwright/test @sparticuz/chromium
-node run-playwright.mjs
+npm install
+npm run test:e2e        # = node run-playwright.mjs (cloud-aware wrapper)
 ```
 
-Locally, run `npx playwright install chromium` once, then `npx playwright test`.
+Locally, run `npm run playwright:install` once, then `npm run test:e2e:local`.
 See `CLAUDE.md` → *Playwright in cloud sessions*.
 
 ## Where to look next

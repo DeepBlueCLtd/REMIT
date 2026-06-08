@@ -11,4 +11,6 @@ evidence (e.g. `specs/<feature>/evidence/`).
 | 2026-06-08 | PR #2 | Fold blog publishing into `deploy.yml` (fix per-merge `gh-pages` concurrency cancellation) | [#2](https://github.com/IanMayo/repo_template/pull/2) |
 | 2026-06-08 | PR #3 | Demo app + sample blog post; deploy no-blog-change fix; URL-derived PR-preview nav; enable Jekyll + derive blog `baseurl` (all base-path-safe) | [#3](https://github.com/IanMayo/repo_template/pull/3) |
 
+| 2026-06-08 | `claude/vigilant-planck-5gxf1s` | Install + customise spec-kit: 3-tier active-feature resolution (`active-feature.sh` + fenced `common.sh` hunks) and blog generation (`blog-scaffold.sh` + plan/implement skill hooks); add Playwright `package.json` (wire-up). | ADR-0004 |
+
 <!-- Add new rows above as work completes. -->
