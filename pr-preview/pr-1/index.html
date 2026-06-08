@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Repo Template Demo</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font: 16px/1.6 system-ui, -apple-system, sans-serif;
+           display: grid; place-items: center; min-height: 100vh;
+           background: linear-gradient(135deg, #0d1117, #1b2735); color: #e6edf3; }
+    .card { max-width: 34rem; padding: 2.5rem; border-radius: 16px;
+            background: rgba(255,255,255,.06); box-shadow: 0 10px 40px rgba(0,0,0,.4);
+            text-align: center; }
+    h1 { margin: .2em 0; font-size: 1.9rem; }
+    p { opacity: .85; }
+    code { background: rgba(255,255,255,.1); padding: .1em .4em; border-radius: 6px; }
+    .count { font-size: 2.4rem; font-weight: 700; margin: .3em 0; color: #7ee787; }
+    button { font: inherit; padding: .6em 1.3em; border: 0; border-radius: 10px;
+             cursor: pointer; background: #2f81f7; color: #fff; }
+    button:hover { background: #4493f8; }
+    nav { margin-top: 1.6rem; font-size: .95rem; }
+    nav a { color: #7ee787; text-decoration: none; margin: 0 .6em; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>🚀 Repo Template Demo</h1>
+    <p>This placeholder app is published to <code>/app/</code> by the config-driven
+       Pages deploy. Swap it for your real app and point <code>pages.config.yml</code>
+       at the build output.</p>
+    <div class="count" id="count">0</div>
+    <button id="bump">Click me</button>
+    <nav>
+      <a id="nav-landing" href="../">&larr; Landing</a>
+      <a id="nav-blog" href="../blog/">Blog &rarr;</a>
+    </nav>
+  </main>
+  <script>
+    const el = document.getElementById('count');
+    let n = 0;
+    document.getElementById('bump').addEventListener('click', () => { el.textContent = ++n; });
+
+    // Resolve the Pages site root from the URL so the nav works at any mount depth
+    // (/<base>/app/ in production, /<base>/pr-preview/pr-N/ in previews) with nothing
+    // hardcoded — keeping the template portable across repo names, root sites, and
+    // custom domains. In a preview these resolve to the live hosted pages.
+    const root = location.pathname.replace(/(?:app|pr-preview\/pr-\d+)\/(?:index\.html)?$/, '');
+    document.getElementById('nav-landing').href = root;
+    document.getElementById('nav-blog').href = root + 'blog/';
+  </script>
+</body>
+</html>
