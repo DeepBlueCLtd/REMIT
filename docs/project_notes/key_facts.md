@@ -18,7 +18,7 @@ need a value.
 | Active-feature override | `echo NNN-name > .specify/.active-feature` (gitignored, per-worktree; cloud sessions) |
 | e2e tests | `npm run test:e2e` (cloud wrapper) · `npm run test:e2e:local` (after `npm install`) |
 | Playwright deps | `@playwright/test ^1.60`, `@sparticuz/chromium ^149` (bundled Chromium for cloud) |
-| Issue tracking | GitHub Issues + a GitHub **Project** board with *Auto-add* enabled (record the Project URL here once known) |
+| Issue tracking | GitHub Issues + a GitHub **Project** board — **Auto-add covers all new issues** (no label filter needed) |
 | Org issue fields | Set via `issue_write` → `issue_fields`: **Priority** (Urgent/High/Medium/Low) · **Effort** (High/Medium/Low) · **Start date** · **Target date** |
 
 _Pages URLs resolve once GitHub Pages is enabled (served from `gh-pages`). Add
