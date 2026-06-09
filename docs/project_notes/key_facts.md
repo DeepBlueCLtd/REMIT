@@ -20,6 +20,9 @@ need a value.
 | Playwright deps | `@playwright/test ^1.60`, `@sparticuz/chromium ^149` (bundled Chromium for cloud) |
 | Issue tracking | GitHub Issues + a GitHub **Project** board — **Auto-add covers all new issues** (no label filter needed) |
 | Org issue fields | Set via `issue_write` → `issue_fields`: **Priority** (Urgent/High/Medium/Low) · **Effort** (High/Medium/Low) · **Start date** · **Target date** |
+| Walking skeleton | `app/` (no build step, ES modules under `app/js/`) — spec + evidence in `specs/002-walking-skeleton/` |
+| Skeleton scenario | AO "Kara Crossing" 28×18 @ 500 m · base (2,15) · OP-A (21,3) · window H+30..H+120 · dwell 45 min · band unit 20 min · seed 1337 · kernel `mock-0.1` |
+| e2e CI | `.github/workflows/e2e.yml` — Playwright suite on every PR / push to main |
 
 _Pages URLs resolve once GitHub Pages is enabled (served from `gh-pages`). Add
 anything else worth remembering (service URLs, IDs, constants) as it comes up._
