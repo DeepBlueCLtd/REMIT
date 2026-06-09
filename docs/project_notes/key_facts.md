@@ -5,10 +5,11 @@ need a value.
 
 | Fact | Value |
 |------|-------|
-| Pages site | `https://<user>.github.io/<repo>/` |
-| Live app | `…/app/` |
-| Blog | `…/blog/` |
-| PR previews | `…/pr-preview/pr-<n>/` |
+| Repo | `DeepBlueCLtd/REMIT` |
+| Pages site | `https://deepbluecltd.github.io/REMIT/` |
+| Live app | `https://deepbluecltd.github.io/REMIT/app/` |
+| Blog | `https://deepbluecltd.github.io/REMIT/blog/` |
+| PR previews | `https://deepbluecltd.github.io/REMIT/pr-preview/pr-<n>/` |
 | Default branch | `main` |
 | Deploy branch | `gh-pages` |
 | Deploy config | `pages.config.yml` |
@@ -17,6 +18,8 @@ need a value.
 | Active-feature override | `echo NNN-name > .specify/.active-feature` (gitignored, per-worktree; cloud sessions) |
 | e2e tests | `npm run test:e2e` (cloud wrapper) · `npm run test:e2e:local` (after `npm install`) |
 | Playwright deps | `@playwright/test ^1.60`, `@sparticuz/chromium ^149` (bundled Chromium for cloud) |
+| Issue tracking | GitHub Issues + a GitHub **Project** board with *Auto-add* enabled (record the Project URL here once known) |
+| Org issue fields | Set via `issue_write` → `issue_fields`: **Priority** (Urgent/High/Medium/Low) · **Effort** (High/Medium/Low) · **Start date** · **Target date** |
 
-_Replace the placeholder URLs above (`<user>`/`<repo>`) with this project's real
-values, and add anything else worth remembering (service URLs, IDs, constants)._
+_Pages URLs resolve once GitHub Pages is enabled (served from `gh-pages`). Add
+anything else worth remembering (service URLs, IDs, constants) as it comes up._
