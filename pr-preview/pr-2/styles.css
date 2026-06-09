@@ -41,6 +41,17 @@ input, select {
 }
 input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--accent); outline-offset: 1px; }
 
+/* ---- fault banner ---- */
+.fault {
+  margin: .6rem 1.1rem 0;
+  padding: .55em .9em;
+  border: 1px solid var(--bad);
+  border-radius: 8px;
+  background: rgba(255,123,114,.12);
+  color: var(--bad);
+  font-size: .9rem;
+}
+
 /* ---- top bar ---- */
 .topbar {
   display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
