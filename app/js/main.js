@@ -146,10 +146,17 @@ function showStage(key) {
   renderRail();
 }
 
+/** Surface a failure in the banner — nothing fails silently. */
+function showFault(msg) {
+  /** @type {any} */ (window).__remitFault?.(msg);
+}
+
 /**
  * Mark a stage done and unlock + mount the next — without leaving the current
- * panel, so the committing act's result stays on screen; the rail pulses the
- * next step instead.
+ * panel, so the committing act's result stays on screen. An explicit
+ * “Continue →” button lands in the completed panel (the rail pulse alone
+ * proved too subtle), and it is injected *before* the next stage mounts so a
+ * mount failure can never strand the user without a path or an error.
  */
 function advance(fromKey) {
   state.done.add(fromKey);
@@ -158,7 +165,24 @@ function advance(fromKey) {
   if (next) {
     state.unlocked.add(next.key);
     state.nextHint = next.key;
-    mountStage(next.key);
+    const body = panel(fromKey);
+    if (body && !body.querySelector('.continue-row')) {
+      const row = document.createElement('div');
+      row.className = 'row continue-row';
+      const btn = document.createElement('button');
+      btn.className = 'primary';
+      btn.dataset.testid = `continue-${next.key}`;
+      btn.textContent = `Continue → ${next.n} · ${next.label}`;
+      btn.addEventListener('click', () => showStage(next.key));
+      row.appendChild(btn);
+      body.appendChild(row);
+    }
+    try {
+      mountStage(next.key);
+    } catch (err) {
+      showFault(`mounting ${next.label}: ${err?.message ?? err}`);
+      console.error(err);
+    }
   }
   renderRail();
   refreshChips();
@@ -204,6 +228,9 @@ function mountStage(key) {
     }).then(() => {
       state.done.add('learn');
       renderRail();
+    }).catch((err) => {
+      showFault(`assembling the after-action record: ${err?.message ?? err}`);
+      console.error(err);
     });
   }
 }
@@ -333,7 +360,10 @@ function mountViews() {
   renderTimeline();
   playhead.set(0);
   renderProjection();
-  el.querySelector('#views-continue')?.addEventListener('click', () => advance('views'));
+  el.querySelector('#views-continue')?.addEventListener('click', () => {
+    advance('views');
+    showStage('execute');
+  });
 }
 
 function renderTimeline() {

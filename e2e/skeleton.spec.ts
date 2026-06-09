@@ -24,14 +24,14 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await shot(page, '01-capture');
 
   // --- 2 World: baseline + config core resolve and hash.
-  await page.getByTestId('rail-world').click();
+  await page.getByTestId('continue-world').click();
   await page.getByTestId('world-provision').click();
   await expect(page.getByTestId('world-baseid')).toBeVisible();
   await expect(page.locator('#world-result')).toContainText('config-core hash');
   await shot(page, '02-world');
 
   // --- 3 Plan: one stamped call → a handful of distinct banded plans.
-  await page.getByTestId('rail-plan').click();
+  await page.getByTestId('continue-plan').click();
   await page.getByTestId('plan-run').click();
   await expect(page.getByTestId('plan-stampid')).toBeVisible();
   await expect(page.locator('.plan-card')).toHaveCount(3);
@@ -41,7 +41,7 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await shot(page, '03-plan');
 
   // --- 4 Compare: guard passes, matrix shown, rationale committed.
-  await page.getByTestId('rail-compare').click();
+  await page.getByTestId('continue-compare').click();
   await expect(page.getByTestId('cmp-guard')).toContainText('✓');
   await expect(page.getByTestId('cmp-matrix').locator('tbody tr')).toHaveCount(3);
   await page.getByTestId('pick-direct').check();
@@ -50,7 +50,11 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await shot(page, '04-compare');
 
   // --- 5 Views: scrubbing the playhead moves the map ghost (NF1 projection).
-  await page.getByTestId('rail-views').click();
+  // (Rail navigation still works for unlocked stages — hop away and back.)
+  await page.getByTestId('rail-plan').click();
+  await expect(page.getByTestId('plan-card-direct')).toBeVisible();
+  await page.getByTestId('rail-compare').click();
+  await page.getByTestId('continue-views').click();
   const ghostAt = () => page.getByTestId('map').getAttribute('data-ghost');
   const g0 = await ghostAt();
   await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
@@ -59,10 +63,9 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   });
   await expect.poll(ghostAt).not.toBe(g0);
   await shot(page, '05-views');
-  await page.getByTestId('views-continue').click();
+  await page.getByTestId('views-continue').click();      // jumps straight to Execute
 
   // --- 6 Execute: playback, band-crossing alerts, manual observation, log.
-  await page.getByTestId('rail-execute').click();
   await page.getByTestId('wx-step10').click();           // τ=10, in transit
   await page.getByTestId('wx-delay').click();            // +25 → band drops
   await page.getByTestId('wx-delay').click();            // +50
@@ -84,7 +87,7 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await shot(page, '06-execute');
 
   // --- 7 Learn: after-action exists; replay from stamp is identical (NF3).
-  await page.getByTestId('rail-learn').click();
+  await page.getByTestId('continue-learn').click();
   await expect(page.getByTestId('aa-recon')).toBeVisible();
   await page.getByTestId('aa-replay').click();
   await expect(page.getByTestId('aa-replay-result')).toContainText('identical decision');
@@ -98,15 +101,16 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await expect(page.getByTestId('seam-list')).toContainText('/plan/handful');
   await shot(page, '08-substrate');
 
+  await expect(page.locator('#fault')).toBeHidden(); // no silent (or loud) faults
   expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([]);
 });
 
 test('same stamp, same decision — re-issuing the identical request reproduces the ids (NF3)', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('cap-commit').click();
-  await page.getByTestId('rail-world').click();
+  await page.getByTestId('continue-world').click();
   await page.getByTestId('world-provision').click();
-  await page.getByTestId('rail-plan').click();
+  await page.getByTestId('continue-plan').click();
   await page.getByTestId('plan-run').click();
   await expect(page.locator('.plan-card')).toHaveCount(3);
 

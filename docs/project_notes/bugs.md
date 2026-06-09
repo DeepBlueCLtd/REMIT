@@ -91,7 +91,24 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
   enabled (no `.nojekyll`) if any page needs rendering; for project sites always set
   `baseurl`, and *derive* it rather than hardcode so the template stays portable.
 
-## 2026-06-09 — Cloud Playwright wrapper ran in "local" mode (env var spelling)
+## 2026-06-09 — Maintainer stuck at Plan stage (progression affordance + silent-failure risk)
+
+- **Symptom:** in the deployed PR preview, the maintainer could not progress past
+  the Plan stage, while the e2e suite (and the same suite pointed at the live
+  preview URL) passed the identical path.
+- **Root cause(s):** progression relied solely on the pulsing next-stage chip in
+  the left rail — easy to miss; and the app had no global error surface, so any
+  browser-specific exception (e.g. during the next stage's mount) would strand
+  the rail in its locked state with no message at all.
+- **Fix:** (1) explicit "Continue → next stage" button injected into each panel
+  at the moment its committing act completes — and injected *before* the next
+  stage mounts; (2) inline ES5-safe fault banner wired to `window.onerror` +
+  `unhandledrejection` (works even if the ES modules fail to load); (3)
+  `mountStage` guarded so a mount failure shows in the banner and still
+  re-renders the rail; (4) replaced the one `Array.at(-1)` (Safari <15.4).
+- **Prevention:** e2e now walks the same continue-button path a person uses and
+  asserts the fault banner stays hidden; any future stuck report should come
+  with the banner's text rather than a mystery.
 
 - **Symptom:** `npm run test:e2e` in a Claude Code cloud session failed with
   "Executable doesn't exist at /opt/pw-browsers/…" — Playwright tried its own

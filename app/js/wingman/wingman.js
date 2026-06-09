@@ -20,7 +20,8 @@ import { assess, stateAt } from '../kernel/kernel.js';
  */
 export function mountWingman(el, ctx) {
   const { plan, commitment, bandUnit, missionId } = ctx;
-  const visitEnd = plan.materialisation.schedule.at(-1).end_min;
+  const sched = plan.materialisation.schedule;
+  const visitEnd = sched[sched.length - 1].end_min;
 
   const exec = {
     simT: 0,
