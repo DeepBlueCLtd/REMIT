@@ -1,0 +1,75 @@
+# 002 — Walking skeleton (DEC-44)
+
+**Status:** implemented · **Source of truth:** `docs/remit-register.md` DEC-44 (scope),
+`docs/remit-build-plan.md` §4 (exit criteria), `docs/remit-architecture.md` §5 (module
+boundaries), `docs/remit-seam-contract.md` (interface), `docs/remit-data-model.md` (shapes).
+
+> Authored directly (no spec-kit run, by maintainer request): the register **is** the
+> spec for this build; this file records scope, exit-criteria evidence, and the local
+> deviations to reconcile at the skeleton gate (DEC-47).
+
+## Scope (DEC-44, verbatim intent)
+
+Spine end-to-end with trivial stubs — single user · land · vehicle:
+
+| Stage | Stub | Where |
+|---|---|---|
+| Capture | one `visit` activity, one hard commitment, scripted echo-back (DEC-17) | `app/js/capture/` |
+| World | single synthetic baseline, one channel, small static grid (28×18 < DEC-28) | `app/js/kernel/world.js` |
+| Plan | mock kernel: real A* paths + canned/banded scores (honest non-planner, NF9) | `app/js/kernel/` |
+| Compare | tiny A2 matrix + selection rationale (DEC-23) | `app/js/compare/` |
+| Views | timeline + map, shared playhead (NF1: views project, never re-derive) | `app/js/views/` |
+| Execute | simulated playback, one margin band, alert iff crossed, manual observation | `app/js/wingman/` |
+| Learn | execution log → after-action record; perfect replay from stamp (NF3) | `app/js/learn/` |
+
+Cross-cutting (threaded per step, DEC-44 choice B): content-addressed object store
+(DEC-35), stamp on plan (DEC-29), in-browser mock seam endpoints (DEC-39/41/42),
+config-core hash as a stamp axis (DEC-48), append-only log store.
+
+## Exit criteria → evidence
+
+Each build-plan §4 exit criterion is asserted by `e2e/skeleton.spec.ts` and captured in
+`evidence/screenshots/`:
+
+1. **Capture** — committed `visit` is content-addressed, committed via echo-back,
+   retrievable by id (round-trip ✓). `01-capture.png`
+2. **World** — baseline + profile resolve to a searchable grid; config core canonicalises
+   and hashes. `02-world.png`
+3. **Plan** — one stamped call yields a handful of 3 distinct banded plans; same stamp →
+   same ids across a full page reload (NF3, decision-level). `03-plan.png`
+4. **Compare** — comparability guard passes; one plan selected; rationale committed (NF2).
+   `04-compare.png`
+5. **Views** — timeline + map render the kernel's materialisation; scrubbing the playhead
+   moves the map ghost (shown = optimised). `05-views.png`
+6. **Execute** — playback against the live requirement; obstruction injections cross the
+   margin band → alerts (E3); manual observation appends (E5). `06-execute.png`
+7. **Learn** — after-action (log + rationale + stamp) read back entirely over the seam;
+   replay from stamp reproduces identical plan ids. `07-learn.png`
+8. **Substrate** — store inspector + seam traffic drawers make the contract visible.
+   `08-substrate.png`
+
+## Local deviations & build discoveries (hold for the gate, DEC-47)
+
+1. **No-build ES modules instead of TypeScript** (vs DEC-41 "v1 = TypeScript in-browser").
+   The deploy pipeline's contract here is *no build step* (`pages.config.yml`,
+   ADR-0001/0005); modules are `// @ts-check` + JSDoc typed instead. The seam/data-shape
+   discipline is unaffected. Revisit when the LinkML-generated TS types land (DEC-57).
+2. **Stamp lacks a profile/start-state axis** (data-model §6). Plans depend on the
+   profile and start state, so identical stamps with different profiles would violate
+   NF3. The skeleton stamp adds `profile_version` + `start{x,y,clock_min}`. Candidate
+   register amendment.
+3. **Plan identity needs a within-handful discriminator.** `Plan.id = hash(Stamp)`
+   (DEC-29) collides across the handful that one stamp legitimately produces. Skeleton
+   uses `id = hash({stamp, strategy})`. Candidate register clarification.
+4. **Band widths**: unit derives from channel confidence via a lookup
+   (high→20 min) — structurally NF10, but the mapping itself is mock calibration;
+   the DEC-46 band-calibration test remains real-kernel work.
+5. **Robustness bands are canned per strategy** (single baseline, no sampling) and the
+   store's object ids for `Plan` records cover the materialisation cache, while the
+   decision identity remains `plan.id` (stamp ⊕ strategy) — both labelled in-app (NF9).
+
+## Out of scope (per DEC-44)
+
+Steering gestures, excursions, providers, Sync Matrix/entities, multi-channel worlds,
+waiting-as-a-move beyond the trivial hold leg, any real planning quality. First
+post-skeleton slices are DEC-54 (mudflat + entity/Sync-Matrix).

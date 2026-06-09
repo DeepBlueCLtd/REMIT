@@ -13,4 +13,6 @@ evidence (e.g. `specs/<feature>/evidence/`).
 
 | 2026-06-08 | `claude/vigilant-planck-5gxf1s` | Install + customise spec-kit: 3-tier active-feature resolution (`active-feature.sh` + fenced `common.sh` hunks) and blog generation (`blog-scaffold.sh` + plan/implement skill hooks); add Playwright `package.json` (wire-up). | ADR-0004 |
 
+| 2026-06-09 | PR #2 | DEC-44 walking skeleton: full seven-stage lap (capture → learn) as a no-build in-browser app — content-addressed store, mock seam, A*-backed mock kernel, banded compare, synced views, wingman playback, NF3 replay; e2e suite + evidence; blog post. Also: concept doc rename, Playwright cloud-wrapper fixes (CLAUDECODE env, @sparticuz API). | `specs/002-walking-skeleton/` · [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
+
 <!-- Add new rows above as work completes. -->

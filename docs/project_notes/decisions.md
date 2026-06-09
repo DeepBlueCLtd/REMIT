@@ -86,4 +86,23 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   (`.specify/.active-feature`, `.specify/feature.json`). The blog *publisher*
   (`deploy.yml`) is unchanged — it already consumes `specs/*/blog/`.
 
+## ADR-0005 (2026-06-09) — Walking skeleton ships as no-build ES modules (JSDoc-typed), not TypeScript
+
+- **Context:** REMIT's register says the v1 kernel is "TypeScript in-browser mock"
+  (DEC-41), but this repo's deploy/preview pipeline contract is a **no-build static
+  app** (`pages.config.yml` `build_command: ""`, `dist_dir: app`) — the PR preview
+  publishes `app/` verbatim. Introducing a bundler for the skeleton would couple the
+  one thing the maintainer reviews (the live PR demo) to new build machinery.
+- **Decision:** implement the DEC-44 walking skeleton as plain ES modules under
+  `app/js/`, typed with `// @ts-check` + JSDoc. No build step; the preview pipeline
+  stays untouched.
+- **Options considered:** (a) TS + esbuild/vite via `pages.config.yml` build_command —
+  faithful to DEC-41's letter but adds CI/build risk to every preview; (b) TS compiled
+  output committed — generated code in review diffs; (c) JSDoc-typed ES modules — keeps
+  the deployment contract, loses strict TS syntax. Chosen: (c).
+- **Consequences:** type discipline is advisory (ts-check) rather than enforced;
+  recorded as a DEC-47 local deviation in `specs/002-walking-skeleton/spec.md` to
+  reconcile at the skeleton gate — natural revisit point is DEC-57's LinkML-generated
+  TypeScript types, which would justify standing up a real TS build.
+
 <!-- Add new ADRs above this line. -->

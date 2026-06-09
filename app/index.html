@@ -3,51 +3,94 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Repo Template Demo</title>
-  <style>
-    :root { color-scheme: light dark; }
-    body { margin: 0; font: 16px/1.6 system-ui, -apple-system, sans-serif;
-           display: grid; place-items: center; min-height: 100vh;
-           background: linear-gradient(135deg, #0d1117, #1b2735); color: #e6edf3; }
-    .card { max-width: 34rem; padding: 2.5rem; border-radius: 16px;
-            background: rgba(255,255,255,.06); box-shadow: 0 10px 40px rgba(0,0,0,.4);
-            text-align: center; }
-    h1 { margin: .2em 0; font-size: 1.9rem; }
-    p { opacity: .85; }
-    code { background: rgba(255,255,255,.1); padding: .1em .4em; border-radius: 6px; }
-    .count { font-size: 2.4rem; font-weight: 700; margin: .3em 0; color: #7ee787; }
-    button { font: inherit; padding: .6em 1.3em; border: 0; border-radius: 10px;
-             cursor: pointer; background: #2f81f7; color: #fff; }
-    button:hover { background: #4493f8; }
-    nav { margin-top: 1.6rem; font-size: .95rem; }
-    nav a { color: #7ee787; text-decoration: none; margin: 0 .6em; }
-  </style>
+  <title>REMIT — walking skeleton</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="card">
-    <h1>🚀 Repo Template Demo</h1>
-    <p>This placeholder app is published to <code>/app/</code> by the config-driven
-       Pages deploy. Swap it for your real app and point <code>pages.config.yml</code>
-       at the build output.</p>
-    <div class="count" id="count">0</div>
-    <button id="bump">Click me</button>
-    <nav>
-      <a id="nav-landing" href="../">&larr; Landing</a>
-      <a id="nav-blog" href="../blog/">Blog &rarr;</a>
+  <header class="topbar">
+    <div class="brand">
+      <h1>REMIT</h1>
+      <span class="subtitle">walking skeleton — one thin lap of the spine (DEC-44)</span>
+    </div>
+    <div id="chips" class="chips"></div>
+    <nav class="topnav">
+      <a id="nav-landing" href="../">Landing</a>
+      <a id="nav-blog" href="../blog/">Blog</a>
     </nav>
-  </main>
-  <script>
-    const el = document.getElementById('count');
-    let n = 0;
-    document.getElementById('bump').addEventListener('click', () => { el.textContent = ++n; });
+  </header>
 
-    // Resolve the Pages site root from the URL so the nav works at any mount depth
-    // (/<base>/app/ in production, /<base>/pr-preview/pr-N/ in previews) with nothing
-    // hardcoded — keeping the template portable across repo names, root sites, and
-    // custom domains. In a preview these resolve to the live hosted pages.
-    const root = location.pathname.replace(/(?:app|pr-preview\/pr-\d+)\/(?:index\.html)?$/, '');
-    document.getElementById('nav-landing').href = root;
-    document.getElementById('nav-blog').href = root + 'blog/';
-  </script>
+  <main class="layout">
+    <nav id="rail" class="rail" aria-label="Lifecycle stages"></nav>
+
+    <div class="panels">
+      <section class="stage-panel active" data-panel="capture">
+        <h2>1 · Capture <span class="hat-chip">command hat</span></h2>
+        <div class="panel-body"></div>
+      </section>
+      <section class="stage-panel" data-panel="world">
+        <h2>2 · World <span class="hat-chip">provisioning</span></h2>
+        <div class="panel-body"></div>
+      </section>
+      <section class="stage-panel" data-panel="plan">
+        <h2>3 · Plan <span class="hat-chip">implementer hat</span></h2>
+        <div class="panel-body"></div>
+      </section>
+      <section class="stage-panel" data-panel="compare">
+        <h2>4 · Compare &amp; decide <span class="hat-chip">implementer hat</span></h2>
+        <div class="panel-body"></div>
+      </section>
+      <section class="stage-panel" data-panel="views">
+        <h2>5 · Views <span class="hat-chip">all hats</span></h2>
+        <div class="panel-body"></div>
+      </section>
+      <section class="stage-panel" data-panel="execute">
+        <h2>6 · Execute <span class="hat-chip">operator hat</span></h2>
+        <div class="panel-body"></div>
+      </section>
+      <section class="stage-panel" data-panel="learn">
+        <h2>7 · Learn <span class="hat-chip">all hats</span></h2>
+        <div class="panel-body"></div>
+      </section>
+    </div>
+
+    <aside class="projection">
+      <h2 class="proj-title">Plan-in-its-world <span class="muted">— synchronised projections</span></h2>
+      <canvas id="map" data-testid="map" aria-label="AO map"></canvas>
+      <div id="timeline-host" class="timeline-host"></div>
+      <div class="playhead-row">
+        <label for="playhead-slider" class="muted">playhead</label>
+        <input id="playhead-slider" data-testid="playhead" type="range" min="0" max="180" step="1" value="0">
+      </div>
+      <div id="projection-readout" class="readout-line">
+        <span class="muted">world not provisioned yet</span>
+      </div>
+      <div class="legend">
+        <span><i style="background:#565b66"></i>road</span>
+        <span><i style="background:#5d5142"></i>track</span>
+        <span><i style="background:#2e3a2a"></i>open</span>
+        <span><i style="background:#41402d"></i>rough</span>
+        <span><i style="background:#1c3323"></i>forest</span>
+        <span><i style="background:#27383a"></i>marsh</span>
+        <span><i style="background:#173550"></i>river</span>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    <details>
+      <summary>Object store <span class="pill" id="store-count">0</span>
+        <span class="muted">immutable · content-addressed (DEC-35)</span></summary>
+      <ul id="store-list" class="drawer-list" data-testid="store-list"></ul>
+    </details>
+    <details>
+      <summary>Seam traffic <span class="pill" id="seam-count">0</span>
+        <span class="muted">the REST contract the client speaks (DEC-39/42)</span></summary>
+      <ul id="seam-list" class="drawer-list" data-testid="seam-list"></ul>
+    </details>
+    <p class="honesty">Demo honesty (NF9 / DEC-41): this walking skeleton illustrates flow and UX on a
+      mock kernel — real A* paths, illustrative scores. It does not validate planner quality.</p>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

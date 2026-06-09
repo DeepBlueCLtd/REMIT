@@ -5,7 +5,7 @@
 # files under .github/workflows/.
 
 # Human-readable app name (used in logs / the landing page).
-app_name: "Repo Template Demo"
+app_name: "REMIT walking skeleton"
 
 # Command that builds your app into `dist_dir`. Leave blank ("") for a static app
 # that needs no build step. Examples:

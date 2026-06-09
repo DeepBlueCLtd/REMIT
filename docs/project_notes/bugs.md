@@ -91,4 +91,29 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
   enabled (no `.nojekyll`) if any page needs rendering; for project sites always set
   `baseurl`, and *derive* it rather than hardcode so the template stays portable.
 
+## 2026-06-09 — Cloud Playwright wrapper ran in "local" mode (env var spelling)
+
+- **Symptom:** `npm run test:e2e` in a Claude Code cloud session failed with
+  "Executable doesn't exist at /opt/pw-browsers/…" — Playwright tried its own
+  managed browser instead of the bundled one.
+- **Root cause:** the session exports `CLAUDECODE=1` (no underscore), but
+  `run-playwright.mjs` only checked `CLAUDE_CODE`, so `isCloud` was false and the
+  `@sparticuz/chromium` path was never used.
+- **Fix:** the wrapper now accepts either spelling (`CLAUDE_CODE` or `CLAUDECODE`).
+- **Prevention:** when gating on environment detection, log the decision
+  (`[run-playwright] cloud=…` already does) and check it first when browser
+  launch fails in cloud.
+
+## 2026-06-09 — @sparticuz/chromium `executablePath('/tmp/chromium')` throws (API drift)
+
+- **Symptom:** wrapper failed with `The input directory "/tmp/chromium" does not
+  exist` from `@sparticuz/chromium`.
+- **Root cause:** in current versions (v121+), `executablePath(input)` treats the
+  argument as the *source* location of the brotli pack, not the extraction target.
+  The template called it with the intended destination.
+- **Fix:** call `chromium.executablePath()` with no argument — it extracts the
+  bundled pack itself and returns `/tmp/chromium`.
+- **Prevention:** treat the wrapper as version-coupled to `@sparticuz/chromium`;
+  re-check its README on dependency bumps.
+
 <!-- Add new entries above this line. -->

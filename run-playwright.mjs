@@ -13,7 +13,10 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const isCloud = process.env.CLAUDE_CODE === '1' || process.env.CLAUDE_CODE === 'true';
+// Cloud sessions export CLAUDECODE=1 (no underscore); accept the documented
+// CLAUDE_CODE spelling too so either works.
+const isCloud = ['1', 'true'].includes(process.env.CLAUDE_CODE ?? '')
+  || ['1', 'true'].includes(process.env.CLAUDECODE ?? '');
 
 // --- Configure these for your app ------------------------------------------------
 const SERVER_CMD = process.env.SERVER_CMD || 'npx --yes http-server app -p 4173 -s';
@@ -23,8 +26,10 @@ const SERVER_URL = process.env.SERVER_URL || 'http://127.0.0.1:4173';
 async function resolveChromiumPath() {
   if (!isCloud) return undefined; // local: Playwright uses its own managed browser
   const chromium = (await import('@sparticuz/chromium')).default;
-  // Extract the bundled binary to a stable location and return its path.
-  return chromium.executablePath('/tmp/chromium');
+  // Extract the bundled binary and return its path (/tmp/chromium). Note the
+  // no-arg call: in @sparticuz/chromium ≥ v121 an argument names a *source*
+  // pack location, not the extraction target.
+  return chromium.executablePath();
 }
 
 async function waitForServer(url, timeoutMs = 30000) {
