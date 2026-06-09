@@ -3,7 +3,10 @@
 // criteria (remit-build-plan.md §4).
 import { test, expect, Page } from '@playwright/test';
 
-const EVIDENCE = 'specs/002-walking-skeleton/evidence/screenshots';
+// Evidence screenshots default to the committed spec evidence folder; point
+// EVIDENCE_DIR elsewhere for ad-hoc verification runs (e.g. against the live
+// deployed preview) so the canonical evidence isn't churned.
+const EVIDENCE = process.env.EVIDENCE_DIR || 'specs/002-walking-skeleton/evidence/screenshots';
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: `${EVIDENCE}/${name}.png`, fullPage: true });
 
