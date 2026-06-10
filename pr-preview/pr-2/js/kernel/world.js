@@ -12,7 +12,9 @@ export const GRID_W = 28;
 export const GRID_H = 18;
 export const CELL_M = 500;
 
-/** Per-terrain attributes: mobility = speed factor (0 = impassable), cover 0..1. */
+/** Per-terrain attributes: mobility = speed factor (0 = impassable), cover 0..1.
+ *  `ford` is tidal: passable at this mobility only inside the low-tide window
+ *  (see TIDE below); outside it the kernel treats it as water. */
 export const TERRAIN = {
   road:   { mobility: 1.0,  cover: 0.05, color: '#565b66' },
   track:  { mobility: 0.85, cover: 0.15, color: '#5d5142' },
@@ -20,13 +22,15 @@ export const TERRAIN = {
   rough:  { mobility: 0.55, cover: 0.4,  color: '#41402d' },
   forest: { mobility: 0.35, cover: 0.9,  color: '#1c3323' },
   marsh:  { mobility: 0.25, cover: 0.2,  color: '#27383a' },
+  ford:   { mobility: 0.55, cover: 0.1,  color: '#7a6a45' },
   water:  { mobility: 0,    cover: 0,    color: '#173550' },
 };
 
 /** Named cells the demo uses. */
 export const PLACES = {
   base:    { x: 2,  y: 15, name: 'Patrol base SPARROW' },
-  bridge:  { x: 23, y: 5,  name: 'K-7 bridge' },
+  bridge:  { x: 23, y: 5,  name: 'K-7 ford (tidal)' },
+  k9:      { x: 23, y: 15, name: 'K-9 bridge (southern highway)' },
   rvEast:  { x: 27, y: 8,  name: 'RV EAST (east bank, beyond K-7)' },
   ops: [
     { key: 'OP-A', x: 21, y: 3, name: 'OP-A — treeline overlooking K-7 bridge' },
@@ -61,8 +65,49 @@ function buildTerrain() {
   rect(23, 0, 24, 17, 'water');         // river Kara
   for (let x = 0; x <= 27; x++) set(x, 15, 'road');   // southern highway (+ K-9 bridge)
   for (let y = 5; y <= 14; y++) set(22, y, 'track');  // riverside track north
-  set(23, 5, 'road'); set(24, 5, 'road');             // K-7 bridge
+  set(23, 5, 'ford'); set(24, 5, 'ford');             // K-7 tidal ford
   return cells;
+}
+
+// ---------------------------------------------------------------------------
+// Tide (increment A): the K-7 crossing is a ford, wadeable only within ±3 h of
+// low tide. Deterministic semidiurnal model — a parametric channel, so the
+// open/close times are forecastable changepoints, not surprises.
+
+/** Tide channel parameters (minutes on the mission clock). */
+export const TIDE = {
+  period_min: 745,            // semidiurnal: 12 h 25 min between low tides
+  low_tide_min: 268,          // first low tide after H-hour
+  open_half_width_min: 180,   // ford passable within ±3 h of low tide
+};
+
+/** Is the ford wadeable at mission-minute t? */
+export function fordOpenAt(t, tide = TIDE) {
+  const ph = ((t - tide.low_tide_min) % tide.period_min + tide.period_min) % tide.period_min;
+  return ph <= tide.open_half_width_min || ph >= tide.period_min - tide.open_half_width_min;
+}
+
+/** Earliest minute ≥ t at which the ford is wadeable (t itself if open now). */
+export function nextFordOpen(t, tide = TIDE) {
+  if (fordOpenAt(t, tide)) return t;
+  const ph = ((t - tide.low_tide_min) % tide.period_min + tide.period_min) % tide.period_min;
+  return t + (tide.period_min - tide.open_half_width_min - ph);
+}
+
+/** Ford open/close transitions in [t0, t1] — the baseline's forecast changepoints. */
+export function fordTransitions(t0, t1, tide = TIDE) {
+  const out = [];
+  // Walk low tides around the interval; each contributes an open and a close edge.
+  const k0 = Math.floor((t0 - tide.low_tide_min) / tide.period_min) - 1;
+  for (let k = k0; ; k++) {
+    const low = tide.low_tide_min + k * tide.period_min;
+    const open = low - tide.open_half_width_min;
+    const close = low + tide.open_half_width_min;
+    if (open > t1) break;
+    if (open >= t0) out.push({ at_min: open, channel: 'tide', change: 'K-7 ford opens (low-tide window)' });
+    if (close >= t0 && close <= t1) out.push({ at_min: close, channel: 'tide', change: 'K-7 ford closes (tide making)' });
+  }
+  return out;
 }
 
 /** One world build, shared by the app. */
@@ -74,10 +119,11 @@ export function buildWorld() {
     cover: TERRAIN[kind].cover,
   }));
 
-  /** Baseline — data-model §4: single synthetic baseline, one channel. */
+  /** Baseline — data-model §4: single synthetic baseline, two channels
+   *  (static mobility raster + parametric periodic tide). */
   const baseline = {
     name: 'SYNTH-AO-1 “Kara Crossing”',
-    version: 1,
+    version: 2,
     medium: {
       domain: 'land',
       grid: { w: GRID_W, h: GRID_H, cell_m: CELL_M },
@@ -92,9 +138,18 @@ export function buildWorld() {
       freshness: 'provisioned',
       sampling_step_min: 60,
       predictability: 'static',
+    }, {
+      id: 'tide',
+      domain_type: 'water_level',
+      realisation: 'parametric',
+      confidence: 'high',
+      freshness: 'provisioned',
+      sampling_step_min: 15,
+      predictability: 'periodic',
+      params: { ...TIDE, applies_to: 'ford' },
     }],
     facts: { observations: [] },
-    forecast_changepoints: [],
+    forecast_changepoints: fordTransitions(0, 24 * 60),
     lineage: {},
   };
 
@@ -122,7 +177,7 @@ export function buildWorld() {
   const configCore = {
     medium: 'land',
     grid: { w: GRID_W, h: GRID_H, cell_m: CELL_M },
-    channels: ['mobility'],
+    channels: ['mobility', 'tide'],
     movement_model: { realisation: 'parametric', type: 'speed-factor', params: { diagonal: 'sqrt2' } },
     providers: [],
     vocabulary: ['visit'],

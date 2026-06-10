@@ -60,9 +60,9 @@ export function mountCapture(el, ctx) {
     </div>
     <div class="command-fixed">
       <strong>Command-fixed task (second commitment):</strong> on completion of the
-      observation, <b>exfiltrate east across the K-7 bridge</b> to ${PLACES.rvEast.name}
+      observation, <b>exfiltrate east across the K-7 tidal ford</b> to ${PLACES.rvEast.name}
       (cell ${PLACES.rvEast.x},${PLACES.rvEast.y}), not later than H+${EXFIL_DEADLINE_MIN} min.
-      Criticality HARD. <span class="muted">(The recce clears the bridge; the team then uses it.)</span>
+      Criticality HARD. <span class="muted">(The recce confirms the ford; the team then wades it at low water.)</span>
     </div>
     <div class="echo-back card" id="cap-echo" data-testid="cap-echo"></div>
     <div class="row">
@@ -79,7 +79,7 @@ export function mountCapture(el, ctx) {
     return `ROVER-1 will VISIT ${op.name} (cell ${op.x},${op.y}), arriving not before `
       + `H+${slots.window_start.value} min and departing not later than H+${slots.window_end.value} min, `
       + `holding observation for at least ${slots.duration_min.value} min. `
-      + `Then EXFILTRATE east across the K-7 bridge to ${PLACES.rvEast.name} `
+      + `Then EXFILTRATE east across the K-7 tidal ford to ${PLACES.rvEast.name} `
       + `(cell ${PLACES.rvEast.x},${PLACES.rvEast.y}) not later than H+${EXFIL_DEADLINE_MIN} min. `
       + `Both commitments HARD — inviolable (command-issued).`;
   };
@@ -146,14 +146,14 @@ export function mountCapture(el, ctx) {
       provenance: {
         issuing_role: 'command', authority: AUTHOR, owner: AUTHOR,
         waiver_authority: 'command',
-        rationale: 'Exfiltrate east across K-7 once the bridge is confirmed clear by the recce.',
+        rationale: 'Exfiltrate east across K-7 once the ford is confirmed viable by the recce.',
       },
       capture: { answers: [], echo_back: 'Exfil E across K-7 to RV EAST.', ambiguities: [] },
       state: 'committed',
     };
     const requirement = {
       version: 1,
-      intent: 'Observe the K-7 bridge, confirm crossing viability, then exfiltrate east across it.',
+      intent: 'Observe the K-7 tidal ford, confirm crossing viability, then exfiltrate east across it.',
       provenance: { issuing_role: 'command', authority: AUTHOR, at },
       commitments: [commitment, exfil],
       lineage: {},

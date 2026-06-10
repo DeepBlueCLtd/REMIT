@@ -177,6 +177,7 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 /* plan cards */
 .plan-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .7rem; margin-top: .8rem; }
 .plan-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .8rem; display: grid; gap: .3rem; }
+.tide-note { color: #7ec8e3; font-size: .82rem; }
 
 /* compare matrix */
 .matrix { border-collapse: collapse; width: 100%; margin: .8rem 0; font-size: .88rem; }

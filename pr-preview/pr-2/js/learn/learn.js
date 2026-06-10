@@ -31,7 +31,7 @@ export async function mountLearn(el, ctx) {
   const rationale = ratRes.body;
   const plan = ctx.selectedPlan;
   const plannedArrival = plan.materialisation.schedule[0].end_min;
-  const plannedRv = plan.materialisation.schedule.find((s) => s.kind === 'exfil')?.end_min;
+  const plannedRv = plan.materialisation.schedule.findLast((s) => s.kind === 'exfil')?.end_min;
   const obsSat = plan.scores.satisfaction.find((s) => s.label === 'Observe OP');
   const exfSat = plan.scores.satisfaction.find((s) => s.label === 'Exfil E');
 

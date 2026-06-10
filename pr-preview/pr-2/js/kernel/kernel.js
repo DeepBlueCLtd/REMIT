@@ -13,7 +13,7 @@
 // else re-derives position, margin or verdict.
 
 import { findPath } from './astar.js';
-import { bandUnitFor, CELL_M } from './world.js';
+import { bandUnitFor, CELL_M, fordOpenAt, nextFordOpen } from './world.js';
 import { contentId } from '../shapes/canonical.js';
 
 export const KERNEL_VERSION = 'mock-0.1';
@@ -60,6 +60,102 @@ export function bandFor(slackMin, unit) {
   if (slackMin >= 2 * unit) return 'robust';
   if (slackMin >= unit) return 'marginal';
   return 'tight';
+}
+
+// ---------------------------------------------------------------------------
+// Tidal ford (increment A): the K-7 crossing is passable only inside the
+// low-tide window, so an exfil leg that uses it is TIME-DEPENDENT. Rather than
+// a full time-expanded search, the kernel weighs the two real alternatives —
+// wait at the bank for the window, or detour via the K-9 bridge — and commits
+// to whichever reaches the RV earlier. Both candidates are materialised with
+// the real movement model, so the weighing is honest (NF9: real-but-trivial).
+
+const isFord = (cells, idx) => cells[idx].terrain === 'ford';
+
+/**
+ * Materialise one exfil path with tide-aware timing: stepping INTO a ford cell
+ * outside the low-tide window means holding at the bank until it opens.
+ * Pure — returns points/legs to splice, does not mutate.
+ */
+function materialiseExfil(cells, grid, profile, path, t0, fuel0, suffix = '') {
+  let t = t0, fuel = fuel0, waitMin = 0, bankMin = null, openMin = null, viaFord = false;
+  const points = [];
+  for (let i = 1; i < path.length; i++) {
+    const from = path[i - 1].y * grid.w + path[i - 1].x;
+    const to = path[i].y * grid.w + path[i].x;
+    if (isFord(cells, to)) {
+      viaFord = true;
+      if (!fordOpenAt(t)) {                    // hold at the bank for the window
+        const w = nextFordOpen(t);
+        bankMin = round1(t); openMin = round1(w); waitMin = round1(waitMin + (w - t));
+        points.push({ x: path[i - 1].x, y: path[i - 1].y, t: bankMin, fuel_pct: round1(fuel) });
+        points.push({ x: path[i - 1].x, y: path[i - 1].y, t: openMin, fuel_pct: round1(fuel) });
+        t = w;
+      }
+    }
+    const diag = path[i].x !== path[i - 1].x && path[i].y !== path[i - 1].y;
+    t += edgeMinutes(cells, profile, from, to, diag);
+    fuel -= (diag ? Math.SQRT2 : 1) * 0.35;
+    points.push({ x: path[i].x, y: path[i].y, t: round1(t), fuel_pct: round1(fuel) });
+  }
+  const end = round1(t);
+  const legs = [];
+  if (waitMin > 0) {
+    legs.push({ kind: 'exfil', label: `Exfil E · move to K-7 ford${suffix}`, start_min: t0, end_min: bankMin });
+    legs.push({ kind: 'hold', label: `Await low tide — ford opens H+${openMin}`, start_min: bankMin, end_min: openMin });
+    legs.push({ kind: 'exfil', label: `Exfil E · cross K-7 ford → RV${suffix}`, start_min: openMin, end_min: end });
+  } else {
+    const how = viaFord ? 'ford K-7 (tide open)' : 'via K-9 bridge';
+    legs.push({ kind: 'exfil', label: `Exfil E · ${how}${suffix}`, start_min: t0, end_min: end });
+  }
+  return { points, legs, end_min: end, fuel_end: round1(fuel), wait_min: waitMin, bank_min: bankMin, via_ford: viaFord };
+}
+
+/**
+ * Choose the exfil route from `from` to `rv` departing at `departMin`:
+ * the natural (search-optimal) path — waiting out the tide if it uses the
+ * ford while closed — versus the ford-free detour. Returns the materialised
+ * winner plus the weighing (`decision`), or null if no route exists at all.
+ * `cost` carries the caller's biases/no-gos; `hScale` its heuristic scale.
+ */
+export function chooseExfilRoute(cells, grid, profile, opts) {
+  const { from, rv, departMin, fuel0, cost, hScale, suffix = '', naturalPath = null } = opts;
+  const natural = naturalPath ?? findPath(grid, from, rv, cost, hScale);
+  if (!natural) return null;
+
+  const matNat = materialiseExfil(cells, grid, profile, natural, departMin, fuel0, suffix);
+  if (!matNat.via_ford) {
+    return { ...matNat, decision: {
+      mode: 'no-ford', wait_min: 0,
+      narrative: 'route avoids the tidal ford — via K-9 bridge (no tide exposure)',
+    } };
+  }
+
+  const noFordCost = (a, b, diag) =>
+    (isFord(cells, a) || isFord(cells, b)) ? Infinity : cost(a, b, diag);
+  const detour = findPath(grid, from, rv, noFordCost, hScale);
+  const matDet = detour ? materialiseExfil(cells, grid, profile, detour, departMin, fuel0, suffix) : null;
+  const detourExtra = matDet ? round1(matDet.end_min - (matNat.end_min - matNat.wait_min)) : null;
+
+  if (matNat.wait_min === 0) {
+    return { ...matNat, decision: {
+      mode: 'open', wait_min: 0, ford_rv: matNat.end_min, detour_rv: matDet?.end_min ?? null,
+      narrative: `K-7 ford open at the bank — cross now`
+        + (matDet ? ` (K-9 detour would arrive H+${matDet.end_min}, +${detourExtra} min)` : ''),
+    } };
+  }
+  if (!matDet || matNat.end_min <= matDet.end_min) {
+    return { ...matNat, decision: {
+      mode: 'wait', wait_min: matNat.wait_min, ford_rv: matNat.end_min, detour_rv: matDet?.end_min ?? null,
+      narrative: `K-7 ford closed at the bank (H+${matNat.bank_min}) — wait ${matNat.wait_min} min for low water`
+        + (matDet ? `; beats the K-9 detour (RV H+${matNat.end_min} vs H+${matDet.end_min}): WAIT` : ' (no ford-free detour exists): WAIT'),
+    } };
+  }
+  return { ...matDet, decision: {
+    mode: 'detour', wait_min: 0, ford_rv: matNat.end_min, detour_rv: matDet.end_min,
+    narrative: `K-7 ford closed until H+${round1(nextFordOpen(matNat.bank_min))}`
+      + ` — detour via K-9 (RV H+${matDet.end_min} vs H+${matNat.end_min} waiting): DETOUR`,
+  } };
 }
 
 /**
@@ -171,24 +267,27 @@ export async function planHandful(input) {
     });
 
     let rvArrival = null;
+    let tideDecision = null;
     if (rv && leg2) {
       // Position holds at the OP through hold+dwell; one trajectory point at the
       // OP at dwellEnd makes interpolation stand still, then the exfil leg runs.
       trajectory.push({ x: op.x, y: op.y, t: dwellEnd, fuel_pct: round1(fuel) });
-      t = dwellEnd;
-      advance(leg2);
-      rvArrival = round1(t);
-      schedule.push({
-        kind: 'exfil', label: 'Exfil E · cross K-7', commitment_id: exfilC.id,
-        start_min: dwellEnd, end_min: rvArrival,
+      // Exfil is time-dependent (tidal ford): weigh wait-for-tide vs K-9 detour.
+      const ex = chooseExfilRoute(cells, grid, profile, {
+        from: op, rv, departMin: dwellEnd, fuel0: fuel, cost, hScale, naturalPath: leg2,
       });
+      trajectory.push(...ex.points);
+      for (const leg of ex.legs) schedule.push({ ...leg, commitment_id: exfilC.id });
+      rvArrival = ex.end_min;
+      fuel = ex.fuel_end;
+      tideDecision = ex.decision;
     }
 
     plans.push(await finalisePlan(stamp, strat, {
       schedule, trajectory,
       state_curves: { fuel_end_pct: round1(fuel) },
       verified: true, kernel_version_verified: KERNEL_VERSION,
-    }, { visitC, exfilC, unit, latestOkArrival, arrival, exfilDeadline, rvArrival }));
+    }, { visitC, exfilC, unit, latestOkArrival, arrival, exfilDeadline, rvArrival, tideDecision }));
   }
 
   return { plans, kernel_version: KERNEL_VERSION };
@@ -240,6 +339,7 @@ async function finalisePlan(stamp, strat, materialisation, ctx) {
     stamp,
     materialisation,
     scores: { satisfaction, cost_band, robustness_band },
+    tide_decision: ctx.tideDecision ?? null,   // how the exfil weighed wait vs detour
     conflicts,
   };
 }
@@ -303,7 +403,7 @@ export function measuresAt(plan, t) {
   const st = stateAt(plan, t);
   const traj = m.trajectory;
   const visit = m.schedule.find((s) => s.kind === 'visit');
-  const exfil = m.schedule.find((s) => s.kind === 'exfil');
+  const exfil = m.schedule.findLast((s) => s.kind === 'exfil');   // RV arrival leg
 
   // Cumulative distance along the kernel's own trajectory, interpolating the
   // segment in progress.
@@ -318,7 +418,12 @@ export function measuresAt(plan, t) {
 
   let milestone;
   if (st.phase === 'transit') milestone = `OP in ${Math.round(Math.max(0, visit.start_min - t))} min`;
-  else if (st.phase === 'hold') milestone = 'holding — window not open';
+  else if (st.phase === 'hold') {
+    const leg = m.schedule.find((s) => s.kind === 'hold' && t >= s.start_min && t < s.end_min);
+    milestone = leg?.label?.includes('tide')
+      ? `awaiting low tide · ford opens in ${Math.round(Math.max(0, leg.end_min - t))} min`
+      : 'holding — window not open';
+  }
   else if (st.phase === 'visit') milestone = `observing · ${Math.round(Math.max(0, t - visit.start_min))} min`;
   else if (st.phase === 'exfil') milestone = `RV E in ${Math.round(Math.max(0, exfil.end_min - t))} min`;
   else milestone = exfil ? 'at RV East' : 'observation complete';
@@ -363,7 +468,9 @@ export function assess(plan, commitment, unit, delayMin = 0) {
  * @param {number} delayMin
  */
 export function assessExfil(plan, commitment, unit, delayMin = 0) {
-  const exfil = plan.materialisation?.schedule?.find((s) => s.kind === 'exfil');
+  // Last exfil leg: a tide wait splits exfil into move → hold → cross, and the
+  // RV arrival is the end of the final one.
+  const exfil = plan.materialisation?.schedule?.findLast((s) => s.kind === 'exfil');
   if (!exfil) return { projected_arrival: null, margin: -1, band: 'violated', verdict: 'violated' };
   const deadline = commitment.activity.when.before_min;
   const projected = round1(exfil.end_min + delayMin);
@@ -386,13 +493,15 @@ export function routeLeg(cells, grid, profile, from, to, blocked) {
 
 /**
  * Re-route the in-flight plan from the vehicle's current cell to the remaining
- * objective(s), avoiding `blocked`. Keeps everything already travelled (t < tau)
- * and splices a fresh, re-timed tail; mutates `plan.materialisation`. Returns
- * true, or false if the vehicle is blocked in (no route) — plan left unchanged.
+ * objective(s), avoiding `blocked`. Keeps everything already travelled (t < tau,
+ * with the in-progress leg truncated at tau) and splices a fresh, re-timed tail;
+ * exfil legs go through the same tide-aware wait-vs-detour chooser as planning.
+ * Mutates `plan.materialisation`. Returns true, or false if the vehicle is
+ * blocked in (no route) — plan left unchanged.
  * @returns {boolean}
  */
 export function rerouteExecution(plan, opts) {
-  const { cells, grid, profile, tau, blocked, opCell, rvCell, dwellMin, windowStart, startMin } = opts;
+  const { cells, grid, profile, tau, blocked, opCell, rvCell, dwellMin, windowStart } = opts;
   const m = plan.materialisation;
   const visit = m.schedule.find((s) => s.kind === 'visit');
   const exfilCid = m.schedule.find((s) => s.kind === 'exfil')?.commitment_id;
@@ -400,15 +509,9 @@ export function rerouteExecution(plan, opts) {
   const cur = stateAt(plan, tau);
   const curCell = { x: Math.round(cur.x), y: Math.round(cur.y) };
 
-  const targets = (reachedOP ? [rvCell] : [opCell, rvCell]).filter(Boolean);
-  const legs = [];
-  let prev = curCell;
-  for (const wp of targets) {
-    const path = routeLeg(cells, grid, profile, prev, wp, blocked);
-    if (!path) return false;                          // blocked in
-    legs.push(path);
-    prev = wp;
-  }
+  const cost = (a, b, diag) =>
+    (blocked.has(a) || blocked.has(b)) ? Infinity : edgeMinutes(cells, profile, a, b, diag);
+  const hScale = CELL_M / (profile.speed_by_medium.land_kph * 1000 / 60);
 
   let t = tau, fuel = cur.fuel_pct;
   const traj = m.trajectory.filter((p) => p.t < tau);
@@ -424,25 +527,39 @@ export function rerouteExecution(plan, opts) {
     }
   };
 
+  // Past legs survive verbatim; the in-progress one is truncated at tau.
   const schedule = [];
+  for (const leg of m.schedule) {
+    if (leg.end_min <= tau) schedule.push(leg);
+    else if (leg.start_min < tau) schedule.push({ ...leg, end_min: round1(tau) });
+  }
+
   if (!reachedOP) {
-    advance(legs[0]);                                 // current → OP
+    const toOP = routeLeg(cells, grid, profile, curCell, opCell, blocked);
+    if (!toOP) return false;                          // blocked in
+    advance(toOP);
     const arrival = round1(t);
-    schedule.push({ kind: 'transit', label: 'Transit to OP (re-routed)', start_min: startMin, end_min: arrival });
+    schedule.push({ kind: 'transit', label: 'Transit to OP (re-routed)', start_min: round1(tau), end_min: arrival });
     const visitStart = Math.max(arrival, windowStart);
     if (visitStart > arrival) schedule.push({ kind: 'hold', label: 'Hold (await window)', start_min: arrival, end_min: visitStart });
     const dwellEnd = round1(visitStart + dwellMin);
     schedule.push({ kind: 'visit', label: 'Observe OP', commitment_id: visit.commitment_id, start_min: visitStart, end_min: dwellEnd });
     traj.push({ x: opCell.x, y: opCell.y, t: dwellEnd, fuel_pct: round1(fuel) });
-    t = dwellEnd;
-    if (rvCell && legs[1]) {
-      advance(legs[1]);                               // OP → RV
-      schedule.push({ kind: 'exfil', label: 'Exfil E (re-routed)', commitment_id: exfilCid, start_min: dwellEnd, end_min: round1(t) });
+    if (rvCell) {
+      const ex = chooseExfilRoute(cells, grid, profile, {
+        from: opCell, rv: rvCell, departMin: dwellEnd, fuel0: fuel, cost, hScale, suffix: ' (re-routed)',
+      });
+      if (!ex) return false;                          // no way across at all
+      traj.push(...ex.points);
+      for (const leg of ex.legs) schedule.push({ ...leg, commitment_id: exfilCid });
     }
   } else {
-    for (const leg of m.schedule) if (leg.kind !== 'exfil') schedule.push(leg);
-    advance(legs[0]);                                 // current → RV
-    schedule.push({ kind: 'exfil', label: 'Exfil E (re-routed)', commitment_id: exfilCid, start_min: round1(tau), end_min: round1(t) });
+    const ex = chooseExfilRoute(cells, grid, profile, {
+      from: curCell, rv: rvCell, departMin: tau, fuel0: fuel, cost, hScale, suffix: ' (re-routed)',
+    });
+    if (!ex) return false;                            // blocked in
+    traj.push(...ex.points);
+    for (const leg of ex.legs) schedule.push({ ...leg, commitment_id: exfilCid });
   }
 
   m.trajectory = traj;
