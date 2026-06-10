@@ -50,6 +50,7 @@ const state = {
   steering: /** @type {any[]} */ ([]),   // operator no-go constraints (Plan)
   handful: /** @type {any[]} */ ([]),
   selectedPlan: /** @type {any} */ (null),
+  execPlan: /** @type {any} */ (null),   // live clone played back (and re-routed) in Execute
   execSummary: /** @type {any} */ (null),
   horizonMin: 180,
   lastPlanRequest: /** @type {any} */ (null),
@@ -67,6 +68,7 @@ let mapRv = null;
 let mapCandidates = null;   // candidate OPs shown on the map during Capture
 let mapHighlight = null;    // the OP currently picked in Capture (live)
 let mapObstructions = [];   // mid-mission obstruction markers (Execute)
+let mapBlocked = [];        // mid-mission blocked cells that forced a re-route (Execute)
 let mapNogo = [];           // operator no-go cells (Plan steering)
 let mapOnCellClick = null;  // active map-click handler (set by Plan in no-go mode)
 const timelineHost = /** @type {HTMLElement} */ (document.getElementById('timeline-host'));
@@ -80,7 +82,8 @@ let pausePlayback = null;
 
 function renderProjection() {
   if (!worldProvisioned) return;
-  const sel = state.selectedPlan;
+  // During/after execution the live (re-routable) plan is what's shown.
+  const sel = state.execPlan ?? state.selectedPlan;
   // The playhead is the single authority for "what time we're viewing": the map
   // ghost is the kernel's evaluator at that time (NF1). During execution the
   // wingman advances the playhead; the user can also scrub it to review.
@@ -88,7 +91,7 @@ function renderProjection() {
     plans: state.handful, selected: sel, t: playhead.t,
     target: mapTarget, rv: mapRv,
     candidates: mapCandidates, highlight: mapHighlight,
-    obstructions: mapObstructions, nogo: mapNogo,
+    obstructions: mapObstructions, nogo: mapNogo, blocked: mapBlocked,
   });
   const ghost = sel ? stateAt(sel, playhead.t) : null;
   if (sel && ghost) {
@@ -264,14 +267,20 @@ function mountStage(key) {
   }
   if (key === 'views') mountViews();
   if (key === 'execute') {
+    // The wingman plays back (and may re-route) a live clone, so the committed
+    // plan stays immutable.
+    state.execPlan = structuredClone(state.selectedPlan);
+    mapBlocked = [];
     const wm = mountWingman(panel('execute'), {
-      seam, missionId: MISSION_ID, plan: state.selectedPlan,
+      seam, missionId: MISSION_ID, plan: state.execPlan,
       commitment: state.requirement.commitments[0],
       exfilCommitment: state.requirement.commitments[1],
       bandUnit: state.bandUnit,
       playhead,
       resetLog: () => logs.reset(MISSION_ID),
+      world: { cells: world.baseline.cells, grid: world.baseline.medium.grid, profile: world.profile },
       onObstructions(list) { mapObstructions = list.slice(); renderProjection(); },
+      onBlocked(cells) { mapBlocked = cells; renderProjection(); },
       onComplete(summary) {
         state.execSummary = summary;
         advance('execute');

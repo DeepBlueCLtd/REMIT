@@ -270,6 +270,31 @@ test('execute: Restart resets the simulated run to H+0 with an empty log', async
   await expect(page.locator('#fault')).toBeHidden();
 });
 
+test('execute: +5 obstruction, and blocking the next cell re-routes in flight', async ({ page }) => {
+  await gotoExecute(page);
+  await page.getByTestId('wx-step10').click();           // τ=10, in transit
+
+  // +5 min obstruction (the smaller delay).
+  await page.getByTestId('wx-delay5').click();
+  await expect(page.getByTestId('wx-log')).toContainText('+5 min');
+
+  const cells = () => page.evaluate(() =>
+    (window as any).__remit.state.execPlan.materialisation.trajectory.map(
+      (p: any) => `${Math.round(p.x)},${Math.round(p.y)}`));
+  const before = await cells();
+
+  // Block the next cell → the wingman re-plans around it in flight.
+  await page.getByTestId('wx-block').click();
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-blocked')).not.toBe('');
+  const blocked = (await page.getByTestId('map').getAttribute('data-blocked'))!.split('|')[0];
+  const after = await cells();
+
+  expect(before).toContain(blocked);        // the blocked cell was on the original route
+  expect(after).not.toContain(blocked);     // the re-routed path avoids it
+  expect(after).not.toEqual(before);
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
 test('plan steering: a no-go on the K-7 bridge makes exfil infeasible (re-plan)', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('world-provision').click();
