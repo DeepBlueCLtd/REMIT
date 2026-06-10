@@ -15,6 +15,7 @@ const EXFIL_DEADLINE_MIN = 180;   // command-fixed: be across the river by H+180
 /**
  * @param {HTMLElement} el
  * @param {{seam: import('../seam/seam.js').SeamClient,
+ *          onPick?: (op: {x: number, y: number, key: string}) => void,
  *          onCommitted: (req: any, id: string) => void}} ctx
  */
 export function mountCapture(el, ctx) {
@@ -87,6 +88,7 @@ export function mountCapture(el, ctx) {
     audit.innerHTML = Object.entries(slots).map(([k, s]) =>
       `<span class="chip ${s.status}">${k}: <b>${s.value}</b> · ${s.status}</span>`).join(' ');
     echo.innerHTML = `<div class="echo-label">Echo-back (canonical contract text)</div>${echoText()}`;
+    ctx.onPick?.(opFor(slots.where.value));   // highlight the picked OP on the AO map
   };
   renderLive();
 

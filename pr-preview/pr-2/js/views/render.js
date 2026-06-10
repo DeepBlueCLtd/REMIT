@@ -92,9 +92,24 @@ export function makeMap(canvas, baseline) {
      *          actual?: {x:number,y:number,phase:string}|null,
      *          target?: {x:number,y:number}|null}} opts
      */
-    render({ plans = [], selected = null, t = 0, actual = null, target = null, rv = null } = {}) {
+    render({ plans = [], selected = null, t = 0, actual = null, target = null, rv = null,
+             candidates = null, highlight = null } = {}) {
       drawTerrain(g, baseline);
       drawMarker(g, PLACES.base.x, PLACES.base.y, 'base');
+      // Capture: candidate OPs labelled on the map, the picked one emphasised.
+      if (candidates) {
+        for (const c of candidates) {
+          const cx = (c.x + 0.5) * CELL_PX, cy = (c.y + 0.5) * CELL_PX;
+          const isHi = highlight && highlight.x === c.x && highlight.y === c.y;
+          g.strokeStyle = isHi ? '#ff7b72' : 'rgba(230,237,243,.55)';
+          g.lineWidth = isHi ? 3 : 1.5;
+          g.beginPath(); g.arc(cx, cy, CELL_PX * 0.34, 0, Math.PI * 2); g.stroke();
+          g.fillStyle = isHi ? '#ff7b72' : 'rgba(230,237,243,.8)';
+          g.font = `${CELL_PX * 0.5}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(c.key ?? '', cx, cy - CELL_PX * 0.72);
+        }
+        canvas.dataset.highlight = highlight ? `${highlight.x},${highlight.y}` : '';
+      }
       if (target) drawMarker(g, target.x, target.y, 'target');
       if (rv) drawMarker(g, rv.x, rv.y, 'rv');
       // No selection yet: show the whole handful at full strength; once a plan
