@@ -8,7 +8,7 @@
 // execution log (the after-action record, → Learn). Local loop — never over
 // the seam for the live monitor (DEC-40-D); log writes go via the seam.
 
-import { assess, assessExfil, stateAt } from '../kernel/kernel.js';
+import { assess, assessExfil, stateAt, rerouteExecution } from '../kernel/kernel.js';
 
 /**
  * @param {HTMLElement} el
@@ -17,15 +17,24 @@ import { assess, assessExfil, stateAt } from '../kernel/kernel.js';
  *          bandUnit: number,
  *          playhead: import('../views/render.js').Playhead,
  *          resetLog?: () => void,
+ *          world?: {cells: any[], grid: any, profile: any},
  *          onObstructions?: (list: {tau: number, x: number, y: number}[]) => void,
+ *          onBlocked?: (cells: {x: number, y: number}[]) => void,
  *          onComplete: (summary: any) => void}} ctx
  * @returns {{ pause: () => void }} handle so the host can pause live playback
  *          (e.g. when the user grabs the scrubber to review).
  */
 export function mountWingman(el, ctx) {
-  const { plan, commitment, exfilCommitment, bandUnit, missionId } = ctx;
+  const { plan, commitment, exfilCommitment, bandUnit, missionId, world } = ctx;
   const sched = plan.materialisation.schedule;
-  const missionEnd = sched[sched.length - 1].end_min;   // exfil arrival (or visit end)
+  let missionEnd = sched[sched.length - 1].end_min;     // exfil arrival (or visit end)
+
+  // Objectives the re-router needs (DEC-24/25).
+  const opCell = commitment.activity.where;
+  const rvCell = exfilCommitment?.activity?.where ?? null;
+  const dwellMin = commitment.activity.duration.min_min;
+  const windowStart = commitment.activity.when.window.start_min;
+  const startMin = sched[0].start_min;
 
   const exec = {
     simT: 0,
@@ -35,8 +44,11 @@ export function mountWingman(el, ctx) {
     lastLabel: 'observe',                                // which commitment the band tracks
     visitVerdict: /** @type {string|null} */ (null),     // locked once past the OP
     obstructions: /** @type {{tau:number,x:number,y:number}[]} */ ([]),
+    blocked: new Set(),                                  // mid-mission blocked cell indices
     complete: false,
   };
+  // Pristine route to restore on Restart (re-routes mutate plan.materialisation).
+  const pristineMat = structuredClone(plan.materialisation);
 
   el.innerHTML = `
     <p class="stage-intro">Simulated playback against the live requirement: the wingman
@@ -52,7 +64,9 @@ export function mountWingman(el, ctx) {
       <button id="wx-restart" data-testid="wx-restart">↺ Restart</button>
       <button id="wx-step10" data-testid="wx-step10">Step +10 min</button>
       <button id="wx-step" data-testid="wx-step">Step +30 min</button>
+      <button id="wx-delay5" class="warn" data-testid="wx-delay5">Obstruction +5 min</button>
       <button id="wx-delay" class="warn" data-testid="wx-delay">Obstruction +25 min</button>
+      <button id="wx-block" class="warn" data-testid="wx-block">Block next cell ✕ → re-route</button>
     </div>
     <div class="exec-readouts">
       <span class="readout">sim clock <b id="wx-clock" data-testid="wx-clock">H+0</b></span>
@@ -181,7 +195,11 @@ export function mountWingman(el, ctx) {
     exec.lastLabel = 'observe';
     exec.visitVerdict = null;
     exec.obstructions = [];
+    exec.blocked.clear();
+    plan.materialisation = structuredClone(pristineMat);   // restore the original route
+    missionEnd = plan.materialisation.schedule[plan.materialisation.schedule.length - 1].end_min;
     ctx.onObstructions?.([]);                // clear the track markers
+    ctx.onBlocked?.([]);                     // clear the blocked-cell markers
     $('#wx-alerts').innerHTML = '';
     $('#wx-final').textContent = '';
     // A restart discards the previous simulated run and begins a fresh one; the
@@ -191,7 +209,7 @@ export function mountWingman(el, ctx) {
     await refreshLog();
     await tick(0);
   });
-  $('#wx-delay').addEventListener('click', async () => {
+  async function addObstruction(mins) {
     if (exec.complete) return;
     // Mid-mission obstruction: insert it where the vehicle is *now* (it freezes
     // in place for the delay), and drop a marker on the track there. At the very
@@ -205,10 +223,48 @@ export function mountWingman(el, ctx) {
     const cell = { x: Math.round(pos.x), y: Math.round(pos.y) };
     exec.obstructions.push({ tau: exec.lastTau, ...cell });
     ctx.onObstructions?.(exec.obstructions);
-    exec.delayMin += 25;
+    exec.delayMin += mins;
     await ctx.seam.appendLog(missionId, {
       kind: 'Observation', at: Math.round(exec.simT),
-      fact_delta: { note: `Obstruction at cell ${cell.x},${cell.y} (H+${Math.round(exec.simT)}) — +25 min`, tag: 'track-state' },
+      fact_delta: { note: `Obstruction at cell ${cell.x},${cell.y} (H+${Math.round(exec.simT)}) — +${mins} min`, tag: 'track-state' },
+      source: 'operator', confidence: 'reported',
+    });
+    await refreshLog();
+    await tick(0);
+  }
+  $('#wx-delay5').addEventListener('click', () => addObstruction(5));
+  $('#wx-delay').addEventListener('click', () => addObstruction(25));
+
+  $('#wx-block').addEventListener('click', async () => {
+    if (exec.complete || !world) return;
+    const tau = exec.lastTau;
+    const cur = stateAt(plan, tau);
+    const curCell = { x: Math.round(cur.x), y: Math.round(cur.y) };
+    // The next cell on the route ahead (first that differs from the current one).
+    const next = plan.materialisation.trajectory.find((p) =>
+      p.t > tau + 0.01 && (Math.round(p.x) !== curCell.x || Math.round(p.y) !== curCell.y));
+    if (!next) {
+      $('#wx-alerts').innerHTML += `<div class="alert"><span class="muted">no next cell to block — at the objective</span></div>`;
+      return;
+    }
+    const bx = Math.round(next.x), by = Math.round(next.y);
+    const idx = by * world.grid.w + bx;
+    exec.blocked.add(idx);
+    const ok = rerouteExecution(plan, {
+      cells: world.cells, grid: world.grid, profile: world.profile,
+      tau, blocked: exec.blocked, opCell, rvCell, dwellMin, windowStart, startMin,
+    });
+    if (!ok) {
+      exec.blocked.delete(idx);              // keep the route; report being boxed in
+      $('#wx-alerts').innerHTML +=
+        `<div class="alert band-violated" data-testid="wx-block-fail">⚠ H+${Math.round(exec.simT)} — blocked in: no route around ${bx},${by}</div>`;
+      return;
+    }
+    missionEnd = plan.materialisation.schedule[plan.materialisation.schedule.length - 1].end_min;
+    ctx.onBlocked?.([...exec.blocked].map((i) => ({ x: i % world.grid.w, y: Math.floor(i / world.grid.w) })));
+    await ctx.seam.appendLog(missionId, {
+      kind: 'Observation', at: Math.round(exec.simT),
+      fact_delta: { note: `Cell ${bx},${by} blocked — re-routed in flight`, tag: 'track-state' },
       source: 'operator', confidence: 'reported',
     });
     await refreshLog();

@@ -371,3 +371,81 @@ export function assessExfil(plan, commitment, unit, delayMin = 0) {
   const band = bandFor(margin, unit);
   return { projected_arrival: projected, margin, band, verdict: margin < 0 ? 'violated' : 'satisfied' };
 }
+
+// ---------------------------------------------------------------------------
+// Mid-mission re-routing (DEC-24/25): the operator blocks a cell ahead, and the
+// wingman re-plans locally from where the vehicle IS to the remaining objective.
+
+/** A* leg between cells avoiding `blocked` (set of cell indices), real cost. */
+export function routeLeg(cells, grid, profile, from, to, blocked) {
+  const cost = (a, b, diag) =>
+    (blocked.has(a) || blocked.has(b)) ? Infinity : edgeMinutes(cells, profile, a, b, diag);
+  const bestStep = CELL_M / (profile.speed_by_medium.land_kph * 1000 / 60);
+  return findPath(grid, from, to, cost, bestStep);
+}
+
+/**
+ * Re-route the in-flight plan from the vehicle's current cell to the remaining
+ * objective(s), avoiding `blocked`. Keeps everything already travelled (t < tau)
+ * and splices a fresh, re-timed tail; mutates `plan.materialisation`. Returns
+ * true, or false if the vehicle is blocked in (no route) — plan left unchanged.
+ * @returns {boolean}
+ */
+export function rerouteExecution(plan, opts) {
+  const { cells, grid, profile, tau, blocked, opCell, rvCell, dwellMin, windowStart, startMin } = opts;
+  const m = plan.materialisation;
+  const visit = m.schedule.find((s) => s.kind === 'visit');
+  const exfilCid = m.schedule.find((s) => s.kind === 'exfil')?.commitment_id;
+  const reachedOP = tau >= visit.start_min;
+  const cur = stateAt(plan, tau);
+  const curCell = { x: Math.round(cur.x), y: Math.round(cur.y) };
+
+  const targets = (reachedOP ? [rvCell] : [opCell, rvCell]).filter(Boolean);
+  const legs = [];
+  let prev = curCell;
+  for (const wp of targets) {
+    const path = routeLeg(cells, grid, profile, prev, wp, blocked);
+    if (!path) return false;                          // blocked in
+    legs.push(path);
+    prev = wp;
+  }
+
+  let t = tau, fuel = cur.fuel_pct;
+  const traj = m.trajectory.filter((p) => p.t < tau);
+  traj.push({ x: curCell.x, y: curCell.y, t: round1(t), fuel_pct: round1(fuel) });
+  const advance = (path) => {
+    for (let i = 1; i < path.length; i++) {
+      const from = path[i - 1].y * grid.w + path[i - 1].x;
+      const to = path[i].y * grid.w + path[i].x;
+      const diag = path[i].x !== path[i - 1].x && path[i].y !== path[i - 1].y;
+      t += edgeMinutes(cells, profile, from, to, diag);
+      fuel -= (diag ? Math.SQRT2 : 1) * 0.35;
+      traj.push({ x: path[i].x, y: path[i].y, t: round1(t), fuel_pct: round1(fuel) });
+    }
+  };
+
+  const schedule = [];
+  if (!reachedOP) {
+    advance(legs[0]);                                 // current → OP
+    const arrival = round1(t);
+    schedule.push({ kind: 'transit', label: 'Transit to OP (re-routed)', start_min: startMin, end_min: arrival });
+    const visitStart = Math.max(arrival, windowStart);
+    if (visitStart > arrival) schedule.push({ kind: 'hold', label: 'Hold (await window)', start_min: arrival, end_min: visitStart });
+    const dwellEnd = round1(visitStart + dwellMin);
+    schedule.push({ kind: 'visit', label: 'Observe OP', commitment_id: visit.commitment_id, start_min: visitStart, end_min: dwellEnd });
+    traj.push({ x: opCell.x, y: opCell.y, t: dwellEnd, fuel_pct: round1(fuel) });
+    t = dwellEnd;
+    if (rvCell && legs[1]) {
+      advance(legs[1]);                               // OP → RV
+      schedule.push({ kind: 'exfil', label: 'Exfil E (re-routed)', commitment_id: exfilCid, start_min: dwellEnd, end_min: round1(t) });
+    }
+  } else {
+    for (const leg of m.schedule) if (leg.kind !== 'exfil') schedule.push(leg);
+    advance(legs[0]);                                 // current → RV
+    schedule.push({ kind: 'exfil', label: 'Exfil E (re-routed)', commitment_id: exfilCid, start_min: round1(tau), end_min: round1(t) });
+  }
+
+  m.trajectory = traj;
+  m.schedule = schedule;
+  return true;
+}
