@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the single-page data-model reference (site/data-model/index.html)
 from the LinkML schema. Derived artefact — do not hand-edit the output; edit
-schema/remit.linkml.yaml and re-run schema/generate.sh (DEC-57)."""
+schema/remit.yaml (and its modules under schema/) and re-run schema/generate.sh (DEC-57)."""
 import html
 import sys
 from pathlib import Path
@@ -10,7 +10,7 @@ from linkml_runtime import SchemaView
 from linkml.generators.erdiagramgen import ERDiagramGenerator
 
 ROOT = Path(__file__).resolve().parent.parent
-SCHEMA = ROOT / "schema" / "remit.linkml.yaml"
+SCHEMA = ROOT / "schema" / "remit.yaml"
 OUT = ROOT / "site" / "data-model" / "index.html"
 
 
@@ -126,7 +126,7 @@ def main():
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
-<meta name="description" content="Generated reference for the REMIT v1 data model — classes, fields and enums, with linkages. Source: schema/remit.linkml.yaml (DEC-57).">
+<meta name="description" content="Generated reference for the REMIT v1 data model — classes, fields and enums, with linkages. Source: schema/remit.yaml (and its modules under schema/) (DEC-57).">
 <style>
 :root {{
   color-scheme: light dark;
@@ -219,7 +219,7 @@ footer.site a{{font-weight:600}}
     <h1>{title}</h1>
     <p class="lede">{lede}</p>
     <div class="source-note"><span>📐</span><span>Generated from
-      <b>schema/remit.linkml.yaml</b> — the one source of truth. Do not hand-edit
+      <b>schema/remit.yaml (and its modules under schema/)</b> — the one source of truth. Do not hand-edit
       this page; edit the schema and re-run <b>schema/generate.sh</b>.</span></div>
     <div class="stats"><span><b>{len(class_names)}</b> classes</span>
       <span><b>{len(enum_names)}</b> enums</span>
@@ -246,7 +246,7 @@ footer.site a{{font-weight:600}}
 <footer class="site">
   <div class="wrap">
     <div class="backlinks"><a href="../">← Home</a><a href="../app/">Walking skeleton</a><a href="../blog/">Blog</a></div>
-    Generated from <code>schema/remit.linkml.yaml</code> by <code>schema/build-reference.py</code>.
+    Generated from <code>schema/remit.yaml (and its modules under schema/)</code> by <code>schema/build-reference.py</code>.
     Cardinality: <code>1</code> required · <code>0..1</code> optional · <code>0..*/1..*</code> list.
     Behaviour / function-valued fields are resolved across the seam, not modelled here (DEC-57).
   </div>

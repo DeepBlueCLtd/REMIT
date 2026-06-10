@@ -1,0 +1,32 @@
+# remit.yaml — ENTRY schema for the REMIT data model (DEC-57).
+# Stitches the discrete modules; generators run against THIS file.
+# Source of truth — edit the module files, never the generated artefacts.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit
+name: remit
+title: REMIT — v1 Data Model
+description: 'The serialisable object core of REMIT''s v1 mission-planning model — the shapes mission planning is built from. This LinkML schema is the Doc-owned source of truth (DEC-57): one schema generates JSON Schema, TypeScript types, and this hyperlinked reference + ER diagrams. `docs/remit-data-model.md` is the prose spine; the field names and structures here are reconciled against the objects the walking-skeleton app actually constructs (`app/js/**`), so the schema agrees with the running code.
+
+
+  Three universal rules hold across the model: (1) versioned objects are immutable — a change is a new version with lineage, never a mutation (DEC-5/7/18); (2) everything decided is attributed — a role-hat, author and time on every committing act (DEC-15, NF2); (3) identity is content — an immutable object''s id is the hash of its canonical serialisation, names are aliases, lineage is hash-linked (DEC-35, NF8).
+
+
+  Scope boundary (DEC-57): LinkML models *data, not behaviour*. Function-valued fields — `Channel.values = f(cell,t)`, `MovementModel.cost_speed`, `Aspect.value = f(t)` — and the §B/§D service endpoints are resolved across the seam (OpenAPI later) and are described here but not modelled as data slots.
+
+
+  Skeleton reconciliation: where the walking skeleton diverges from the prose model the schema follows the *code* and notes the divergence in the relevant class. Classes the skeleton does not yet build (MovementModel, Excursion, ChannelDelta, Effect, AOPackage, Waiver, Replan) are modelled from the doc and flagged "not yet implemented in v1".'
+license: MIT
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+- common
+- requirement
+- world
+- force
+- entities
+- plan
+- records

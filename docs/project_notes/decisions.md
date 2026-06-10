@@ -214,14 +214,22 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   authored and **human-documented for stakeholder review**, and (constitution)
   wants all non-trivial types to come from this one store, with derived artefacts
   generated, never hand-written.
-- **Decision:** author `schema/remit.linkml.yaml` (60 classes, 20 enums) from the
-  `remit-data-model.md` spine, **reconciled field-by-field against the walking
-  skeleton's real object shapes** (so schema ≡ code). Generate from it via
-  `schema/generate.sh`: JSON Schema + TypeScript (`schema/gen/`) and a **single
-  self-contained HTML reference** (`schema/build-reference.py` → `site/data-model/`)
-  that replaces the hand-authored tour. **Pydantic is omitted** (no Python consumer
-  yet — one line to add). The reference is published with the whole site, so it is
-  reviewable per-PR (ADR-0010).
+- **Decision:** author the model (60 classes, 20 enums) from the `remit-data-model.md`
+  spine, **reconciled field-by-field against the walking skeleton's real object
+  shapes** (so schema ≡ code). Generate via `schema/generate.sh`: JSON Schema +
+  TypeScript (`schema/gen/`) and a **single self-contained HTML reference**
+  (`schema/build-reference.py` → `site/data-model/`) that replaces the hand-authored
+  tour. **Pydantic is omitted** (no Python consumer yet — one line to add). The
+  reference is published with the whole site, so it is reviewable per-PR (ADR-0010).
+- **Modular schema (version-control hygiene):** the model is **split into discrete
+  LinkML modules** under `schema/` — `common` (shared value objects + all enums),
+  `requirement`, `world`, `force`, `entities`, `plan`, `records` — stitched by a thin
+  entry `schema/remit.yaml` that imports them all; generators run on the entry. To
+  avoid circular imports in a cross-linked domain (e.g. `world.FactLayer → Observation`
+  in records, `plan.Stamp → Requirement` in requirement), modules import **only**
+  `common`; cross-module class references resolve at the merged level (verified —
+  including circular refs and the ER diagram). A 1,200-line monolith was rejected:
+  clumsy diffs, review and merge conflicts.
 - **Options considered (HTML reference):** (a) standard `gen-doc` + MkDocs-Material —
   canonical, full-featured, but **8.8 MB / 315 files**, churns hundreds of files per
   edit, and clashes with the lean no-build repo (ADR-0005); (b) build the docs in CI —
@@ -257,7 +265,7 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   fields keep compiling while silently dropping a field the source later grows. Enforced
   at writing-time and via lint. They asked how this applies to REMIT.
 - **Decision:** adopt the principle here, scoped to this repo's reality:
-  1. `schema/remit.linkml.yaml` is the one source; `schema/gen/*` and
+  1. `schema/remit.yaml` is the one source; `schema/gen/*` and
      `site/data-model/` are generated, never hand-edited.
   2. **UI-only, single-class discrete types are exempt** (the maintainer's carve-out) —
      e.g. the Sync-Matrix display catalogue, coincidence-window rows, render closures,

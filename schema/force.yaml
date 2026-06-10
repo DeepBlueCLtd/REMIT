@@ -1,0 +1,71 @@
+# force.yaml — GENERATED MODULE of the REMIT data model.
+# Part of schema/remit.yaml (the entry schema). Edit here, then run schema/generate.sh.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit/force
+name: remit-force
+title: REMIT — force
+description: 'Own force: the platform fixed capabilities (Profile) and live condition (State) (DEC-19/20/52).'
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+- common
+classes:
+  Profile:
+    description: What a platform can do — the fixed capabilities a sensitivity sweep varies (DEC-19/20, F5). Immutable and versioned, content-addressed.
+    attributes:
+      id:
+        identifier: true
+        description: content id of the canonical form (DEC-35)
+      name: {}
+      version:
+        range: integer
+      domain:
+        range: Domain
+      speed_by_medium:
+        range: SpeedByMedium
+        inlined: true
+        description: how fast, where
+      endurance:
+        range: Endurance
+        inlined: true
+      sensors:
+        multivalued: true
+        description: what it can perceive
+      dynamics:
+        description: how it manoeuvres (e.g. "wheeled")
+  SpeedByMedium:
+    description: 'Speed per medium (skeleton: land only).'
+    attributes:
+      land_kph:
+        range: float
+      sea_kph:
+        range: float
+      air_kph:
+        range: float
+  Endurance:
+    attributes:
+      fuel_pct:
+        range: float
+        description: starting fuel, 0–100
+      hours:
+        range: float
+        description: how long it can keep going
+  State:
+    description: 'The platform right now — the live condition the kernel re-anchors to during execution (DEC-19). It is the privileged self-entity (DEC-52): its fields are the dynamic aspects of the `self` Entity (position → map/distance; endurance/availability → state curves).'
+    attributes:
+      position:
+        range: Waypoint
+        inlined: true
+        description: which cell
+      clock_min:
+        range: integer
+        description: the current mission time, in minutes
+      endurance_fuel_pct:
+        range: float
+        description: how much fuel is left, 0–100
+      availability:
+        description: '"available | down"'

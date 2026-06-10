@@ -32,7 +32,7 @@ recorded as an ADR in `docs/project_notes/decisions.md`.
 
 ### I. LinkML Is the Data-Model Source of Truth (NON-NEGOTIABLE)
 
-The serialisable object core is defined **once**, in `schema/remit.linkml.yaml`
+The serialisable object core is defined **once**, in `schema/remit.yaml`
 (DEC-57). TypeScript and JSON Schema — and later Pydantic — are **generated, never
 hand-written** (`schema/generate.sh`). You MUST NOT hand-author a type the schema
 could generate, and MUST NOT re-list a source type's fields by hand at a boundary;

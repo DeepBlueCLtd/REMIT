@@ -1,0 +1,204 @@
+# common.yaml — GENERATED MODULE of the REMIT data model.
+# Part of schema/remit.yaml (the entry schema). Edit here, then run schema/generate.sh.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit/common
+name: remit-common
+title: REMIT — common
+description: Shared value objects and the enum vocabulary used across the REMIT data model. Imported by every other module.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+enums:
+  Criticality:
+    description: Whether a commitment must hold or is best-effort (DEC-22).
+    permissible_values:
+      hard:
+        description: must hold
+      soft:
+        description: best-effort; carries a priority, with authority from provenance
+  ActivityType:
+    description: The verb of an activity (DEC-16); v1 set, pluggable registry (NF7).
+    permissible_values:
+      visit: {}
+      loiter: {}
+      avoid: {}
+      transit: {}
+      maintain: {}
+  CommitmentState:
+    description: The lifecycle state of a commitment (B4). `at-risk` is live-only (E2) and not stored.
+    permissible_values:
+      proposed: {}
+      negotiated: {}
+      committed: {}
+      satisfied: {}
+      violated: {}
+      waived: {}
+      superseded: {}
+  AnswerStatus:
+    permissible_values:
+      confirmed:
+        description: answered by the operator
+      defaulted:
+        description: filled from a stamped default
+  AmbiguityStatus:
+    permissible_values:
+      open: {}
+      resolved: {}
+  Domain:
+    description: The medium a baseline / profile / movement model operates in (DEC-20).
+    permissible_values:
+      land: {}
+      sea: {}
+      air: {}
+  Terrain:
+    description: Per-cell land-cover class used by the skeleton's mobility raster.
+    permissible_values:
+      road: {}
+      track: {}
+      open: {}
+      rough: {}
+      forest: {}
+      marsh: {}
+      ford: {}
+      water: {}
+  Realisation:
+    description: How a channel or movement model is realised (DEC-49). `provider` = a computed service behind the seam.
+    permissible_values:
+      raster: {}
+      analytic: {}
+      parametric: {}
+      provider: {}
+  Predictability:
+    description: How predictable a channel is over time (DEC-21) — drives sampling.
+    permissible_values:
+      static: {}
+      periodic: {}
+      dynamic: {}
+  ConfidenceLevel:
+    permissible_values:
+      high: {}
+      medium: {}
+      low: {}
+  AspectType:
+    description: The render-class of one time-varying facet of an entity (DEC-52/53).
+    permissible_values:
+      cell:
+        description: a position → map glyph / distance-along-track
+      scalar:
+        description: a numeric value → a line (altitude, fuel, distance)
+      window:
+        description: a time interval → a band
+      status:
+        description: an up/down or phase value → ticks
+  StrategyKey:
+    description: The skeleton's three candidate strategies (the "handful" of plans).
+    permissible_values:
+      direct:
+        description: fastest by time/speed
+      tracked:
+        description: keeps to tracked/road surfaces
+      covered:
+        description: favours exposure-reducing cover
+  Band:
+    description: A coarse three-level qualitative band for cost / robustness (C2/C6, NF10).
+    permissible_values:
+      robust: {}
+      marginal: {}
+      fragile: {}
+  MarginBand:
+    description: The slack band on a single commitment's satisfaction (A2, NF10). `crossed` = violated.
+    permissible_values:
+      robust: {}
+      marginal: {}
+      tight: {}
+      crossed: {}
+  Verdict:
+    description: A commitment's verdict in a plan's scores.
+    permissible_values:
+      satisfied: {}
+      violated: {}
+      waived: {}
+  ScheduleLegKind:
+    description: The kind of one leg in a plan's schedule.
+    permissible_values:
+      transit: {}
+      hold:
+        description: a wait — e.g. "await low-tide window" at a tidal ford
+      visit: {}
+      exfil: {}
+  TideMode:
+    description: The outcome of the tidal-ford wait-vs-detour weighing (ADR-0006).
+    permissible_values:
+      no-ford:
+        description: no tidal ford on the route
+      open:
+        description: ford open at the bank — cross now
+      wait:
+        description: hold at the bank for the low-tide window, then cross
+      detour:
+        description: ford-free detour reaches the RV sooner
+  ConflictKind:
+    description: Whether a clash is built into the request or emerges from the schedule (C1).
+    permissible_values:
+      structural:
+        description: e.g. no route exists
+      emergent:
+        description: e.g. the schedule is infeasible
+  AlertCauseType:
+    description: Why the wingman raised an execution alert (E3).
+    permissible_values:
+      hard_infeasible: {}
+      band_crossing: {}
+      tide_reassessment:
+        description: a re-plan changed the tide decision's mode (ADR-0007)
+  LogEntryKind:
+    permissible_values:
+      Alert: {}
+      Observation: {}
+      Waiver: {}
+      Replan: {}
+classes:
+  Attribution:
+    description: Who decided, under what authority, when. Stamped on every committing act — this is universal rule 2 (DEC-15, NF2).
+    attributes:
+      issuing_role:
+        description: the role-hat the author wore
+      authority:
+        description: the authority the act was taken under
+      by:
+        description: the author
+      at:
+        description: ISO timestamp of the act
+        range: datetime
+  DataProvenance:
+    description: The source and trust of a datum or entity (DEC-19). Trivial defaults in v1.
+    attributes:
+      kind:
+        description: 'source-class — one of: self, planned, forecast, observed, provider. The prose model separates entity kind (self/actor/feature/phenomenon) from data provenance (planned/forecast/observed); the skeleton folds them, using self/forecast/provider. A documented string rather than an enum (see the AspectType note).'
+        required: true
+      confidence:
+        range: ConfidenceLevel
+      freshness:
+        description: how recent — e.g. "provisioned"
+  Lineage:
+    description: Hash-link back to the version this one supersedes (universal rule 1).
+    attributes:
+      previous_version:
+        description: id of the prior Requirement version
+      amending_order_ref:
+        description: reference to the amending order, if any
+  Waypoint:
+    description: A single grid location.
+    attributes:
+      x:
+        range: integer
+        required: true
+      y:
+        range: integer
+        required: true
+      alias:
+        description: a human-friendly name, e.g. "OP-21,3"

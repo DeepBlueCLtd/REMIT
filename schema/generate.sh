@@ -8,7 +8,7 @@
 # here when one appears.)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-SCHEMA=schema/remit.linkml.yaml
+SCHEMA=schema/remit.yaml
 VENV=${LINKML_VENV:-/tmp/linkml-venv}
 
 # LinkML installs cleanly only in a venv here — the distro pip trips on a couple

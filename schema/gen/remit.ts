@@ -243,6 +243,28 @@ export interface DataProvenance {
 
 
 /**
+ * Hash-link back to the version this one supersedes (universal rule 1).
+ */
+export interface Lineage {
+    /** id of the prior Requirement version */
+    previous_version?: string,
+    /** reference to the amending order, if any */
+    amending_order_ref?: string,
+}
+
+
+/**
+ * A single grid location.
+ */
+export interface Waypoint {
+    x: number,
+    y: number,
+    /** a human-friendly name, e.g. "OP-21,3" */
+    alias?: string,
+}
+
+
+/**
  * A commitment's ownership and waiver authority (B3).
  */
 export interface CommitmentProvenance {
@@ -271,17 +293,6 @@ export interface Requirement {
     /** the promises it decomposes into */
     commitments?: Commitment[],
     lineage?: Lineage,
-}
-
-
-/**
- * Hash-link back to the version this one supersedes (universal rule 1).
- */
-export interface Lineage {
-    /** id of the prior Requirement version */
-    previous_version?: string,
-    /** reference to the amending order, if any */
-    amending_order_ref?: string,
 }
 
 
@@ -350,17 +361,6 @@ export interface Activity {
     outcome_model?: string,
     /** channel ids to sample / trigger on (DEC-21) */
     relevant_channels?: ChannelId[],
-}
-
-
-/**
- * A single grid location.
- */
-export interface Waypoint {
-    x: number,
-    y: number,
-    /** a human-friendly name, e.g. "OP-21,3" */
-    alias?: string,
 }
 
 
@@ -434,8 +434,21 @@ export interface Baseline {
     /** the one truth; observations append here */
     facts?: FactLayer,
     /** when the world is expected to shift */
-    forecast_changepoints?: string,
+    forecast_changepoints?: Changepoint[],
     lineage?: Lineage,
+}
+
+
+/**
+ * A forecast time at which a channel is expected to shift (e.g. a tidal ford opening) (DEC-21).
+ */
+export interface Changepoint {
+    /** mission minutes */
+    at_min?: number,
+    /** the channel that shifts */
+    channel?: ChannelId,
+    /** what changes, in words */
+    change?: string,
 }
 
 
