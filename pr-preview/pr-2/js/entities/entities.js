@@ -139,6 +139,14 @@ export function coincidenceRules() {
       holds: ({ entities, sel, t }) =>
         entities.self.aspects.phase.at(sel, t) === 'exfil' &&
         entities.tide.aspects.height.open(t) === true },
+    // Pure forecast × provider — no own-force term, so this one surfaces from the
+    // World step before any COA exists (advisory coincidence is not plan-coupled).
+    { id: 'open-ford-pass', label: 'Overpass · open ford', color: '#5aa9e6',
+      hint: 'recce satellite overhead while the K-7 ford is open — image a live crossing',
+      tracks: ['tide.height', 'sat.pass'],
+      holds: ({ entities, t }) =>
+        entities.tide.aspects.height.open(t) === true &&
+        entities.sat.aspects.pass.at(null, t) === true },
   ];
 }
 
