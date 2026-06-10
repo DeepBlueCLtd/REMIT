@@ -37,10 +37,17 @@ export function mountWingman(el, ctx) {
     re-runs the <em>same</em> margin assessment the kernel scored with (NF1), and speaks
     only when the band is crossed (E3).</p>
     <div class="row exec-controls">
+      <button id="wx-play" class="primary" data-testid="wx-play">▶ Play ×64</button>
+      <label class="speed-ctl">speed
+        <input id="wx-speed" data-testid="wx-speed" type="range" min="3" max="9" step="1" value="6"
+               aria-label="time acceleration">
+        <b id="wx-speed-label">×64</b>
+      </label>
       <button id="wx-step10" data-testid="wx-step10">Step +10 min</button>
       <button id="wx-step" data-testid="wx-step">Step +30 min</button>
-      <button id="wx-play" data-testid="wx-play">Play ×64</button>
       <button id="wx-delay" class="warn" data-testid="wx-delay">Obstruction +25 min</button>
+    </div>
+    <div class="exec-readouts">
       <span class="readout">sim clock <b id="wx-clock" data-testid="wx-clock">H+0</b></span>
       <span class="readout">margin <b id="wx-margin" data-testid="wx-margin">—</b></span>
       <span class="readout">band <b id="wx-band" data-testid="wx-band">—</b></span>
@@ -115,16 +122,25 @@ export function mountWingman(el, ctx) {
 
   /** @type {number | undefined} */
   let playTimer;
+  /** Time acceleration from the slider: ×8 … ×512 (powers of two). */
+  const speedOf = () => 2 ** Number(/** @type {HTMLInputElement} */ ($('#wx-speed')).value);
+  const refreshSpeedUI = () => {
+    $('#wx-speed-label').textContent = `×${speedOf()}`;
+    $('#wx-play').textContent = playTimer ? `⏸ Pause (×${speedOf()})` : `▶ Play ×${speedOf()}`;
+  };
   const stopPlay = () => {
-    if (playTimer) { clearInterval(playTimer); playTimer = undefined; $('#wx-play').textContent = 'Play ×64'; }
+    if (playTimer) { clearInterval(playTimer); playTimer = undefined; }
+    refreshSpeedUI();
   };
 
+  $('#wx-speed').addEventListener('input', refreshSpeedUI);
   $('#wx-step10').addEventListener('click', () => tick(10));
   $('#wx-step').addEventListener('click', () => tick(30));
   $('#wx-play').addEventListener('click', () => {
     if (playTimer) { stopPlay(); return; }
-    $('#wx-play').textContent = 'Pause';
-    playTimer = /** @type {any} */ (setInterval(() => tick(64 / 10), 100)); // ×64 sim speed
+    // 100 ms ticks; speed read per tick, so dragging the slider mid-play works.
+    playTimer = /** @type {any} */ (setInterval(() => tick(speedOf() / 10), 100));
+    refreshSpeedUI();
   });
   $('#wx-delay').addEventListener('click', async () => {
     if (exec.complete) return;

@@ -69,6 +69,14 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await page.getByTestId('views-continue').click();      // jumps straight to Execute
 
   // --- 6 Execute: playback, band-crossing alerts, manual observation, log.
+  // Speed slider drives the play button's acceleration label (no timers used
+  // here — playback in tests stays on the deterministic Step buttons).
+  await expect(page.getByTestId('wx-play')).toContainText('×64');
+  await page.getByTestId('wx-speed').evaluate((el: HTMLInputElement) => {
+    el.value = '8';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.getByTestId('wx-play')).toContainText('×256');
   await page.getByTestId('wx-step10').click();           // τ=10, in transit
   await page.getByTestId('wx-delay').click();            // +25 → band drops
   await page.getByTestId('wx-delay').click();            // +50
