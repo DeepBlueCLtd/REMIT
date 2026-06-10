@@ -17,6 +17,7 @@ import { assess, assessExfil, stateAt } from '../kernel/kernel.js';
  *          bandUnit: number,
  *          playhead: import('../views/render.js').Playhead,
  *          resetLog?: () => void,
+ *          onObstructions?: (list: {tau: number, x: number, y: number}[]) => void,
  *          onComplete: (summary: any) => void}} ctx
  * @returns {{ pause: () => void }} handle so the host can pause live playback
  *          (e.g. when the user grabs the scrubber to review).
@@ -29,10 +30,12 @@ export function mountWingman(el, ctx) {
   const exec = {
     simT: 0,
     delayMin: 0,
+    lastTau: 0,                                          // monotonic plan-time (see tick)
     lastBand: assess(plan, commitment, bandUnit, 0).band,
+    lastLabel: 'observe',                                // which commitment the band tracks
+    visitVerdict: /** @type {string|null} */ (null),     // locked once past the OP
+    obstructions: /** @type {{tau:number,x:number,y:number}[]} */ ([]),
     complete: false,
-    /** plan-time τ: sim time minus accumulated delay (vehicle halted while obstructed) */
-    tau() { return Math.max(0, this.simT - this.delayMin); },
   };
 
   el.innerHTML = `
@@ -74,7 +77,7 @@ export function mountWingman(el, ctx) {
     $('#wx-log').innerHTML = entries.map((e) => {
       const kind = e.kind;
       const body = kind === 'Alert'
-        ? `band crossing on <b>${e.cause.commitment_id ?? e.cause.type}</b>: ${e.cause.from} → <b>${e.cause.to}</b>`
+        ? `band crossing on <b>${e.cause.commitment ?? e.cause.commitment_id ?? e.cause.type}</b>: ${e.cause.from} → <b>${e.cause.to}</b>`
         : kind === 'Observation' ? `“${e.fact_delta.note}” <span class="muted">[${e.fact_delta.tag}, ${e.source}]</span>`
         : JSON.stringify(e);
       return `<li class="log-${kind.toLowerCase()}"><span class="log-at">H+${e.at}</span> <b>${kind}</b> · ${body}</li>`;
@@ -84,25 +87,42 @@ export function mountWingman(el, ctx) {
   async function tick(stepMin) {
     if (exec.complete) return;
     exec.simT = Math.round((exec.simT + stepMin) * 10) / 10;
-    const tau = exec.tau();
-    const a = assess(plan, commitment, bandUnit, exec.delayMin);
+    // Monotonic plan-time: an obstruction adds delay, which freezes the vehicle
+    // *in place* (τ never jumps backward) until sim time catches up — so a
+    // mid-mission obstruction halts where the vehicle is, it doesn't restart it.
+    const tau = Math.max(exec.lastTau, Math.round((exec.simT - exec.delayMin) * 10) / 10);
+    exec.lastTau = tau;
     const ghost = stateAt(plan, tau);
 
+    // The live band tracks the phase-relevant commitment: the observation until
+    // the vehicle leaves the OP, then the exfil deadline. Lock the observe
+    // verdict at the hand-off so later (exfil) delays don't rewrite it.
+    const inExfil = ghost.phase === 'exfil' || ghost.phase === 'complete';
+    if (inExfil && exec.visitVerdict == null) {
+      exec.visitVerdict = assess(plan, commitment, bandUnit, exec.delayMin).verdict;
+    }
+    const live = inExfil && exfilCommitment
+      ? assessExfil(plan, exfilCommitment, bandUnit, exec.delayMin)
+      : assess(plan, commitment, bandUnit, exec.delayMin);
+    const label = inExfil && exfilCommitment ? 'exfil' : 'observe';
+
     $('#wx-clock').textContent = `H+${Math.round(exec.simT)}`;
-    $('#wx-margin').textContent = `${a.margin} min`;
-    $('#wx-band').textContent = a.band;
-    $('#wx-band').className = `band-${a.band}`;
+    $('#wx-margin').textContent = `${live.margin} min`;
+    $('#wx-band').textContent = `${live.band} · ${label}`;
+    $('#wx-band').className = `band-${live.band}`;
     $('#wx-phase').textContent = ghost?.phase ?? '—';
 
-    // E3: alert iff the band is crossed — once per crossing, not per tick.
-    if (a.band !== exec.lastBand) {
-      const cause = a.band === 'violated'
-        ? { type: 'hard_infeasible', commitment_id: commitment.id, from: exec.lastBand, to: a.band }
-        : { type: 'band_crossing', commitment_id: commitment.id, from: exec.lastBand, to: a.band };
+    // E3: alert iff the band is crossed (per monitored commitment). Switching
+    // commitment (observe → exfil) re-seats the baseline without an alert.
+    if (label !== exec.lastLabel) {
+      exec.lastLabel = label; exec.lastBand = live.band;
+    } else if (live.band !== exec.lastBand) {
+      const cause = { type: live.band === 'violated' ? 'hard_infeasible' : 'band_crossing',
+                      commitment: label, from: exec.lastBand, to: live.band };
       await ctx.seam.appendLog(missionId, { kind: 'Alert', at: Math.round(exec.simT), cause });
       $('#wx-alerts').innerHTML +=
-        `<div class="alert band-${a.band}" data-testid="wx-alert">⚠ H+${Math.round(exec.simT)} — margin band ${exec.lastBand} → <b>${a.band}</b></div>`;
-      exec.lastBand = a.band;
+        `<div class="alert band-${live.band}" data-testid="wx-alert">⚠ H+${Math.round(exec.simT)} — ${label} band ${exec.lastBand} → <b>${live.band}</b></div>`;
+      exec.lastBand = live.band;
       await refreshLog();
     }
 
@@ -111,7 +131,7 @@ export function mountWingman(el, ctx) {
     if (tau >= missionEnd) {
       exec.complete = true;
       stopPlay();
-      const visitVerdict = a.verdict;
+      const visitVerdict = exec.visitVerdict ?? assess(plan, commitment, bandUnit, exec.delayMin).verdict;
       const eRes = exfilCommitment ? assessExfil(plan, exfilCommitment, bandUnit, exec.delayMin) : null;
       const overall = (visitVerdict === 'violated' || eRes?.verdict === 'violated') ? 'violated' : 'satisfied';
       $('#wx-final').innerHTML = `mission playback complete — <b class="${overall}">${overall}</b>`
@@ -155,8 +175,13 @@ export function mountWingman(el, ctx) {
     stopPlay();
     exec.simT = 0;
     exec.delayMin = 0;
+    exec.lastTau = 0;
     exec.complete = false;
     exec.lastBand = assess(plan, commitment, bandUnit, 0).band;
+    exec.lastLabel = 'observe';
+    exec.visitVerdict = null;
+    exec.obstructions = [];
+    ctx.onObstructions?.([]);                // clear the track markers
     $('#wx-alerts').innerHTML = '';
     $('#wx-final').textContent = '';
     // A restart discards the previous simulated run and begins a fresh one; the
@@ -168,16 +193,22 @@ export function mountWingman(el, ctx) {
   });
   $('#wx-delay').addEventListener('click', async () => {
     if (exec.complete) return;
-    const phase = stateAt(plan, exec.tau())?.phase;
-    if (phase !== 'transit') {
+    // Mid-mission obstruction: insert it where the vehicle is *now* (it freezes
+    // in place for the delay), and drop a marker on the track there. At the very
+    // start this lands at the departure point.
+    const pos = stateAt(plan, exec.lastTau);
+    if (pos.phase !== 'transit' && pos.phase !== 'exfil') {
       $('#wx-alerts').innerHTML +=
-        `<div class="alert"><span class="muted">already at the OP — obstruction has no effect</span></div>`;
+        `<div class="alert"><span class="muted">vehicle is static at the OP — obstructions apply while on the move</span></div>`;
       return;
     }
+    const cell = { x: Math.round(pos.x), y: Math.round(pos.y) };
+    exec.obstructions.push({ tau: exec.lastTau, ...cell });
+    ctx.onObstructions?.(exec.obstructions);
     exec.delayMin += 25;
     await ctx.seam.appendLog(missionId, {
       kind: 'Observation', at: Math.round(exec.simT),
-      fact_delta: { note: `Route obstruction — estimated +25 min`, tag: 'track-state' },
+      fact_delta: { note: `Obstruction at cell ${cell.x},${cell.y} (H+${Math.round(exec.simT)}) — +25 min`, tag: 'track-state' },
       source: 'operator', confidence: 'reported',
     });
     await refreshLog();

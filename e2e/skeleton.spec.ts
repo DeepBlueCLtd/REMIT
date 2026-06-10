@@ -143,6 +143,11 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await expect(page.getByTestId('wx-alert').first()).toBeVisible();
   expect(await page.getByTestId('wx-alert').count()).toBeGreaterThanOrEqual(2);
 
+  // Mid-mission obstructions insert at the current position (the clock does NOT
+  // jump back to the start) and drop markers on the track.
+  await expect(page.getByTestId('wx-clock')).toHaveText('H+10');
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-obstructions')).not.toBe('');
+
   await page.getByTestId('wx-obs').fill('Track flooded at the culvert; detour holding');
   await page.getByTestId('wx-obs-add').click();
   await expect(page.getByTestId('wx-log')).toContainText('Track flooded at the culvert');
@@ -242,11 +247,12 @@ test('execute: Restart resets the simulated run to H+0 with an empty log', async
   expect(await page.getByTestId('wx-log').locator('li').count()).toBeGreaterThan(0);
   await expect(page.getByTestId('wx-clock')).not.toHaveText('H+0');
 
-  // Restart → clock, alerts and log all reset.
+  // Restart → clock, alerts, log and obstruction markers all reset.
   await page.getByTestId('wx-restart').click();
   await expect(page.getByTestId('wx-clock')).toHaveText('H+0');
   await expect(page.getByTestId('wx-alert')).toHaveCount(0);
   await expect(page.getByTestId('wx-log').locator('li')).toHaveCount(0);
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-obstructions')).toBe('');
 
   // And the run is live again: stepping advances from zero.
   await page.getByTestId('wx-step').click();

@@ -65,6 +65,7 @@ let mapTarget = null;
 let mapRv = null;
 let mapCandidates = null;   // candidate OPs shown on the map during Capture
 let mapHighlight = null;    // the OP currently picked in Capture (live)
+let mapObstructions = [];   // mid-mission obstruction markers (Execute)
 const timelineHost = /** @type {HTMLElement} */ (document.getElementById('timeline-host'));
 const timeline = makeTimeline(timelineHost, playhead);
 const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhead-slider'));
@@ -84,6 +85,7 @@ function renderProjection() {
     plans: state.handful, selected: sel, t: playhead.t,
     target: mapTarget, rv: mapRv,
     candidates: mapCandidates, highlight: mapHighlight,
+    obstructions: mapObstructions,
   });
   const ghost = sel ? stateAt(sel, playhead.t) : null;
   if (sel && ghost) {
@@ -256,6 +258,7 @@ function mountStage(key) {
       bandUnit: state.bandUnit,
       playhead,
       resetLog: () => logs.reset(MISSION_ID),
+      onObstructions(list) { mapObstructions = list.slice(); renderProjection(); },
       onComplete(summary) {
         state.execSummary = summary;
         advance('execute');

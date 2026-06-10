@@ -82,6 +82,11 @@ Built on top of the skeleton in the same PR, at the maintainer's request:
   **RV EAST**, by a deadline (H+180). The kernel routes a two-leg path (start→OP→RV)
   through the only river crossing (the bridge), scores both commitments, and Execute
   completes at the RV with a combined verdict. Sets up the DEC-54 tidal slice (next).
+- **Mid-mission obstructions.** The Obstruction button inserts the delay where the
+  vehicle *is now* — plan-time is monotonic, so the vehicle freezes in place rather than
+  jumping back to the start — and drops a marker (red ✕) on the track. Works through the
+  exfil leg; the live band is phase-aware (observe → exfil), and the observe verdict locks
+  when the vehicle leaves the OP.
 - **Stakeholder wording.** "handful" → **courses of action (COAs)**; "AO Package" →
   **"Load the operating area"** with plain-language gloss (the register keeps its
   deliberate terms; only the UI is plain).

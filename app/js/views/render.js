@@ -93,7 +93,7 @@ export function makeMap(canvas, baseline) {
      *          target?: {x:number,y:number}|null}} opts
      */
     render({ plans = [], selected = null, t = 0, actual = null, target = null, rv = null,
-             candidates = null, highlight = null } = {}) {
+             candidates = null, highlight = null, obstructions = [] } = {}) {
       drawTerrain(g, baseline);
       drawMarker(g, PLACES.base.x, PLACES.base.y, 'base');
       // Capture: candidate OPs labelled on the map, the picked one emphasised.
@@ -140,6 +140,17 @@ export function makeMap(canvas, baseline) {
         }
         canvas.dataset.ghost = marks.join('|');
       }
+
+      // Mid-mission obstruction markers (Execute) — a red ✕ on the track.
+      for (const o of obstructions) {
+        const ox = (o.x + 0.5) * CELL_PX, oy = (o.y + 0.5) * CELL_PX, r = CELL_PX * 0.32;
+        g.strokeStyle = '#ff7b72'; g.lineWidth = 3; g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(ox - r, oy - r); g.lineTo(ox + r, oy + r);
+        g.moveTo(ox + r, oy - r); g.lineTo(ox - r, oy + r);
+        g.stroke(); g.lineCap = 'butt';
+      }
+      canvas.dataset.obstructions = obstructions.length ? obstructions.map((o) => `${o.x},${o.y}`).join('|') : '';
     },
   };
 }
