@@ -117,11 +117,39 @@ boundary is load-bearing, DEC-14/22/23):
   a fuller model would make it a profile/steering input that re-plans. Also: appetites are
   a stamp input (DEC-6/29) — v1 treats the Compare appetites as a ranking lens only.
 
+### Tidal ford — increment A (mudflat slice, G6/DEC-54) ✅
+
+K-7 is now a tidal **ford**, wadeable only within ±3 h of low tide. The tide is a
+second baseline **channel** (parametric, periodic: period 745 min, first low tide
+H+268 → window opens H+88), and its open/close edges populate the baseline's
+`forecast_changepoints` — forecastable, not surprises.
+
+- **Time-dependent exfil, honestly trivial.** Instead of a time-expanded A*, the
+  kernel weighs the two real alternatives at the moment of departure: *wait at the
+  bank for the window, then wade K-7* vs *detour via the always-open K-9 highway
+  bridge*. Both candidates are materialised with the real movement model; the
+  earlier RV arrival wins, and the weighing is published on the plan
+  (`tide_decision`, shown on Plan/Compare cards: e.g. "wait 11.1 min beats the
+  K-9 detour, RV H+95.5 vs H+96.1: WAIT").
+- **The handful diverges on the tide.** At the default 45-min dwell, direct and
+  tracked reach the bank ~11 min early and **hold for low water** (a visible
+  `Await low tide` leg — the vehicle pauses at the bank in playback, phase
+  `hold`); covered arrives after H+88 and crosses on the **open** tide. Shorten
+  the dwell to 15 min and all three flip to the **K-9 detour** — the capture
+  sliders genuinely steer the optimiser's choice.
+- **Map + execution.** The ford renders by tide state at the projected time
+  (closed → water with wave dashes; open → dashed low-water outline); scrubbing
+  the playhead across H+88 flips it live. Mid-mission re-routes go through the
+  same wait-vs-detour chooser, so blocking cells near the ford detours honestly.
+- **Known simplification (→ increment B).** Execution-delay assessment still
+  shifts the whole timeline uniformly; in reality a delay before the bank is
+  partly absorbed by the tide wait. Re-assessing the crossing against the window
+  during execution (and alerting when a delay forfeits it) is the next increment.
+- Evidence: `11-tide-plan-weighing.png`, `12-tide-hold-at-bank.png`,
+  `13-tide-detour-flip.png`.
+
 ### Planned next (DEC-54 first slices)
 
-- **Tidal estuary + ford (mudflat slice, G6/DEC-54).** Make K-7 a tidal **ford**
-  crossable only within ±3 h of low tide; the optimiser then weighs *wait for the
-  window and cross at K-7* vs *detour south to the always-open highway bridge*.
 - **Sync Matrix temporal plot (entity slice, D6/DEC-53).** Expand the timeline into
   time-aligned tracks: tide curve + crossing-window band, fuel line, mission outer
   bounds, and the current plan's phases. Tide appears from the World step on.

@@ -34,7 +34,6 @@ export function mountWingman(el, ctx) {
   const rvCell = exfilCommitment?.activity?.where ?? null;
   const dwellMin = commitment.activity.duration.min_min;
   const windowStart = commitment.activity.when.window.start_min;
-  const startMin = sched[0].start_min;
 
   const exec = {
     simT: 0,
@@ -55,11 +54,11 @@ export function mountWingman(el, ctx) {
     re-runs the <em>same</em> margin assessment the kernel scored with (NF1), and speaks
     only when the band is crossed (E3).</p>
     <div class="row exec-controls">
-      <button id="wx-play" class="primary" data-testid="wx-play">▶ Play ×64</button>
+      <button id="wx-play" class="primary" data-testid="wx-play">▶ Play 64 min/s</button>
       <label class="speed-ctl">speed
         <input id="wx-speed" data-testid="wx-speed" type="range" min="1" max="9" step="1" value="6"
                aria-label="time acceleration">
-        <b id="wx-speed-label">×64</b>
+        <b id="wx-speed-label">64 min/s</b>
       </label>
       <button id="wx-restart" data-testid="wx-restart">↺ Restart</button>
       <button id="wx-step10" data-testid="wx-step10">Step +10 min</button>
@@ -111,7 +110,10 @@ export function mountWingman(el, ctx) {
     // The live band tracks the phase-relevant commitment: the observation until
     // the vehicle leaves the OP, then the exfil deadline. Lock the observe
     // verdict at the hand-off so later (exfil) delays don't rewrite it.
-    const inExfil = ghost.phase === 'exfil' || ghost.phase === 'complete';
+    // Keyed off the visit's end (not the phase) so a tide hold at the ford —
+    // phase 'hold' mid-exfil — doesn't flip the band back to the observation.
+    const visitLeg = plan.materialisation.schedule.find((s) => s.kind === 'visit');
+    const inExfil = tau >= visitLeg.end_min;
     if (inExfil && exec.visitVerdict == null) {
       exec.visitVerdict = assess(plan, commitment, bandUnit, exec.delayMin).verdict;
     }
@@ -165,11 +167,12 @@ export function mountWingman(el, ctx) {
 
   /** @type {number | undefined} */
   let playTimer;
-  /** Time acceleration from the slider: ×2 … ×512 (powers of two). */
+  /** Sim-minutes per real second from the slider: 2 … 512 (powers of two).
+   *  Labelled "N min/s", not "×N" — 2 min/s is 120× real time. */
   const speedOf = () => 2 ** Number(/** @type {HTMLInputElement} */ ($('#wx-speed')).value);
   const refreshSpeedUI = () => {
-    $('#wx-speed-label').textContent = `×${speedOf()}`;
-    $('#wx-play').textContent = playTimer ? `⏸ Pause (×${speedOf()})` : `▶ Play ×${speedOf()}`;
+    $('#wx-speed-label').textContent = `${speedOf()} min/s`;
+    $('#wx-play').textContent = playTimer ? `⏸ Pause (${speedOf()} min/s)` : `▶ Play ${speedOf()} min/s`;
   };
   const stopPlay = () => {
     if (playTimer) { clearInterval(playTimer); playTimer = undefined; }
@@ -217,7 +220,7 @@ export function mountWingman(el, ctx) {
     const pos = stateAt(plan, exec.lastTau);
     if (pos.phase !== 'transit' && pos.phase !== 'exfil') {
       $('#wx-alerts').innerHTML +=
-        `<div class="alert"><span class="muted">vehicle is static at the OP — obstructions apply while on the move</span></div>`;
+        `<div class="alert"><span class="muted">vehicle is static (OP dwell or tide hold) — obstructions apply while on the move</span></div>`;
       return;
     }
     const cell = { x: Math.round(pos.x), y: Math.round(pos.y) };
@@ -252,7 +255,7 @@ export function mountWingman(el, ctx) {
     exec.blocked.add(idx);
     const ok = rerouteExecution(plan, {
       cells: world.cells, grid: world.grid, profile: world.profile,
-      tau, blocked: exec.blocked, opCell, rvCell, dwellMin, windowStart, startMin,
+      tau, blocked: exec.blocked, opCell, rvCell, dwellMin, windowStart,
     });
     if (!ok) {
       exec.blocked.delete(idx);              // keep the route; report being boxed in

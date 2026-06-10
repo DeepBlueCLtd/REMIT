@@ -148,6 +148,7 @@ export function mountCompare(el, ctx) {
         <td><b style="color:${stratColor[p.strategy.key]}">${p.strategy.label}</b>
             ${isRec ? '<span class="rec-tag" data-testid="rec-tag">★ recommended</span>' : ''}
             <div class="muted">${p.strategy.blurb}</div>
+            ${p.tide_decision ? `<div class="tide-note">≋ ${p.tide_decision.narrative}</div>` : ''}
             <div class="fit" title="implementer fit for the current appetite (DEC-6)">
               <span class="fit-lbl">fit</span>
               <span class="fit-bar"><i data-testid="fit-${p.strategy.key}" style="width:${fitPct}%;background:${stratColor[p.strategy.key]}"></i></span>

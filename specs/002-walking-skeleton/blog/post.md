@@ -77,6 +77,15 @@ the object store and seam traffic live, so the substrate is visible, not asserte
   the data-model Stamp needs a **profile/start-state axis**, and `Plan.id =
   hash(Stamp)` needs a **within-handful discriminator** (we used
   `hash(stamp ⊕ strategy)`). Both are held for the gate per DEC-47.
+- **The world got its first time-varying condition:** K-7 became a tidal **ford**
+  (wadeable ±3 h of low tide, a parametric periodic channel whose open/close edges
+  are forecast changepoints). The optimiser now *weighs* waiting at the bank for
+  low water against detouring via the K-9 bridge, materialises both with the real
+  movement model, and publishes the weighing on each COA card — at the default
+  dwell two COAs hold 11 min at the bank ("WAIT, RV H+95.5 vs H+96.1"), and
+  shortening the dwell flips all three to the detour. The map renders the ford
+  open/closed at the projected time, and the vehicle visibly pauses at the
+  water's edge in playback.
 
 ## Screenshots
 
@@ -85,3 +94,5 @@ the object store and seam traffic live, so the substrate is visible, not asserte
 ![Execute: band-crossing alerts and the append-only execution log during playback](screenshots/execute-alerts.png)
 
 ![Learn: plan-vs-actual reconciliation and the NF3 replay — same stamp, same ids](screenshots/learn-replay.png)
+
+![Execute: the vehicle holds at the bank for low water — the ford renders closed, phase 'hold', then it wades K-7 once the window opens](screenshots/tide-hold-at-bank.png)

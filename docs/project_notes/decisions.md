@@ -106,3 +106,27 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   TypeScript types, which would justify standing up a real TS build.
 
 <!-- Add new ADRs above this line. -->
+
+## ADR-0006 (2026-06-10) — Tidal ford: leg-level wait-vs-detour weighing, not time-expanded search
+
+- **Context:** increment A of the mudflat slice (G6/DEC-54) makes K-7 a tidal ford
+  (wadeable ±3 h of low tide), so the exfil leg becomes time-dependent. A general
+  solution is a time-expanded A* (state = cell × time); for a 28×18 demo grid with
+  one tidal edge it buries the demo's point in machinery.
+- **Decision:** model the tide as a parametric periodic **channel** (period 745 min,
+  first low tide H+268, half-width 180 → window [H+88, H+448]) whose open/close edges
+  fill the baseline's `forecast_changepoints`. The kernel materialises the exfil **two
+  ways** — natural path with a hold at the bank if the ford is shut, and a ford-free
+  detour via K-9 — and commits to the earlier RV arrival, publishing the weighing as
+  `plan.tide_decision` (surfaced on Plan/Compare cards). Mid-mission re-routes go
+  through the same chooser (`chooseExfilRoute`), keeping NF1's single evaluation
+  surface.
+- **Trade-offs:** exact and explainable for one tidal feature; does not generalise to
+  many time-windows per route (a real kernel would need time-expanded search, DEC-41
+  line). Execution-delay assessment still shifts the whole timeline uniformly — a
+  delay before the bank is really absorbed by the wait; re-assessing the window in
+  execution is increment B.
+- **Consequences:** schedules may carry split exfil legs (move → hold "Await low
+  tide" → cross); RV arrival is the **last** exfil leg (`findLast` — assessExfil,
+  measuresAt, plan cards, AAR). Band tracking keys off the visit's end, not the
+  phase, so the mid-exfil hold doesn't flip the monitored commitment.

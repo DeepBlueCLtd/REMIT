@@ -125,16 +125,16 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await page.getByTestId('views-continue').click();      // jumps straight to Execute
 
   // --- 6 Execute: playback, band-crossing alerts, manual observation, log.
-  // Speed slider drives the play button's acceleration label (no timers used
-  // here — playback in tests stays on the deterministic Step buttons). The
-  // slider now reaches down to ×2.
-  await expect(page.getByTestId('wx-play')).toContainText('×64');
+  // Speed slider drives the play button's rate label (no timers used here —
+  // playback in tests stays on the deterministic Step buttons). The label is
+  // sim-minutes per real second; the slider reaches down to 2 min/s.
+  await expect(page.getByTestId('wx-play')).toContainText('64 min/s');
   await expect(page.getByTestId('wx-speed')).toHaveAttribute('min', '1');
   await page.getByTestId('wx-speed').evaluate((el: HTMLInputElement) => {
     el.value = '1';
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await expect(page.getByTestId('wx-play')).toContainText('×2');
+  await expect(page.getByTestId('wx-play')).toContainText('2 min/s');
 
   // The playhead scrubs the route during execution (review elapsed / preview).
   await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
@@ -292,6 +292,75 @@ test('execute: +5 obstruction, and blocking the next cell re-routes in flight', 
   expect(before).toContain(blocked);        // the blocked cell was on the original route
   expect(after).not.toContain(blocked);     // the re-routed path avoids it
   expect(after).not.toEqual(before);
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
+test('tidal ford: the optimiser weighs wait-for-tide against the K-9 detour', async ({ page }) => {
+  // Scenario 1 — default 45 min dwell: exfil reaches the bank ~11 min before
+  // the low-tide window opens (H+88). Waiting beats the K-9 detour, so the
+  // plan holds at the bank; covered arrives after opening and just crosses.
+  await page.goto('/');
+  await page.getByTestId('world-provision').click();
+  await expect(page.getByTestId('world-tide')).toContainText('closed');
+  await expect(page.getByTestId('world-tide')).toContainText('opens H+88');
+
+  // The map renders the ford by tide state at the projected time.
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-ford-state')).toBe('closed');
+
+  await page.getByTestId('continue-capture').click();
+  await page.getByTestId('cap-commit').click();
+  await page.getByTestId('continue-plan').click();
+  await page.getByTestId('plan-run').click();
+  await expect(page.locator('.plan-card')).toHaveCount(3);
+
+  await expect(page.getByTestId('tide-direct')).toContainText('WAIT');
+  await expect(page.getByTestId('tide-covered')).toContainText('open at the bank');
+  const schedule = (key: string) => page.evaluate((k) => {
+    const p = (window as any).__remit.state.handful.find((q: any) => q.strategy.key === k);
+    return p.materialisation.schedule.map((s: any) => s.label).join(' | ');
+  }, key);
+  expect(await schedule('direct')).toContain('Await low tide — ford opens H+88');
+  expect(await schedule('covered')).toContain('ford K-7 (tide open)');
+
+  // Scrubbing the playhead past H+88 flips the rendered ford state to open.
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '100'; el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-ford-state')).toBe('open');
+
+  // During execution the vehicle visibly pauses at the bank: phase 'hold'
+  // inside the exfil, then crosses once the window opens.
+  await page.getByTestId('continue-compare').click();
+  await page.getByTestId('pick-direct').check();
+  await page.getByTestId('cmp-commit').click();
+  await page.getByTestId('continue-views').click();
+  await page.getByTestId('views-continue').click();
+  for (let i = 0; i < 8; i++) await page.getByTestId('wx-step10').click();   // τ=80 — mid-hold
+  await expect(page.locator('#wx-phase')).toHaveText('hold');
+  await page.getByTestId('wx-step10').click();                               // τ=90 — crossing
+  await expect(page.locator('#wx-phase')).toHaveText('exfil');
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
+test('tidal ford: a short dwell flips the choice to the K-9 detour', async ({ page }) => {
+  // Scenario 2 — 15 min dwell: the bank is reached ~43 min before the window;
+  // waiting now loses to the detour, so every plan exfils via the K-9 bridge.
+  await page.goto('/');
+  await page.getByTestId('world-provision').click();
+  await page.getByTestId('continue-capture').click();
+  await page.getByTestId('cap-dur').fill('15');
+  await page.getByTestId('cap-commit').click();
+  await page.getByTestId('continue-plan').click();
+  await page.getByTestId('plan-run').click();
+  await expect(page.locator('.plan-card')).toHaveCount(3);
+
+  await expect(page.getByTestId('tide-direct')).toContainText('DETOUR');
+  const directLabels = await page.evaluate(() => {
+    const p = (window as any).__remit.state.handful.find((q: any) => q.strategy.key === 'direct');
+    return p.materialisation.schedule.map((s: any) => s.label).join(' | ');
+  });
+  expect(directLabels).toContain('via K-9 bridge');
+  expect(directLabels).not.toContain('Await low tide');
   await expect(page.locator('#fault')).toBeHidden();
 });
 

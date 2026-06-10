@@ -5,7 +5,7 @@
 
 import { ObjectStore, LogStore } from './stores/stores.js';
 import { createSeamServer, SeamClient } from './seam/seam.js';
-import { buildWorld, bandUnitFor, PLACES, GRID_W, GRID_H } from './kernel/world.js';
+import { buildWorld, bandUnitFor, PLACES, GRID_W, GRID_H, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
 import { planHandful, stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
 import { mountCapture } from './capture/capture.js';
 import { mountCompare } from './compare/compare.js';
@@ -317,6 +317,10 @@ function mountWorld() {
     <ul class="fact-list">
       <li>Area of operations: <b>${world.baseline.name}</b> · land · ${world.baseline.medium.grid.cell_m} m cells</li>
       <li>Conditions: <b>mobility</b> map (how fast each cell is to cross) → margin band unit <b>${state.bandUnit} min</b></li>
+      <li data-testid="world-tide">Conditions: <b>tide</b> — semidiurnal, period ${TIDE.period_min} min; the
+          <b>K-7 ford</b> is wadeable only within ±${TIDE.open_half_width_min / 60} h of low tide.
+          At H+0 it is <b>${fordOpenAt(0) ? 'open' : 'closed'}</b>${fordOpenAt(0) ? '' : ` — opens H+${nextFordOpen(0)}`}
+          (forecast changepoints, not surprises)</li>
       <li>Own force: <b>${world.profile.name}</b> · ${world.profile.speed_by_medium.land_kph} km/h · start ${PLACES.base.name} (${world.state.position.x},${world.state.position.y})</li>
       <li>Branding/view defaults stay out of the world's identity hash (DEC-48)</li>
     </ul>
@@ -440,10 +444,11 @@ function mountPlan() {
     cards.innerHTML = state.handful.map((p) => {
       const obs = p.scores.satisfaction.find((s) => s.label === 'Observe OP');
       const exf = p.scores.satisfaction.find((s) => s.label === 'Exfil E');
-      const rv = p.materialisation?.schedule.find((s) => s.kind === 'exfil');
+      const rv = p.materialisation?.schedule.findLast((s) => s.kind === 'exfil');
       return `<div class="plan-card" data-testid="plan-card-${p.strategy.key}">
         <h4 style="color:${STRAT_COLORS[p.strategy.key]}">${p.strategy.label}</h4>
         <div class="muted">${p.strategy.blurb}</div>
+        ${p.tide_decision ? `<div class="tide-note" data-testid="tide-${p.strategy.key}">≋ ${p.tide_decision.narrative}</div>` : ''}
         <div>observe <span class="band band-${obs.margin_band}">${obs.margin_band} ${obs.margin_min}m</span></div>
         <div>exfil ${rv ? `H+${rv.end_min} ` : ''}<span class="band band-${exf?.margin_band ?? 'crossed'}">${exf?.margin_band ?? 'n/a'}${exf ? ` ${exf.margin_min}m` : ''}</span>
              <span class="band band-${p.scores.cost_band}">cost ${p.scores.cost_band}</span></div>

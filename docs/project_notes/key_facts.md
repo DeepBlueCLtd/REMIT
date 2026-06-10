@@ -22,6 +22,7 @@ need a value.
 | Org issue fields | Set via `issue_write` → `issue_fields`: **Priority** (Urgent/High/Medium/Low) · **Effort** (High/Medium/Low) · **Start date** · **Target date** |
 | Walking skeleton | `app/` (no build step, ES modules under `app/js/`) — spec + evidence in `specs/002-walking-skeleton/` |
 | Skeleton scenario | AO "Kara Crossing" 28×18 @ 500 m · base (2,15) · OP-A (21,3) · window H+30..H+120 · dwell 45 min · band unit 20 min · seed 1337 · kernel `mock-0.1` |
+| Tide (increment A) | semidiurnal, period 745 min · first low tide H+268 · ford open ±180 min → [H+88, H+448] · ford cells (23,5)(24,5) mobility 0.55 · K-9 detour ≈ +13 min over open ford |
 | e2e CI | `.github/workflows/e2e.yml` — Playwright suite on every PR / push to main |
 
 _Pages URLs resolve once GitHub Pages is enabled (served from `gh-pages`). Add

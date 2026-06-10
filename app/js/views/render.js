@@ -4,7 +4,7 @@
 // Views PROJECT the kernel's materialisation (trajectory, schedule) through
 // the kernel's own evaluator (`stateAt`) — they never re-derive.
 
-import { TERRAIN, PLACES, GRID_W, GRID_H } from '../kernel/world.js';
+import { TERRAIN, PLACES, GRID_W, GRID_H, fordOpenAt } from '../kernel/world.js';
 import { stateAt } from '../kernel/kernel.js';
 
 export const CELL_PX = 26;
@@ -95,6 +95,30 @@ export function makeMap(canvas, baseline) {
     render({ plans = [], selected = null, t = 0, actual = null, target = null, rv = null,
              candidates = null, highlight = null, obstructions = [], nogo = [], blocked = [] } = {}) {
       drawTerrain(g, baseline);
+      // Tidal ford state at the projected time t: closed → drawn as water with
+      // wave dashes; open → its sandy crossing colour with a low-water shore line.
+      const fordOpen = fordOpenAt(t);
+      baseline.cells.forEach((c, i) => {
+        if (c.terrain !== 'ford') return;
+        const fx = (i % GRID_W) * CELL_PX, fy = Math.floor(i / GRID_W) * CELL_PX;
+        if (!fordOpen) {
+          g.fillStyle = TERRAIN.water.color;
+          g.fillRect(fx, fy, CELL_PX, CELL_PX);
+          g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1;
+          for (const dy of [0.35, 0.7]) {
+            g.beginPath();
+            g.moveTo(fx + 3, fy + CELL_PX * dy);
+            g.quadraticCurveTo(fx + CELL_PX * 0.5, fy + CELL_PX * dy - 4, fx + CELL_PX - 3, fy + CELL_PX * dy);
+            g.stroke();
+          }
+        } else {
+          g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1;
+          g.setLineDash([3, 3]);
+          g.strokeRect(fx + 1.5, fy + 1.5, CELL_PX - 3, CELL_PX - 3);
+          g.setLineDash([]);
+        }
+      });
+      canvas.dataset.fordState = fordOpen ? 'open' : 'closed';
       // Operator no-go cells (Plan steering) — a red hatched overlay.
       for (const c of nogo) {
         g.fillStyle = 'rgba(255,123,114,.32)';

@@ -15,4 +15,6 @@ evidence (e.g. `specs/<feature>/evidence/`).
 
 | 2026-06-09 | PR #2 | DEC-44 walking skeleton: full seven-stage lap (capture → learn) as a no-build in-browser app — content-addressed store, mock seam, A*-backed mock kernel, banded compare, synced views, wingman playback, NF3 replay; e2e suite + evidence; blog post. Also: concept doc rename, Playwright cloud-wrapper fixes (CLAUDECODE env, @sparticuz API). | `specs/002-walking-skeleton/` · [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
 
+| 2026-06-10 | PR #2 | Tidal ford increment A (G6/DEC-54): K-7 → tidal ford (±3 h of low tide, parametric periodic channel + forecast changepoints); kernel weighs wait-at-bank vs K-9 detour (`chooseExfilRoute`, decision on each COA card); split exfil legs with `Await low tide` hold; tide-state ford rendering; re-routes tide-aware; 2 new e2e tests + evidence `11–13`. Also Execute: +5 min obstruction, block-next-cell in-flight re-route, speed label fixed to `N min/s`. | ADR-0006 · `specs/002-walking-skeleton/` · [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
+
 <!-- Add new rows above as work completes. -->
