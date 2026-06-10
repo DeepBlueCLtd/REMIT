@@ -133,4 +133,17 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
 - **Prevention:** treat the wrapper as version-coupled to `@sparticuz/chromium`;
   re-check its README on dependency bumps.
 
+## 2026-06-10 — `node --test test/` treats the directory as a module (MODULE_NOT_FOUND)
+
+- **Symptom:** `npm run test:unit` (initially wired to `node --test test/`) failed with
+  `Error: Cannot find module '/home/user/REMIT/test'` / `MODULE_NOT_FOUND` before any
+  test ran — yet running the file directly (`node test/kernel.golden.test.mjs`) passed.
+- **Root cause:** in Node 22, `node --test <path>` does not scan a directory the way
+  bare `node --test` does; a path argument is treated as a module specifier to load, and
+  a directory has no resolvable entry point.
+- **Fix:** point the runner at a quoted glob so Node (not the shell) expands it —
+  `node --test "test/**/*.test.mjs"`; this is what `package.json` `test:unit` uses.
+- **Prevention:** for node's built-in runner, discover tests with a quoted glob (or run
+  bare `node --test` from the repo root); never pass a bare directory path.
+
 <!-- Add new entries above this line. -->

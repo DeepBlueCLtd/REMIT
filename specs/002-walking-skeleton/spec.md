@@ -72,6 +72,20 @@ Each build-plan §4 exit criterion is asserted by `e2e/skeleton.spec.ts` and cap
 5. **Robustness bands are canned per strategy** (single baseline, no sampling) and the
    store's object ids for `Plan` records cover the materialisation cache, while the
    decision identity remains `plan.id` (stamp ⊕ strategy) — both labelled in-app (NF9).
+6. **Register amended mid-stream — the one exception to hold-for-gate: coincidence
+   horizon H2 → H1-lite.** The advisory banded-coincidence tier (D6) is the temporal
+   dual of C10's banded overlay, which is `H1-lite` and ships in v1 (DEC-32); the
+   register tagged the D6 tier `H2` and said "v1 human-scan only", contradicting both
+   its sibling and the shipped windows. Per maintainer direction the register
+   (`remit-register.md` D6 row + deferred-internals) and DEC-53's wording were realigned
+   now rather than held — the only canonical-doc edit on this branch (`decisions.md`
+   ADR-0009). Flagged here so the gate sees the amendment.
+7. **Module placement: `entities/` vs the sketched `views/projection/`.** The entity
+   model + config catalogue landed in `app/js/entities/entities.js` and the renderer in
+   `app/js/views/sync-matrix.js`; the architecture §5 map pencilled the
+   entity.aspect → render catalogue under `views/projection/`. Functionally equivalent
+   (the catalogue is config; the renderer stays NF1-clean). Candidate architecture-map
+   note for the gate.
 
 ## Post-skeleton extensions (maintainer-directed, on this branch)
 
