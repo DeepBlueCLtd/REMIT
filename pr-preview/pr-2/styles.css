@@ -226,10 +226,17 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 }
 .proj-title { font-size: .95rem; }
 #map { border-radius: 8px; border: 1px solid var(--border); display: block; max-width: 100%; height: auto; }
-.timeline-host { margin-top: .6rem; }
-.timeline { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
-.tl-label { font-size: 9px; fill: var(--muted); }
-.tl-tick { font-size: 9px; fill: var(--muted); }
+.sync-matrix-host { margin-top: .6rem; }
+.sync-matrix { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+.sm-label { font-size: 10px; fill: var(--fg); }
+.sm-prov { font-size: 8.5px; text-transform: uppercase; letter-spacing: .03em; }
+.sm-mini { font-size: 8px; fill: var(--muted); }
+.sm-tick { font-size: 9px; fill: var(--muted); }
+.sm-seg { font-size: 8.5px; fill: #0d1117; font-weight: 600; }
+.sm-empty { font-size: 9.5px; fill: var(--muted); font-style: italic; }
+.sm-coincide { display: inline-flex; gap: .5em; }
+.sm-cue { color: var(--muted); }
+.sm-cue.on { color: var(--fg); font-weight: 600; }
 .playhead-row { display: flex; align-items: center; gap: .6rem; margin-top: .45rem; }
 .playhead-row input[type=range] { flex: 1; }
 .readout-line { font-size: .85rem; margin-top: .4rem; min-height: 1.4em; }

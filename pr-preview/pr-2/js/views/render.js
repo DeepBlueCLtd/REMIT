@@ -203,57 +203,5 @@ export function makeMap(canvas, baseline) {
   };
 }
 
-/**
- * The timeline view (SVG): schedule bars + commitment window band + playhead.
- * Clicking/dragging sets the shared playhead.
- * @param {HTMLElement} host
- * @param {Playhead} playhead
- */
-export function makeTimeline(host, playhead) {
-  const W = 720, H = 92, PAD = 34;
-
-  return {
-    /** @param {{plan: any, commitment: any, horizonMin: number}} opts */
-    render({ plan, commitment, horizonMin }) {
-      const window_ = commitment.activity.when.window;
-      const tx = (t) => PAD + (t / horizonMin) * (W - PAD - 8);
-      const sched = plan.materialisation?.schedule ?? [];
-      const barColors = { transit: '#4493f8', hold: '#6e7681', visit: '#38d39f', exfil: '#e3b341' };
-
-      host.innerHTML = `
-        <svg viewBox="0 0 ${W} ${H}" class="timeline" data-testid="timeline">
-          <rect x="${tx(window_.start_min)}" y="16" width="${tx(window_.end_min) - tx(window_.start_min)}"
-                height="56" fill="rgba(255,123,114,.12)" stroke="rgba(255,123,114,.45)"
-                stroke-dasharray="3 3"/>
-          <text x="${tx(window_.start_min) + 4}" y="13" class="tl-label">commitment window</text>
-          ${sched.map((leg) => `
-            <rect x="${tx(leg.start_min)}" y="34" width="${Math.max(2, tx(leg.end_min) - tx(leg.start_min))}"
-                  height="20" rx="4" fill="${barColors[leg.kind]}"/>
-            <text x="${tx(leg.start_min) + 3}" y="66" class="tl-label">${leg.label}</text>`).join('')}
-          ${[0, 60, 120, 180].filter((t) => t <= horizonMin).map((t) => `
-            <line x1="${tx(t)}" y1="72" x2="${tx(t)}" y2="78" stroke="#6e7681"/>
-            <text x="${tx(t)}" y="89" text-anchor="middle" class="tl-tick">H+${t}</text>`).join('')}
-          <line id="tl-cursor" x1="${tx(playhead.t)}" y1="8" x2="${tx(playhead.t)}" y2="78"
-                stroke="#e6edf3" stroke-width="2"/>
-        </svg>`;
-
-      const svg = /** @type {SVGSVGElement} */ (host.querySelector('svg'));
-      const cursor = /** @type {SVGLineElement} */ (host.querySelector('#tl-cursor'));
-      const toT = (clientX) => {
-        const r = svg.getBoundingClientRect();
-        const x = ((clientX - r.left) / r.width) * W;
-        return Math.max(0, Math.min(horizonMin, ((x - PAD) / (W - PAD - 8)) * horizonMin));
-      };
-      let dragging = false;
-      svg.addEventListener('pointerdown', (e) => { dragging = true; playhead.set(toT(e.clientX)); });
-      svg.addEventListener('pointermove', (e) => { if (dragging) playhead.set(toT(e.clientX)); });
-      window.addEventListener('pointerup', () => { dragging = false; });
-
-      playhead.on((t) => {
-        const x = tx(Math.min(t, horizonMin));
-        cursor.setAttribute('x1', String(x));
-        cursor.setAttribute('x2', String(x));
-      });
-    },
-  };
-}
+// The temporal projection is the D6 Sync Matrix (views/sync-matrix.js) — it
+// supersedes the skeleton's single timeline strip, which was one of its tracks.

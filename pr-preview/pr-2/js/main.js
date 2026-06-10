@@ -11,7 +11,9 @@ import { mountCapture } from './capture/capture.js';
 import { mountCompare } from './compare/compare.js';
 import { mountWingman } from './wingman/wingman.js';
 import { mountLearn } from './learn/learn.js';
-import { Playhead, makeMap, makeTimeline, STRAT_COLORS } from './views/render.js';
+import { Playhead, makeMap, STRAT_COLORS } from './views/render.js';
+import { makeSyncMatrix } from './views/sync-matrix.js';
+import { buildEntities, syncCatalogue, satOverhead } from './entities/entities.js';
 import { contentId, shortId } from './shapes/canonical.js';
 
 const MISSION_ID = 'M-001';
@@ -71,8 +73,10 @@ let mapObstructions = [];   // mid-mission obstruction markers (Execute)
 let mapBlocked = [];        // mid-mission blocked cells that forced a re-route (Execute)
 let mapNogo = [];           // operator no-go cells (Plan steering)
 let mapOnCellClick = null;  // active map-click handler (set by Plan in no-go mode)
-const timelineHost = /** @type {HTMLElement} */ (document.getElementById('timeline-host'));
-const timeline = makeTimeline(timelineHost, playhead);
+const syncHost = /** @type {HTMLElement} */ (document.getElementById('sync-matrix-host'));
+const syncMatrix = makeSyncMatrix(syncHost, playhead);
+const entities = buildEntities();
+const catalogue = syncCatalogue();
 const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhead-slider'));
 const readout = /** @type {HTMLElement} */ (document.getElementById('projection-readout'));
 
@@ -93,12 +97,25 @@ function renderProjection() {
     candidates: mapCandidates, highlight: mapHighlight,
     obstructions: mapObstructions, nogo: mapNogo, blocked: mapBlocked,
   });
+  // The Sync Matrix (D6) is the temporal projection — tide + satellite tracks
+  // appear from the World step on; own-force tracks fill in once a COA exists.
+  syncMatrix.render({
+    sel, commitment: state.requirement?.commitments?.[0],
+    exfilCommitment: state.requirement?.commitments?.[1],
+    horizonMin: state.horizonMin, entities, catalogue,
+  });
+  // Coincidence at the cursor (forecast tide + provider satellite, NF1 reads of
+  // each aspect) — the operator's vertical scan, surfaced as plain state.
+  const t = playhead.t;
+  const coincidence =
+    `<span class="sm-cue ${fordOpenAt(t) ? 'on' : ''}">≋ ford ${fordOpenAt(t) ? 'open' : 'closed'}</span>`
+    + `<span class="sm-cue ${satOverhead(t) ? 'on' : ''}">🛰 sat ${satOverhead(t) ? 'overhead' : 'below horizon'}</span>`;
   const ghost = sel ? stateAt(sel, playhead.t) : null;
   if (sel && ghost) {
     readout.innerHTML =
       `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${Math.round(ghost.x)},${Math.round(ghost.y)}</b>`
       + ` · phase <b>${ghost.phase}</b> · fuel <b>${ghost.fuel_pct ?? '—'}%</b>`
-      + ` <span class="muted">— projected via the kernel's evaluator (NF1)</span>`;
+      + ` <span class="sm-coincide" data-testid="sm-coincide">${coincidence}</span>`;
   } else if (state.handful.length) {
     // Compare mode: live per-candidate measures at the playhead, all from the
     // kernel's evaluator (NF1) — scrub to race the ghosts.
@@ -119,9 +136,12 @@ function renderProjection() {
     }).join('');
     readout.innerHTML =
       `<table class="cmp-live" data-testid="cmp-live"><tbody>${rows}</tbody></table>`
-      + `<div class="muted cmp-live-caption">COAs at <b>H+${Math.round(playhead.t)}</b> — kernel evaluator, NF1</div>`;
+      + `<div class="muted cmp-live-caption">COAs at <b>H+${Math.round(playhead.t)}</b> — kernel evaluator, NF1`
+      + ` · <span class="sm-coincide" data-testid="sm-coincide">${coincidence}</span></div>`;
   } else {
-    readout.innerHTML = `<span class="muted">terrain provisioned — awaiting a plan</span>`;
+    readout.innerHTML =
+      `<span class="muted">terrain provisioned — awaiting a plan</span>`
+      + ` · <span class="sm-coincide" data-testid="sm-coincide">${coincidence}</span>`;
   }
 }
 
@@ -259,7 +279,6 @@ function mountStage(key) {
       onSelected(planId, _rationale, rationaleId) {
         state.selectedPlan = state.handful.find((p) => p.id === planId);
         state.ids.rationale = rationaleId;
-        renderTimeline();
         renderProjection();
         advance('compare');
       },
@@ -467,29 +486,20 @@ function mountViews() {
   const legs = sel.materialisation.schedule.map((l) =>
     `<li><b>${l.label}</b> — H+${l.start_min} → H+${l.end_min}</li>`).join('');
   el.innerHTML = `
-    <p class="stage-intro">Timeline and map are co-equal projections of the selected plan,
-    rendered from the kernel's own materialisation and evaluator — <em>shown = optimised</em>
-    (NF1). Scrub the playhead (slider or drag the timeline): the map ghost and the
-    timeline cursor move together.</p>
+    <p class="stage-intro">Map and Sync Matrix are co-equal projections of the selected plan
+    in its world, rendered from the kernel's own materialisation and evaluator —
+    <em>shown = optimised</em> (NF1). Scrub the playhead (slider or drag the matrix): the map
+    ghost, the own-force tracks, and the tide/satellite tracks all move under one cursor —
+    scan vertically for coincidences.</p>
     <ul class="fact-list">${legs}</ul>
     <div class="row">
       <button id="views-continue" class="primary" data-testid="views-continue">Proceed to execution →</button>
     </div>`;
-  renderTimeline();
   playhead.set(0);
   renderProjection();
   el.querySelector('#views-continue')?.addEventListener('click', () => {
     advance('views');
     showStage('execute');
-  });
-}
-
-function renderTimeline() {
-  if (!state.selectedPlan) return;
-  timeline.render({
-    plan: state.selectedPlan,
-    commitment: state.requirement.commitments[0],
-    horizonMin: state.horizonMin,
   });
 }
 
