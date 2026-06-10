@@ -8,6 +8,7 @@ import { TERRAIN, PLACES, GRID_W, GRID_H } from '../kernel/world.js';
 import { stateAt } from '../kernel/kernel.js';
 
 export const CELL_PX = 26;
+export const STRAT_COLORS = { direct: '#f0b429', tracked: '#4493f8', covered: '#38d39f' };
 
 /** Shared playhead — one t, many subscribers (map ghost, timeline cursor, readouts). */
 export class Playhead {
@@ -22,8 +23,6 @@ export class Playhead {
   }
   on(fn) { this.listeners.push(fn); fn(this.t); }
 }
-
-const STRAT_COLORS = { direct: '#f0b429', tracked: '#4493f8', covered: '#38d39f' };
 
 /** Draw the AO terrain + named places onto a canvas context. */
 export function drawTerrain(g, baseline) {
@@ -92,17 +91,30 @@ export function makeMap(canvas, baseline) {
       // No selection yet: show the whole handful at full strength; once a plan
       // is chosen the rest fall back to faint context.
       for (const p of plans) if (p !== selected) drawPath(g, p, { faint: !!selected });
+      const dot = (x, y, r, fill) => {
+        g.fillStyle = fill;
+        g.strokeStyle = '#0d1117';
+        g.lineWidth = 2;
+        g.beginPath(); g.arc((x + 0.5) * CELL_PX, (y + 0.5) * CELL_PX, r, 0, Math.PI * 2);
+        g.fill(); g.stroke();
+      };
       if (selected) {
         drawPath(g, selected);
         const ghost = actual ?? stateAt(selected, t);
         if (ghost) {
-          const cx = (ghost.x + 0.5) * CELL_PX, cy = (ghost.y + 0.5) * CELL_PX;
-          g.fillStyle = '#e6edf3';
-          g.strokeStyle = '#0d1117';
-          g.lineWidth = 2;
-          g.beginPath(); g.arc(cx, cy, 7, 0, Math.PI * 2); g.fill(); g.stroke();
+          dot(ghost.x, ghost.y, 7, '#e6edf3');
           canvas.dataset.ghost = `${ghost.x.toFixed(2)},${ghost.y.toFixed(2)},${ghost.phase}`;
         }
+      } else if (plans.length) {
+        // Compare mode: one racing ghost per candidate, in its strategy colour.
+        const marks = [];
+        for (const p of plans) {
+          const ghost = p.materialisation && stateAt(p, t);
+          if (!ghost) continue;
+          dot(ghost.x, ghost.y, 5.5, STRAT_COLORS[p.strategy.key] ?? '#e6edf3');
+          marks.push(`${p.strategy.key}:${ghost.x.toFixed(2)},${ghost.y.toFixed(2)}`);
+        }
+        canvas.dataset.ghost = marks.join('|');
       }
     },
   };

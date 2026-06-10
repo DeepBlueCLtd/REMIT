@@ -34,7 +34,9 @@ export function mountCompare(el, ctx) {
   el.innerHTML = `
     <p class="stage-intro">Objective satisfaction matrix for the command hat; banded
     cost × robustness for the implementer. Within a band, plans are co-equal — the
-    deciding axis is judgement, and it is recorded (DEC-23).</p>
+    deciding axis is judgement, and it is recorded (DEC-23).
+    <em>Tip: scrub the playhead (right) to race the candidate ghosts along their
+    routes, with live measures beneath the map.</em></p>
     <div class="guard ${comparable ? 'ok-line' : 'bad-line'}" data-testid="cmp-guard">
       Comparability guard: ${comparable
         ? '✓ all plans share the stamp basis (requirement · baseline · excursions · config-core · kernel)'

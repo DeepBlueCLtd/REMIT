@@ -163,6 +163,13 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .playhead-row { display: flex; align-items: center; gap: .6rem; margin-top: .45rem; }
 .playhead-row input[type=range] { flex: 1; }
 .readout-line { font-size: .85rem; margin-top: .4rem; min-height: 1.4em; }
+.cmp-live { border-collapse: collapse; width: 100%; font-size: .8rem; }
+.cmp-live td { padding: .18em .55em .18em 0; white-space: nowrap; }
+.cmp-live .dot {
+  display: inline-block; width: .62em; height: .62em; border-radius: 50%;
+  margin-right: .4em; vertical-align: baseline;
+}
+.cmp-live-caption { font-size: .75rem; margin-top: .15rem; }
 .legend { display: flex; gap: .8rem; flex-wrap: wrap; margin-top: .55rem; font-size: .76rem; color: var(--muted); }
 .legend i { display: inline-block; width: .9em; height: .9em; border-radius: 3px; vertical-align: -.1em; margin-right: .3em; }
 

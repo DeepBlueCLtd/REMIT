@@ -6,12 +6,12 @@
 import { ObjectStore, LogStore } from './stores/stores.js';
 import { createSeamServer, SeamClient } from './seam/seam.js';
 import { buildWorld, bandUnitFor, PLACES } from './kernel/world.js';
-import { planHandful, stateAt, KERNEL_VERSION } from './kernel/kernel.js';
+import { planHandful, stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
 import { mountCapture } from './capture/capture.js';
 import { mountCompare } from './compare/compare.js';
 import { mountWingman } from './wingman/wingman.js';
 import { mountLearn } from './learn/learn.js';
-import { Playhead, makeMap, makeTimeline } from './views/render.js';
+import { Playhead, makeMap, makeTimeline, STRAT_COLORS } from './views/render.js';
 import { contentId, shortId } from './shapes/canonical.js';
 
 const MISSION_ID = 'M-001';
@@ -75,11 +75,35 @@ function renderProjection() {
     target: mapTarget,
   });
   const ghost = execActual ?? (sel ? stateAt(sel, playhead.t) : null);
-  readout.innerHTML = sel && ghost
-    ? `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${Math.round(ghost.x)},${Math.round(ghost.y)}</b>`
+  if (sel && ghost) {
+    readout.innerHTML =
+      `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${Math.round(ghost.x)},${Math.round(ghost.y)}</b>`
       + ` · phase <b>${ghost.phase}</b> · fuel <b>${ghost.fuel_pct ?? '—'}%</b>`
-      + ` <span class="muted">— projected via the kernel's evaluator (NF1)</span>`
-    : `<span class="muted">terrain provisioned — awaiting a plan</span>`;
+      + ` <span class="muted">— projected via the kernel's evaluator (NF1)</span>`;
+  } else if (state.handful.length) {
+    // Compare mode: live per-candidate measures at the playhead, all from the
+    // kernel's evaluator (NF1) — scrub to race the ghosts.
+    const rows = state.handful.map((p) => {
+      const m = measuresAt(p, playhead.t);
+      const c = STRAT_COLORS[p.strategy.key] ?? '#e6edf3';
+      if (!m) {
+        return `<tr><td><i class="dot" style="background:${c}"></i><b style="color:${c}">${p.strategy.label}</b></td>
+          <td colspan="5" class="muted">no traversable route</td></tr>`;
+      }
+      return `<tr>
+        <td><i class="dot" style="background:${c}"></i><b style="color:${c}">${p.strategy.label}</b></td>
+        <td>${m.phase}</td>
+        <td>${m.dist_km} km</td>
+        <td>${m.to_arrival_min > 0 ? `OP in ${Math.round(m.to_arrival_min)} min` : `dwell ${Math.round(m.dwell_min)} min`}</td>
+        <td>fuel ${m.fuel_pct}%</td>
+      </tr>`;
+    }).join('');
+    readout.innerHTML =
+      `<table class="cmp-live" data-testid="cmp-live"><tbody>${rows}</tbody></table>`
+      + `<div class="muted cmp-live-caption">candidates at <b>H+${Math.round(playhead.t)}</b> — kernel evaluator, NF1</div>`;
+  } else {
+    readout.innerHTML = `<span class="muted">terrain provisioned — awaiting a plan</span>`;
+  }
 }
 
 playhead.on((t) => {
