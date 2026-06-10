@@ -29,11 +29,13 @@ export async function mountLearn(el, ctx) {
   ]);
   const requirement = reqRes.body;
   const rationale = ratRes.body;
-  const commitment = requirement.commitments[0];
   const plan = ctx.selectedPlan;
   const plannedArrival = plan.materialisation.schedule[0].end_min;
-  const sat = plan.scores.satisfaction[0];
+  const plannedRv = plan.materialisation.schedule.find((s) => s.kind === 'exfil')?.end_min;
+  const obsSat = plan.scores.satisfaction.find((s) => s.label === 'Observe OP');
+  const exfSat = plan.scores.satisfaction.find((s) => s.label === 'Exfil E');
 
+  const verdictCell = (v) => `<span class="${v}">${v}</span>`;
   const row = (k, planned, actual) =>
     `<tr><td>${k}</td><td>${planned}</td><td>${actual}</td></tr>`;
 
@@ -54,9 +56,11 @@ export async function mountLearn(el, ctx) {
         <table class="matrix" data-testid="aa-recon">
           <thead><tr><th></th><th>planned</th><th>actual</th></tr></thead>
           <tbody>
-            ${row('arrival', `H+${plannedArrival}`, `H+${execSummary.actual_arrival}`)}
+            ${row('OP arrival', `H+${plannedArrival}`, `H+${execSummary.actual_arrival}`)}
             ${row('delays', '0 min', `${execSummary.delay_min} min`)}
-            ${row(`${commitment.id} verdict`, sat.verdict, execSummary.final_verdict)}
+            ${row('Observe OP', verdictCell(obsSat.verdict), verdictCell(execSummary.visit_verdict))}
+            ${exfSat ? row('Exfil E (RV)', `${verdictCell(exfSat.verdict)}${plannedRv ? ` H+${plannedRv}` : ''}`,
+                `${verdictCell(execSummary.exfil_verdict ?? '—')}${execSummary.rv_arrival != null ? ` H+${execSummary.rv_arrival}` : ''}`) : ''}
           </tbody>
         </table>
       </div>

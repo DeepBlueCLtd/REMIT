@@ -8,7 +8,7 @@
 // execution log (the after-action record, → Learn). Local loop — never over
 // the seam for the live monitor (DEC-40-D); log writes go via the seam.
 
-import { assess, stateAt } from '../kernel/kernel.js';
+import { assess, assessExfil, stateAt } from '../kernel/kernel.js';
 
 /**
  * @param {HTMLElement} el
@@ -20,9 +20,9 @@ import { assess, stateAt } from '../kernel/kernel.js';
  *          onComplete: (summary: any) => void}} ctx
  */
 export function mountWingman(el, ctx) {
-  const { plan, commitment, bandUnit, missionId } = ctx;
+  const { plan, commitment, exfilCommitment, bandUnit, missionId } = ctx;
   const sched = plan.materialisation.schedule;
-  const visitEnd = sched[sched.length - 1].end_min;
+  const missionEnd = sched[sched.length - 1].end_min;   // exfil arrival (or visit end)
 
   const exec = {
     simT: 0,
@@ -107,16 +107,22 @@ export function mountWingman(el, ctx) {
     ctx.playhead.set(tau);
     ctx.renderViews({ t: tau, actual: ghost });
 
-    if (tau >= visitEnd) {
+    if (tau >= missionEnd) {
       exec.complete = true;
       stopPlay();
-      const finalVerdict = a.verdict;
-      $('#wx-final').innerHTML = `mission playback complete — commitment <b class="${finalVerdict}">${finalVerdict}</b>`
-        + (exec.delayMin ? ` <span class="muted">(after ${exec.delayMin} min accumulated delay)</span>` : '');
+      const visitVerdict = a.verdict;
+      const eRes = exfilCommitment ? assessExfil(plan, exfilCommitment, bandUnit, exec.delayMin) : null;
+      const overall = (visitVerdict === 'violated' || eRes?.verdict === 'violated') ? 'violated' : 'satisfied';
+      $('#wx-final').innerHTML = `mission playback complete — <b class="${overall}">${overall}</b>`
+        + ` <span class="muted">(observe: ${visitVerdict}${eRes ? `, exfil: ${eRes.verdict}` : ''}`
+        + `${exec.delayMin ? `, +${exec.delayMin} min delay` : ''})</span>`;
       ctx.onComplete({
         actual_arrival: Math.round((plan.materialisation.schedule[0].end_min + exec.delayMin) * 10) / 10,
         delay_min: exec.delayMin,
-        final_verdict: finalVerdict,
+        visit_verdict: visitVerdict,
+        exfil_verdict: eRes?.verdict ?? null,
+        rv_arrival: eRes?.projected_arrival ?? null,
+        final_verdict: overall,
         ended_at: Math.round(exec.simT),
       });
     }

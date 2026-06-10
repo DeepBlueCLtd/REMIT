@@ -50,6 +50,14 @@ function drawMarker(g, x, y, kind) {
     g.beginPath(); g.arc(cx, cy, CELL_PX * 0.38, 0, Math.PI * 2); g.stroke();
     g.fillStyle = '#ff7b72'; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill();
   }
+  if (kind === 'rv') {
+    // Exfil rendezvous — a diamond.
+    g.strokeStyle = '#e3b341'; g.lineWidth = 2.5; g.fillStyle = 'rgba(227,179,65,.25)';
+    const r = CELL_PX * 0.36;
+    g.beginPath();
+    g.moveTo(cx, cy - r); g.lineTo(cx + r, cy); g.lineTo(cx, cy + r); g.lineTo(cx - r, cy);
+    g.closePath(); g.fill(); g.stroke();
+  }
 }
 
 export function drawPath(g, plan, { faint = false, color } = {}) {
@@ -84,10 +92,11 @@ export function makeMap(canvas, baseline) {
      *          actual?: {x:number,y:number,phase:string}|null,
      *          target?: {x:number,y:number}|null}} opts
      */
-    render({ plans = [], selected = null, t = 0, actual = null, target = null } = {}) {
+    render({ plans = [], selected = null, t = 0, actual = null, target = null, rv = null } = {}) {
       drawTerrain(g, baseline);
       drawMarker(g, PLACES.base.x, PLACES.base.y, 'base');
       if (target) drawMarker(g, target.x, target.y, 'target');
+      if (rv) drawMarker(g, rv.x, rv.y, 'rv');
       // No selection yet: show the whole handful at full strength; once a plan
       // is chosen the rest fall back to faint context.
       for (const p of plans) if (p !== selected) drawPath(g, p, { faint: !!selected });
@@ -135,7 +144,7 @@ export function makeTimeline(host, playhead) {
       const window_ = commitment.activity.when.window;
       const tx = (t) => PAD + (t / horizonMin) * (W - PAD - 8);
       const sched = plan.materialisation?.schedule ?? [];
-      const barColors = { transit: '#4493f8', hold: '#6e7681', visit: '#38d39f' };
+      const barColors = { transit: '#4493f8', hold: '#6e7681', visit: '#38d39f', exfil: '#e3b341' };
 
       host.innerHTML = `
         <svg viewBox="0 0 ${W} ${H}" class="timeline" data-testid="timeline">

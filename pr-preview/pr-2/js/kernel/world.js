@@ -25,8 +25,9 @@ export const TERRAIN = {
 
 /** Named cells the demo uses. */
 export const PLACES = {
-  base:   { x: 2,  y: 15, name: 'Patrol base SPARROW' },
-  bridge: { x: 23, y: 5,  name: 'K-7 bridge' },
+  base:    { x: 2,  y: 15, name: 'Patrol base SPARROW' },
+  bridge:  { x: 23, y: 5,  name: 'K-7 bridge' },
+  rvEast:  { x: 27, y: 8,  name: 'RV EAST (east bank, beyond K-7)' },
   ops: [
     { key: 'OP-A', x: 21, y: 3, name: 'OP-A — treeline overlooking K-7 bridge' },
     { key: 'OP-B', x: 21, y: 11, name: 'OP-B — south-reach overlook' },
