@@ -27,4 +27,10 @@ evidence (e.g. `specs/<feature>/evidence/`).
 
 | 2026-06-10 | `claude/data-model-mini-site-uqykia` | Data Model mini-site: bespoke, attractive `site/data-model/index.html` (self-contained, light/dark, no build) presenting the v1 data model as a human-oriented tour — three universal rules, lifecycle spine, and entity cards (Requirement → ExecutionLog) with plain-English field glosses + DEC chips, plus the relationships paragraph. Linked from `site/index.html` welcome page. Derived from `docs/remit-data-model.md` (draft 0.3); becomes a generated view once the LinkML schema is authored (DEC-57). Note: no LinkML schema exists in-repo yet. | `site/data-model/` |
 
+| 2026-06-10 | PR #4 | Extended PR previews to publish the whole static site (welcome + `/data-model/` + `/app/`), not just the app, so site/docs changes are reviewable per-PR (`pr-preview.yml` mirrors `deploy.yml`'s assembly; blog excluded — needs root Jekyll). | ADR-0010 · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
+
+| 2026-06-10 | PR #4 | **LinkML data model authored (DEC-57).** `schema/remit.linkml.yaml` — 60 classes, 20 enums — from the `remit-data-model.md` spine, reconciled field-by-field against the walking skeleton's real shapes (schema ≡ code). `schema/generate.sh` (venv-bootstrapping) generates JSON Schema + TypeScript (`schema/gen/`) and a single self-contained **human-readable HTML reference** (`schema/build-reference.py` → `site/data-model/index.html`, ~90 KB, classes/fields/enums with linkages + ER diagram) that **replaces the hand-authored tour**. No Pydantic yet. Two LinkML gotchas hit + recorded (bugs.md). | ADR-0011 · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
+
+| 2026-06-10 | PR #4 | Recorded the "LinkML one-source-of-truth" type rules (constitution) adapted to REMIT — CLAUDE.md "Data model" section, spec-kit constitution, ADR-0012. Deferred follow-ups: GENERATED banners + regen-no-diff CI check; golden-fixtures adherence test; migrate skeleton inline shapes onto generated TS (own spec). | ADR-0012 · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
+
 <!-- Add new rows above as work completes. -->

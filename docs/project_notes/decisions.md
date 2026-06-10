@@ -205,6 +205,77 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   1-min resolution (fine for advisory). Both shipped rules need a selected COA
   (self.phase), so windows appear from Views on, not the World step.
 
+## ADR-0011 (2026-06-10) — LinkML is the data-model source of truth; artefacts are generated (DEC-57)
+
+- **Context:** DEC-57 adopts LinkML as the source of truth for the serialisable
+  object core (one schema → JSON Schema · TypeScript · Pydantic · HTML), with
+  `remit-data-model.md` becoming a generated view. No schema existed yet; the
+  data-model mini-site was hand-authored HTML. The maintainer wants the schema
+  authored and **human-documented for stakeholder review**, and (constitution)
+  wants all non-trivial types to come from this one store, with derived artefacts
+  generated, never hand-written.
+- **Decision:** author `schema/remit.linkml.yaml` (60 classes, 20 enums) from the
+  `remit-data-model.md` spine, **reconciled field-by-field against the walking
+  skeleton's real object shapes** (so schema ≡ code). Generate from it via
+  `schema/generate.sh`: JSON Schema + TypeScript (`schema/gen/`) and a **single
+  self-contained HTML reference** (`schema/build-reference.py` → `site/data-model/`)
+  that replaces the hand-authored tour. **Pydantic is omitted** (no Python consumer
+  yet — one line to add). The reference is published with the whole site, so it is
+  reviewable per-PR (ADR-0010).
+- **Options considered (HTML reference):** (a) standard `gen-doc` + MkDocs-Material —
+  canonical, full-featured, but **8.8 MB / 315 files**, churns hundreds of files per
+  edit, and clashes with the lean no-build repo (ADR-0005); (b) build the docs in CI —
+  keeps the repo lean but adds a heavy LinkML+MkDocs step to deploy *and* preview,
+  undoing the preview simplification just made; (c) a single self-contained generated
+  page on-brand with the tour it replaces (~90 KB, one-file diffs, mermaid via CDN) —
+  **chosen**.
+- **Scope boundary (DEC-57):** LinkML models *data, not behaviour*. Function-valued
+  fields (`Channel.values`, `MovementModel.cost_speed`, `Aspect.value`) and service
+  endpoints are documented but not modelled as slots — they live in the seam contract.
+- **Skeleton reconciliation:** the schema follows the *code's* field names
+  (`clock_min`, `margin_band`, `config_core_hash`, the skeleton's `profile_version`/
+  `start` Stamp additions, `Strategy`, `TideDecision`, …), and flags classes the
+  skeleton does not yet build (MovementModel, Excursion, ChannelDelta, Effect,
+  AOPackage, Waiver, Replan). Divergences (entity `aspects` as object-map vs list;
+  `kind`/`provenance` folding) are noted in-schema.
+- **Deviation:** `Entity.kind` and `DataProvenance.kind` are documented **strings,
+  not enums**, because a permissible value literally named `self` crashes the LinkML
+  loader (jsonasobj2 reserves `self`) and the value must equal its key — see bugs.md.
+- **Consequences:** the data model now has one validated source feeding the docs,
+  JSON Schema and TS; the reference is generated and stakeholder-reviewable. Deferred
+  follow-ups (logged): GENERATED banners + a regen-no-diff CI check; a golden-fixtures
+  adherence test (skeleton instances validate against the generated JSON Schema); and
+  migrating the skeleton's inline shapes onto the generated TS types — see ADR-0012.
+
+## ADR-0012 (2026-06-10) — Adopt the LinkML "one source of truth" type rules (constitution)
+
+- **Context:** the maintainer runs a constitution in a sibling project: *LinkML
+  schemas define all data structures; Pydantic/JSON Schema/TypeScript are derived,
+  never hand-written; never hand-author a type the schema could generate; types at a
+  cross-boundary surface that subset a typed source must be expressed structurally
+  (Pick/Omit/Partial/derived validator), never re-listed by hand* — because re-listed
+  fields keep compiling while silently dropping a field the source later grows. Enforced
+  at writing-time and via lint. They asked how this applies to REMIT.
+- **Decision:** adopt the principle here, scoped to this repo's reality:
+  1. `schema/remit.linkml.yaml` is the one source; `schema/gen/*` and
+     `site/data-model/` are generated, never hand-edited.
+  2. **UI-only, single-class discrete types are exempt** (the maintainer's carve-out) —
+     e.g. the Sync-Matrix display catalogue, coincidence-window rows, render closures,
+     and `main.js` in-flight UI state stay hand-written; the schema models the
+     serialisable *data* core only.
+  3. **The cross-boundary subset rule has no surface yet** — REMIT v1 is one in-browser
+     JS process (no host↔webview / service wire). It activates when a boundary appears.
+  4. The JS analogue of the "silent field-drop" failure is **drift between the
+     skeleton's inline shapes and the schema** — there is no compiler to catch it, so
+     the faithful port is a **golden-fixtures adherence test** plus **GENERATED banners +
+     a regen-no-diff CI check** (both deferred, ADR-0011), and the writing-time habit in
+     CLAUDE.md: *before declaring a non-trivial shared shape in `app/js`, import the
+     generated type instead of re-listing fields.*
+- **Consequences:** the rules are recorded (CLAUDE.md "Data model" section, the
+  spec-kit constitution, and here). Full realisation — the app importing generated
+  types and the adherence/lint enforcement — is sequenced as follow-up work, not done
+  in this PR.
+
 ## ADR-0010 (2026-06-10) — PR previews publish the whole static site, not the app alone
 
 - **Context:** the landing page, `/data-model/`, and the blog are published only on
