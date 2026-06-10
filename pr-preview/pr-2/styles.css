@@ -175,6 +175,21 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .matrix td.satisfied { color: var(--ok); font-weight: 600; }
 .matrix td.violated { color: var(--bad); font-weight: 600; }
 .guard { font-size: .88rem; margin: .5rem 0; }
+.implementer-controls {
+  display: flex; gap: .9rem; flex-wrap: wrap; align-items: end;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+  padding: .6rem .8rem; margin: .6rem 0;
+}
+.implementer-controls > label { display: flex; flex-direction: column; gap: .25em; font-size: .85rem; color: var(--muted); }
+.implementer-controls .mitigation {
+  flex-direction: row; align-items: center; gap: .4em; color: var(--fg);
+  border-left: 2px solid var(--warn); padding-left: .7em;
+}
+.mit-cost { font-size: .72rem; color: var(--warn); }
+.matrix tr.recommended { background: rgba(126,231,135,.07); }
+.matrix tr.recommended td { border-color: rgba(126,231,135,.3); }
+.rec-tag { font-size: .68rem; color: var(--ok); border: 1px solid rgba(126,231,135,.5); border-radius: 999px; padding: .04em .5em; margin-left: .4em; white-space: nowrap; }
+.band-mod { font-size: .68rem; color: var(--warn); }
 .band {
   display: inline-block; font-size: .75rem; font-weight: 600;
   border-radius: 999px; padding: .08em .6em; border: 1px solid;

@@ -325,14 +325,10 @@ function mountPlan() {
     <p class="stage-intro">One stamped kernel call fans out the strategy axes and returns
     a set of distinct <b>courses of action (COAs)</b> — banded, reproducible (DEC-22/40-C).
     Each COA routes to the OP, holds the observation, then exfils east across K-7. The
-    mock kernel is an honest non-planner: real A* paths, illustrative scores (NF9).</p>
+    mock kernel is an honest non-planner: real A* paths, illustrative scores (NF9).
+    <em>Next: this is where the operator will add intelligence as spatial/temporal
+    constraints (steering, DEC-24) that bend the routes.</em></p>
     <div class="form-grid">
-      <label>Appetite · tempo
-        <select id="plan-tempo"><option>deliberate</option><option selected>balanced</option><option>rapid</option></select>
-      </label>
-      <label>Appetite · exposure
-        <select id="plan-exposure"><option>bold</option><option selected>balanced</option><option>cautious</option></select>
-      </label>
       <label>strategy_seed <input value="${STRATEGY_SEED}" disabled></label>
       <label>kernel <input value="${KERNEL_VERSION}" disabled></label>
     </div>
@@ -343,10 +339,6 @@ function mountPlan() {
     <div id="plan-cards" class="plan-cards"></div>`;
 
   el.querySelector('#plan-run')?.addEventListener('click', async () => {
-    state.appetites = {
-      tempo: /** @type {HTMLSelectElement} */ (el.querySelector('#plan-tempo')).value,
-      exposure: /** @type {HTMLSelectElement} */ (el.querySelector('#plan-exposure')).value,
-    };
     const body = {
       requirement: state.requirement, requirement_version: state.ids.requirement,
       baseline: world.baseline, baseline_version: state.ids.baseline,
