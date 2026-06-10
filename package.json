@@ -6,6 +6,7 @@
   "license": "EPL-2.0",
   "type": "module",
   "scripts": {
+    "test:unit": "node --test \"test/**/*.test.mjs\"",
     "test:e2e": "node run-playwright.mjs",
     "test:e2e:local": "playwright test",
     "playwright:install": "playwright install chromium"

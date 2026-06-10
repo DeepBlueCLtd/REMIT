@@ -91,4 +91,59 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
   enabled (no `.nojekyll`) if any page needs rendering; for project sites always set
   `baseurl`, and *derive* it rather than hardcode so the template stays portable.
 
+## 2026-06-09 — Maintainer stuck at Plan stage (progression affordance + silent-failure risk)
+
+- **Symptom:** in the deployed PR preview, the maintainer could not progress past
+  the Plan stage, while the e2e suite (and the same suite pointed at the live
+  preview URL) passed the identical path.
+- **Root cause(s):** progression relied solely on the pulsing next-stage chip in
+  the left rail — easy to miss; and the app had no global error surface, so any
+  browser-specific exception (e.g. during the next stage's mount) would strand
+  the rail in its locked state with no message at all.
+- **Fix:** (1) explicit "Continue → next stage" button injected into each panel
+  at the moment its committing act completes — and injected *before* the next
+  stage mounts; (2) inline ES5-safe fault banner wired to `window.onerror` +
+  `unhandledrejection` (works even if the ES modules fail to load); (3)
+  `mountStage` guarded so a mount failure shows in the banner and still
+  re-renders the rail; (4) replaced the one `Array.at(-1)` (Safari <15.4).
+- **Prevention:** e2e now walks the same continue-button path a person uses and
+  asserts the fault banner stays hidden; any future stuck report should come
+  with the banner's text rather than a mystery.
+
+- **Symptom:** `npm run test:e2e` in a Claude Code cloud session failed with
+  "Executable doesn't exist at /opt/pw-browsers/…" — Playwright tried its own
+  managed browser instead of the bundled one.
+- **Root cause:** the session exports `CLAUDECODE=1` (no underscore), but
+  `run-playwright.mjs` only checked `CLAUDE_CODE`, so `isCloud` was false and the
+  `@sparticuz/chromium` path was never used.
+- **Fix:** the wrapper now accepts either spelling (`CLAUDE_CODE` or `CLAUDECODE`).
+- **Prevention:** when gating on environment detection, log the decision
+  (`[run-playwright] cloud=…` already does) and check it first when browser
+  launch fails in cloud.
+
+## 2026-06-09 — @sparticuz/chromium `executablePath('/tmp/chromium')` throws (API drift)
+
+- **Symptom:** wrapper failed with `The input directory "/tmp/chromium" does not
+  exist` from `@sparticuz/chromium`.
+- **Root cause:** in current versions (v121+), `executablePath(input)` treats the
+  argument as the *source* location of the brotli pack, not the extraction target.
+  The template called it with the intended destination.
+- **Fix:** call `chromium.executablePath()` with no argument — it extracts the
+  bundled pack itself and returns `/tmp/chromium`.
+- **Prevention:** treat the wrapper as version-coupled to `@sparticuz/chromium`;
+  re-check its README on dependency bumps.
+
+## 2026-06-10 — `node --test test/` treats the directory as a module (MODULE_NOT_FOUND)
+
+- **Symptom:** `npm run test:unit` (initially wired to `node --test test/`) failed with
+  `Error: Cannot find module '/home/user/REMIT/test'` / `MODULE_NOT_FOUND` before any
+  test ran — yet running the file directly (`node test/kernel.golden.test.mjs`) passed.
+- **Root cause:** in Node 22, `node --test <path>` does not scan a directory the way
+  bare `node --test` does; a path argument is treated as a module specifier to load, and
+  a directory has no resolvable entry point.
+- **Fix:** point the runner at a quoted glob so Node (not the shell) expands it —
+  `node --test "test/**/*.test.mjs"`; this is what `package.json` `test:unit` uses.
+- **Prevention:** for node's built-in runner, discover tests with a quoted glob (or run
+  bare `node --test` from the repo root); never pass a bare directory path.
+
 <!-- Add new entries above this line. -->
