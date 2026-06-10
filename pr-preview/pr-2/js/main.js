@@ -5,7 +5,7 @@
 
 import { ObjectStore, LogStore } from './stores/stores.js';
 import { createSeamServer, SeamClient } from './seam/seam.js';
-import { buildWorld, bandUnitFor, PLACES } from './kernel/world.js';
+import { buildWorld, bandUnitFor, PLACES, GRID_W, GRID_H } from './kernel/world.js';
 import { planHandful, stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
 import { mountCapture } from './capture/capture.js';
 import { mountCompare } from './compare/compare.js';
@@ -47,6 +47,7 @@ const state = {
   configCoreHash: '',
   bandUnit: bandUnitFor(world.baseline.channels[0]),
   appetites: { tempo: 'balanced', exposure: 'balanced' },
+  steering: /** @type {any[]} */ ([]),   // operator no-go constraints (Plan)
   handful: /** @type {any[]} */ ([]),
   selectedPlan: /** @type {any} */ (null),
   execSummary: /** @type {any} */ (null),
@@ -66,6 +67,8 @@ let mapRv = null;
 let mapCandidates = null;   // candidate OPs shown on the map during Capture
 let mapHighlight = null;    // the OP currently picked in Capture (live)
 let mapObstructions = [];   // mid-mission obstruction markers (Execute)
+let mapNogo = [];           // operator no-go cells (Plan steering)
+let mapOnCellClick = null;  // active map-click handler (set by Plan in no-go mode)
 const timelineHost = /** @type {HTMLElement} */ (document.getElementById('timeline-host'));
 const timeline = makeTimeline(timelineHost, playhead);
 const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhead-slider'));
@@ -85,7 +88,7 @@ function renderProjection() {
     plans: state.handful, selected: sel, t: playhead.t,
     target: mapTarget, rv: mapRv,
     candidates: mapCandidates, highlight: mapHighlight,
-    obstructions: mapObstructions,
+    obstructions: mapObstructions, nogo: mapNogo,
   });
   const ghost = sel ? stateAt(sel, playhead.t) : null;
   if (sel && ghost) {
@@ -125,6 +128,15 @@ playhead.on((t) => {
 });
 slider.addEventListener('pointerdown', () => pausePlayback?.());  // grabbing the scrubber pauses live play
 slider.addEventListener('input', () => playhead.set(Number(slider.value)));
+
+// Map clicks → cell coords, dispatched to the active handler (Plan no-go mode).
+mapCanvas.addEventListener('click', (e) => {
+  if (!mapOnCellClick || !worldProvisioned) return;
+  const r = mapCanvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / r.width * GRID_W);
+  const y = Math.floor((e.clientY - r.top) / r.height * GRID_H);
+  if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H) mapOnCellClick({ x, y });
+});
 
 // --- drawers ---------------------------------------------------------------
 const storeList = /** @type {HTMLElement} */ (document.getElementById('store-list'));
@@ -183,6 +195,7 @@ function showStage(key) {
   if (!state.unlocked.has(key)) return;
   state.stage = key;
   if (state.nextHint === key) state.nextHint = null;
+  if (key !== 'plan') mapOnCellClick = null;   // map-painting is a Plan-only mode
   document.querySelectorAll('.stage-panel').forEach((p) =>
     p.classList.toggle('active', /** @type {HTMLElement} */ (p).dataset.panel === key));
   renderRail();
@@ -270,7 +283,7 @@ function mountStage(key) {
     mountLearn(panel('learn'), {
       seam, missionId: MISSION_ID, ids: state.ids, world,
       selectedPlan: state.selectedPlan, handful: state.handful,
-      appetites: state.appetites, strategySeed: STRATEGY_SEED,
+      appetites: state.appetites, steering: state.steering, strategySeed: STRATEGY_SEED,
       configCoreHash: state.configCoreHash, execSummary: state.execSummary,
     }).then(() => {
       state.done.add('learn');
@@ -351,15 +364,16 @@ function mountCaptureStage() {
 function mountPlan() {
   const el = panel('plan');
   el.innerHTML = `
-    <p class="stage-intro">One stamped kernel call fans out the strategy axes and returns
-    a set of distinct <b>courses of action (COAs)</b> — banded, reproducible (DEC-22/40-C).
-    Each COA routes to the OP, holds the observation, then exfils east across K-7. The
-    mock kernel is an honest non-planner: real A* paths, illustrative scores (NF9).
-    <em>Next: this is where the operator will add intelligence as spatial/temporal
-    constraints (steering, DEC-24) that bend the routes.</em></p>
-    <div class="form-grid">
-      <label>strategy_seed <input value="${STRATEGY_SEED}" disabled></label>
-      <label>kernel <input value="${KERNEL_VERSION}" disabled></label>
+    <p class="stage-intro">This is where the operator shapes the problem: add intelligence
+    as <b>no-go constraints</b> (steering, DEC-24) by painting cells on the map, then a
+    stamped kernel call fans out the strategy axes and returns a set of distinct
+    <b>courses of action (COAs)</b> that route <em>around</em> them (DEC-22/40-C). The mock
+    kernel is an honest non-planner: real A* paths, illustrative scores (NF9).</p>
+    <div class="row steer-controls">
+      <button id="plan-nogo" data-testid="plan-nogo">✏ Paint no-go zone</button>
+      <span class="muted" id="plan-nogo-count" data-testid="plan-nogo-count">0 cells</span>
+      <button id="plan-nogo-clear" data-testid="plan-nogo-clear">Clear</button>
+      <span class="muted">— click map cells to block; the routes bend around them</span>
     </div>
     <div class="row">
       <button id="plan-run" class="primary" data-testid="plan-run">Generate courses of action — POST /plan/handful</button>
@@ -367,13 +381,34 @@ function mountPlan() {
     </div>
     <div id="plan-cards" class="plan-cards"></div>`;
 
+  const nogoBtn = /** @type {HTMLButtonElement} */ (el.querySelector('#plan-nogo'));
+  const countEl = /** @type {HTMLElement} */ (el.querySelector('#plan-nogo-count'));
+  const updateCount = () => { countEl.textContent = `${mapNogo.length} cells`; };
+  updateCount();
+
+  const toggleCell = (cell) => {
+    const i = mapNogo.findIndex((c) => c.x === cell.x && c.y === cell.y);
+    if (i >= 0) mapNogo.splice(i, 1); else mapNogo.push(cell);
+    updateCount();
+    renderProjection();
+  };
+  nogoBtn.addEventListener('click', () => {
+    const on = nogoBtn.classList.toggle('active');
+    mapOnCellClick = on ? toggleCell : null;
+    nogoBtn.textContent = on ? '✏ Painting — click map cells' : '✏ Paint no-go zone';
+  });
+  el.querySelector('#plan-nogo-clear')?.addEventListener('click', () => {
+    mapNogo.length = 0; updateCount(); renderProjection();
+  });
+
   el.querySelector('#plan-run')?.addEventListener('click', async () => {
+    state.steering = mapNogo.length ? [{ type: 'no-go', cells: mapNogo.map((c) => ({ x: c.x, y: c.y })) }] : [];
     const body = {
       requirement: state.requirement, requirement_version: state.ids.requirement,
       baseline: world.baseline, baseline_version: state.ids.baseline,
       profile: world.profile, profile_version: state.ids.profile,
       state: world.state, config_core: state.configCoreHash,
-      appetites: state.appetites, steering: [], strategy_seed: STRATEGY_SEED,
+      appetites: state.appetites, steering: state.steering, strategy_seed: STRATEGY_SEED,
     };
     state.lastPlanRequest = body;
     const res = await seam.planHandful(body);
@@ -385,9 +420,12 @@ function mountPlan() {
     state.ids.stamp = stampPut.id;
     for (const p of res.plans) await seam.putObject('Plan', p);
 
-    el.querySelectorAll('select,button').forEach((n) => /** @type {any} */ (n).disabled = true);
+    // Stay interactive: you can paint more no-go and re-generate (the loop).
+    /** @type {HTMLButtonElement} */ (el.querySelector('#plan-run')).textContent =
+      'Re-generate COAs — POST /plan/handful';
     /** @type {HTMLElement} */ (el.querySelector('#plan-result')).innerHTML =
-      `${res.plans.length} COAs · stamp <code class="hash" data-testid="plan-stampid">${shortId(stampPut.id)}</code> committed`;
+      `${res.plans.length} COAs · stamp <code class="hash" data-testid="plan-stampid">${shortId(stampPut.id)}</code> committed`
+      + (state.steering.length ? ` · routed around ${mapNogo.length} no-go cells` : '');
 
     const cards = /** @type {HTMLElement} */ (el.querySelector('#plan-cards'));
     cards.innerHTML = state.handful.map((p) => {
