@@ -59,16 +59,19 @@ export function mountCompare(el, ctx) {
     return { cost, rob };
   };
 
-  /** Appetite-weighted recommendation among feasible COAs (DEC-6 ranking). */
-  const recommendedId = () => {
+  /** Appetite-weighted "implementer fit" (DEC-6 ranking): how well a COA suits
+   *  the current risk appetite. Infeasible COAs score 0. */
+  const fitOf = (p) => {
+    if (!feasible(p)) return 0;
     const wCost = { rapid: 2, balanced: 1, deliberate: 0.5 }[appetites.tempo];
     const wRob = { bold: 0.5, balanced: 1, cautious: 2 }[appetites.exposure];
+    const { cost, rob } = displayedBands(p);
+    return wCost * (COST_ORDER.indexOf(cost) + 1) + wRob * (ROB_ORDER.indexOf(rob) + 1);
+  };
+  const recommendedId = () => {
     let best = null, bestScore = -Infinity;
     for (const p of handful) {
-      if (!feasible(p)) continue;
-      const { cost, rob } = displayedBands(p);
-      const score = wCost * (COST_ORDER.indexOf(cost) + 1) + wRob * (ROB_ORDER.indexOf(rob) + 1);
-      if (score > bestScore) { bestScore = score; best = p.id; }
+      if (feasible(p) && fitOf(p) > bestScore) { bestScore = fitOf(p); best = p.id; }
     }
     return best;
   };
@@ -105,6 +108,7 @@ export function mountCompare(el, ctx) {
         <span class="mit-cost">−1 ambush risk · +1 cost</span>
       </label>
     </div>
+    <div class="appetite-note" id="cmp-appetite-note" data-testid="cmp-appetite-note"></div>
     <table class="matrix" data-testid="cmp-matrix">
       <thead><tr>
         <th></th><th>Course of action</th>
@@ -134,14 +138,20 @@ export function mountCompare(el, ctx) {
   function renderMatrix() {
     const rec = recommendedId();
     const esc = mitigations.escort ? ' <span class="band-mod" data-testid="band-mod">+esc</span>' : '';
+    const maxFit = Math.max(1, ...handful.map(fitOf));
     tbody.innerHTML = handful.map((p) => {
       const { cost, rob } = displayedBands(p);
       const isRec = p.id === rec;
+      const fitPct = Math.round(fitOf(p) / maxFit * 100);
       return `<tr class="${isRec ? 'recommended' : ''}">
         <td><input type="radio" name="cmp-pick" value="${p.id}" data-testid="pick-${p.strategy.key}" ${selectedId === p.id ? 'checked' : ''}></td>
         <td><b style="color:${stratColor[p.strategy.key]}">${p.strategy.label}</b>
             ${isRec ? '<span class="rec-tag" data-testid="rec-tag">★ recommended</span>' : ''}
-            <div class="muted">${p.strategy.blurb}</div></td>
+            <div class="muted">${p.strategy.blurb}</div>
+            <div class="fit" title="implementer fit for the current appetite (DEC-6)">
+              <span class="fit-lbl">fit</span>
+              <span class="fit-bar"><i data-testid="fit-${p.strategy.key}" style="width:${fitPct}%;background:${stratColor[p.strategy.key]}"></i></span>
+            </div></td>
         ${commitCols.map((c) => satCell(p, c)).join('')}
         <td>${bandChip(cost)}${esc}</td>
         <td>${bandChip(rob)}${esc}</td>
@@ -153,6 +163,19 @@ export function mountCompare(el, ctx) {
         selectedId = /** @type {HTMLInputElement} */ (r).value;
         commitBtn.disabled = false;
       }));
+    renderAppetiteNote(rec);
+  }
+
+  function renderAppetiteNote(rec) {
+    const recP = handful.find((p) => p.id === rec);
+    const lean = appetites.exposure === 'cautious' || appetites.tempo === 'deliberate' ? 'robustness'
+      : appetites.exposure === 'bold' || appetites.tempo === 'rapid' ? 'speed / low cost' : 'a balance';
+    /** @type {HTMLElement} */ (el.querySelector('#cmp-appetite-note')).innerHTML = recP
+      ? `Appetite <b>${appetites.tempo}</b> tempo · <b>${appetites.exposure}</b> exposure → leaning to <b>${lean}</b>;
+         recommended COA <b style="color:${stratColor[recP.strategy.key]}">${recP.strategy.label}</b>.
+         <span class="muted">Appetites rank the options for the implementer — they don't change mission
+         <em>success</em> (commitment satisfaction is objective, DEC-6).</span>`
+      : `<span class="muted">No feasible COA to recommend (all violate a hard commitment).</span>`;
   }
   renderMatrix();
 

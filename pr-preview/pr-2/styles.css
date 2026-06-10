@@ -191,7 +191,16 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
   border-left: 2px solid var(--warn); padding-left: .7em;
 }
 .mit-cost { font-size: .72rem; color: var(--warn); }
+.appetite-note {
+  font-size: .82rem; margin: 0 0 .55rem; padding: .4em .7em;
+  border-left: 3px solid var(--accent); background: var(--bg3); border-radius: 6px;
+}
+.fit { display: flex; align-items: center; gap: .4em; margin-top: .35em; }
+.fit-lbl { font-size: .66rem; color: var(--muted); }
+.fit-bar { display: inline-block; width: 88px; height: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.fit-bar i { display: block; height: 100%; transition: width .2s ease; }
 .matrix tr.recommended { background: rgba(126,231,135,.07); }
+.matrix tr.recommended td:nth-child(2) { box-shadow: inset 3px 0 0 var(--ok); }
 .matrix tr.recommended td { border-color: rgba(126,231,135,.3); }
 .rec-tag { font-size: .68rem; color: var(--ok); border: 1px solid rgba(126,231,135,.5); border-radius: 999px; padding: .04em .5em; margin-left: .4em; white-space: nowrap; }
 .band-mod { font-size: .68rem; color: var(--warn); }
