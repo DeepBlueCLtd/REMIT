@@ -96,9 +96,13 @@ Built on top of the skeleton in the same PR, at the maintainer's request:
 Sharpened what each stage is *for* (not merged — the kernel-generates / human-decides
 boundary is load-bearing, DEC-14/22/23):
 
-- **Plan = shape the problem.** Where the operator adds intelligence as **constraints**,
-  spatial and/or temporally bounded (steering, DEC-24, over the CellPredicate grammar
-  DEC-33). *Built so far:* appetites removed from Plan; intro flags constraints as next.
+- **Plan = shape the problem.** Where the operator adds intelligence as **constraints**
+  (steering, DEC-24). *Built:* paint **no-go cells** on the map; they enter the stamp's
+  `steering` and the kernel's A* routes around them; re-generate to see the COAs bend.
+  Blocking the K-7 bridge detours the routes south to the highway crossing; blocking both
+  river crossings makes exfil infeasible (a real, deterministic result). Evidence:
+  `09-plan-steering.png`. *Temporal bounds* on constraints come with the tide (shared
+  time-varying-passability machinery).
 - **Compare = tune the response.** Risk **appetites** (DEC-6) moved here as a ranking
   lens that highlights a **★ recommended** COA; plus risk **mitigations** that buy down
   a risk for a cost — an **Armed Escort** toggle (+1 robustness band, −1 cost band,
@@ -108,10 +112,7 @@ boundary is load-bearing, DEC-14/22/23):
   a fuller model would make it a profile/steering input that re-plans. Also: appetites are
   a stamp input (DEC-6/29) — v1 treats the Compare appetites as a ranking lens only.
 
-### Planned next (DEC-54 first slices + steering)
-
-- **Plan-side steering** — paint spatial (and later temporal) no-go constraints on the
-  map; the kernel routes around them. Temporal bounds share the tide machinery below.
+### Planned next (DEC-54 first slices)
 
 - **Tidal estuary + ford (mudflat slice, G6/DEC-54).** Make K-7 a tidal **ford**
   crossable only within ±3 h of low tide; the optimiser then weighs *wait for the

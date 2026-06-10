@@ -93,8 +93,18 @@ export function makeMap(canvas, baseline) {
      *          target?: {x:number,y:number}|null}} opts
      */
     render({ plans = [], selected = null, t = 0, actual = null, target = null, rv = null,
-             candidates = null, highlight = null, obstructions = [] } = {}) {
+             candidates = null, highlight = null, obstructions = [], nogo = [] } = {}) {
       drawTerrain(g, baseline);
+      // Operator no-go cells (Plan steering) — a red hatched overlay.
+      for (const c of nogo) {
+        g.fillStyle = 'rgba(255,123,114,.32)';
+        g.fillRect(c.x * CELL_PX, c.y * CELL_PX, CELL_PX, CELL_PX);
+        g.strokeStyle = 'rgba(255,123,114,.8)'; g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(c.x * CELL_PX, (c.y + 1) * CELL_PX); g.lineTo((c.x + 1) * CELL_PX, c.y * CELL_PX);
+        g.stroke();
+      }
+      canvas.dataset.nogo = nogo.length ? nogo.map((c) => `${c.x},${c.y}`).join('|') : '';
       drawMarker(g, PLACES.base.x, PLACES.base.y, 'base');
       // Capture: candidate OPs labelled on the map, the picked one emphasised.
       if (candidates) {

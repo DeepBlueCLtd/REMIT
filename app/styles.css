@@ -164,6 +164,11 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .echo-back { font-size: .95rem; line-height: 1.5; }
 .echo-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .35em; }
 
+/* plan steering */
+.steer-controls { gap: .6rem; }
+#plan-nogo.active { border-color: var(--bad); color: var(--bad); background: rgba(255,123,114,.12); }
+#map { cursor: default; }
+
 /* plan cards */
 .plan-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .7rem; margin-top: .8rem; }
 .plan-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .8rem; display: grid; gap: .3rem; }

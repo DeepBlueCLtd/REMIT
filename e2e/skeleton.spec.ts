@@ -259,3 +259,39 @@ test('execute: Restart resets the simulated run to H+0 with an empty log', async
   await expect(page.getByTestId('wx-clock')).toHaveText('H+30');
   await expect(page.locator('#fault')).toBeHidden();
 });
+
+test('plan steering: a no-go on the K-7 bridge makes exfil infeasible (re-plan)', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('world-provision').click();
+  await page.getByTestId('continue-capture').click();
+  await page.getByTestId('cap-commit').click();
+  await page.getByTestId('continue-plan').click();
+  await page.getByTestId('plan-run').click();
+  await expect(page.locator('.plan-card')).toHaveCount(3);
+  const before = await page.evaluate(() => (window as any).__remit.state.handful.map((p: any) => p.id));
+
+  // Paint mode, then click map cells. The river has two crossings: K-7 (23,5)
+  // and the southern highway (23,15).
+  await page.getByTestId('plan-nogo').click();
+  const box = (await page.getByTestId('map').boundingBox())!;
+  const clickCell = (cx: number, cy: number) =>
+    page.getByTestId('map').click({ position: { x: ((cx + 0.5) / 28) * box.width, y: ((cy + 0.5) / 18) * box.height } });
+
+  // Block only K-7: routes detour south to the highway crossing — a different
+  // plan (re-plan), still feasible.
+  await clickCell(23, 5);
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-nogo')).toContain('23,5');
+  await page.getByTestId('plan-run').click();
+  expect(await page.evaluate(() => (window as any).__remit.state.handful.map((p: any) => p.id))).not.toEqual(before);
+
+  // Also block the southern crossing (23,15): now there is no way across the
+  // river, so exfil is infeasible for every COA.
+  await clickCell(23, 15);
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-nogo')).toContain('23,15');
+  await page.getByTestId('plan-run').click();
+  const after = await page.evaluate(() => (window as any).__remit.state.handful);
+  const exfilVerdicts = after.map((p: any) =>
+    p.scores.satisfaction.find((s: any) => s.label === 'Exfil E')?.verdict);
+  expect(exfilVerdicts.every((v: string) => v === 'violated')).toBe(true);
+  await expect(page.locator('#fault')).toBeHidden();
+});

@@ -37,10 +37,12 @@ function edgeMinutes(cells, profile, from, to, diag) {
 }
 
 /** Strategy-biased search cost. The bias warps the SEARCH metric only —
- *  materialised time always uses the real movement model. */
-function strategyCost(strategy, cells, profile) {
+ *  materialised time always uses the real movement model. `nogo` is the set of
+ *  operator no-go cell indices (steering, DEC-24): impassable to the search. */
+function strategyCost(strategy, cells, profile, nogo) {
   const roadlike = (c) => c.terrain === 'road' || c.terrain === 'track';
   return (from, to, diag) => {
+    if (nogo.has(to) || nogo.has(from)) return Infinity;   // operator no-go zone
     const t = edgeMinutes(cells, profile, from, to, diag);
     if (!Number.isFinite(t)) return Infinity;
     if (strategy === 'tracked') return t * (roadlike(cells[to]) ? 0.65 : 2.5);
@@ -108,8 +110,14 @@ export async function planHandful(input) {
   const plans = [];
   const seenTrajectories = new Set();
 
+  // Operator steering (DEC-24): no-go cells the search must route around.
+  const nogo = new Set();
+  for (const c of (input.steering ?? [])) {
+    if (c.type === 'no-go') for (const cell of (c.cells ?? [])) nogo.add(cell.y * grid.w + cell.x);
+  }
+
   for (const strat of STRATEGIES) {
-    const cost = strategyCost(strat.key, cells, profile);
+    const cost = strategyCost(strat.key, cells, profile, nogo);
     // Admissible heuristic scale: best possible minutes per orthogonal step,
     // tightened by the strategy's own minimum multiplier.
     const hScale = bestStep * (strat.key === 'tracked' ? 0.65 : 1);
