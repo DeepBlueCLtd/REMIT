@@ -19,4 +19,6 @@ evidence (e.g. `specs/<feature>/evidence/`).
 
 | 2026-06-10 | PR #2 | Tidal ford increment B (ADR-0007): obstruction = local re-plan (hold leg + re-timed tail through the tide chooser); plan-time ≡ sim-time, no delay offset; holds absorb delays ("absorbed N min" logged); ≋ tide re-assessment alerts on decision change (wait→open, open→detour on window forfeit); visit survives rebases whole; pending blockage carried through block-rebases. 1 new e2e test (8 passing) + evidence `14`. | ADR-0007 · [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
 
+| 2026-06-10 | PR #2 | Sync Matrix entity slice (ADR-0008, D6/DEC-52/53): first-class entities (`entities.js`) with typed aspects + config catalogue; self/forecast/provider provenances (own force via `stateAt`, tide forecast, IKAROS-3 provider ephemeris); `views/sync-matrix.js` renders a content-keyed multi-track SVG (status/line/band) on one shared playhead; tide/sat project from World step, own-force fills on COA select; cursor readout reports ford/sat coincidence (human-scan only); removed the old timeline + `makeTimeline`. 1 new e2e test (9 passing) + evidence `15`,`16`. | ADR-0008 · [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
+
 <!-- Add new rows above as work completes. -->

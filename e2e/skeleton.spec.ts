@@ -121,6 +121,9 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await expect.poll(ghostAt).not.toBe(g0);
+  // Sync Matrix (D6): own-force tracks fill in once a COA is selected.
+  await expect(page.getByTestId('sync-matrix')).toContainText('Own force · phase');
+  expect(await page.getByTestId('sync-matrix-host').getAttribute('data-self-active')).toBe('1');
   await shot(page, '05-views');
   await page.getByTestId('views-continue').click();      // jumps straight to Execute
 
@@ -292,6 +295,52 @@ test('execute: +5 obstruction, and blocking the next cell re-routes in flight', 
   expect(before).toContain(blocked);        // the blocked cell was on the original route
   expect(after).not.toContain(blocked);     // the re-routed path avoids it
   expect(after).not.toEqual(before);
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
+test('sync matrix: tide + satellite tracks project from the World step; own-force fills in later', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('world-provision').click();
+
+  // From the World step on: the forecast tide and provider satellite tracks are
+  // already projected (no plan needed); own-force tracks are not yet active.
+  const sm = page.getByTestId('sync-matrix');
+  await expect(sm).toContainText('Tide · height + window');
+  await expect(sm).toContainText('IKAROS-3 pass');
+  await expect(sm).toContainText('forecast');                 // tide provenance
+  await expect(sm).toContainText('provider');                 // satellite provenance
+  await expect(sm).toContainText('select a COA');             // own-force placeholder
+  expect(await page.getByTestId('sync-matrix-host').getAttribute('data-self-active')).toBe('0');
+  expect(await page.getByTestId('sync-matrix-host').getAttribute('data-tracks')).toBe('4');
+
+  // The cursor readout reports the coincidence at H+t (forecast + provider, NF1).
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '60'; el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.getByTestId('sm-coincide')).toContainText('sat overhead');  // first pass ≈ H+51–69
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '100'; el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.getByTestId('sm-coincide')).toContainText('sat below horizon');
+  await expect(page.getByTestId('sm-coincide')).toContainText('ford open');      // window opens H+88
+
+  // Selecting a COA activates the own-force tracks (self provenance).
+  await page.getByTestId('continue-capture').click();
+  await page.getByTestId('cap-commit').click();
+  await page.getByTestId('continue-plan').click();
+  await page.getByTestId('plan-run').click();
+  await page.getByTestId('continue-compare').click();
+  await page.getByTestId('pick-direct').check();
+  await page.getByTestId('cmp-commit').click();
+  await page.getByTestId('continue-views').click();
+  await expect(sm).toContainText('Own force · fuel');
+  await expect(sm).toContainText('self');
+  expect(await page.getByTestId('sync-matrix-host').getAttribute('data-self-active')).toBe('1');
+  // Dragging the matrix scrubs the shared playhead (map ghost moves with it).
+  const ghost0 = await page.getByTestId('map').getAttribute('data-ghost');
+  const box = await sm.boundingBox();
+  await page.mouse.click(box!.x + box!.width * 0.85, box!.y + box!.height * 0.5);
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-ghost')).not.toBe(ghost0);
   await expect(page.locator('#fault')).toBeHidden();
 });
 

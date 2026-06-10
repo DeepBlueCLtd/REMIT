@@ -168,14 +168,41 @@ equal to sim-time and the *plan itself* carries every disturbance.
   a commitment, not routing.
 - Evidence: `14-tide-reassessment.png`.
 
-### Planned next (DEC-54 first slices)
+### Sync Matrix — entity slice (D6/DEC-52/53) ✅
 
-- **Sync Matrix temporal plot (entity slice, D6/DEC-53).** Expand the timeline into
-  time-aligned tracks: tide curve + crossing-window band, fuel line, mission outer
-  bounds, and the current plan's phases. Tide appears from the World step on.
+The skeleton's single timeline strip is replaced by the **D6 Sync Matrix**: a
+configurable stack of time-aligned tracks over one shared scroll axis and one
+playhead. Each track is a **projection of an entity aspect** via a render type,
+and the catalogue (`app/js/entities/entities.js`) is **config** (entity / aspect
+/ render / preset, DEC-48/49/50) — add a row, a track appears.
+
+- **First-class entities, three provenances (DEC-52).** The **self** entity (own
+  force) reads the kernel's materialisation through `stateAt` (NF1) — no
+  re-derivation; the **tide** is a **forecast** entity backed by the baseline's
+  parametric channel; the recce satellite *IKAROS-3* is a **provider** entity
+  (DEC-49) — a mock ephemeris returning a *track*, not a field. Each track's
+  provenance (+confidence/freshness) is labelled, so all three are visibly
+  exercised.
+- **All render types.** status→segments (own-force phase, with the obs window
+  behind), scalar→line (fuel %, tide height curve), window→band (ford-open
+  windows shaded green; satellite overhead passes). The exfil deadline is a
+  vertical marker across every track.
+- **Tide from the World step on.** The forecast + provider tracks project before
+  any plan exists; the own-force tracks fill in once a COA is selected (the
+  matrix says "select a COA" until then).
+- **Coincidence = human scan (v1, DEC-53/NF9).** No automated detection — the
+  aligned tracks are the payoff (the SME's graph-paper practice). The cursor
+  readout reports each aspect's state at H+t ("≋ ford open / closed", "🛰 sat
+  overhead / below horizon") so the operator sees coincidences while scrubbing;
+  the demo's set-piece is the first satellite pass falling across the OP dwell.
+  Advisory banded windows and first-class coincidence objects stay designed-for
+  (H2/H3).
+- The SVG rebuilds only when the projected content changes (plan/schedule/
+  horizon); the cursor just slides, so live playback and scrubbing stay cheap.
+- Evidence: `15-sync-matrix.png`, `16-sync-matrix-tracks.png`.
 
 ## Out of scope (per DEC-44)
 
-Steering gestures, excursions, providers, Sync Matrix/entities, multi-channel worlds,
-waiting-as-a-move beyond the trivial hold leg, any real planning quality. First
-post-skeleton slices are DEC-54 (mudflat + entity/Sync-Matrix).
+Steering gestures, excursions, multi-channel worlds beyond the tide, cast-to-channel
+(entities are display-only in v1, DEC-53), advisory/first-class coincidence (H2/H3),
+waiting-as-a-move beyond the hold leg, any real planning quality.

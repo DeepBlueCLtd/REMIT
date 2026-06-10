@@ -150,3 +150,30 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   survives rebases whole (the dwell is a commitment, not routing). The uniform
   `delayMin` parameter remains on the kernel assessors for API compatibility but
   the wingman no longer uses it.
+
+## ADR-0008 (2026-06-10) — Sync Matrix as a config-driven entity-projection stack (D6/DEC-52/53)
+
+- **Context:** the entity slice of DEC-54 calls for the D6 Sync Matrix — a
+  temporal multi-track view that generalises the skeleton's single timeline —
+  over the new first-class Entity abstraction (DEC-52), exercising all three
+  provenances (self / forecast / provider) display-only.
+- **Decision:** model entities as `{ id, label, provenance, aspects }` where each
+  aspect is a typed time-function (`scalar | window | status | cell`) read via a
+  single `at(plan, t)` (NF1). A CONFIG catalogue (`entities.js` `syncCatalogue`)
+  maps entity.aspect → render type → track; the renderer (`views/sync-matrix.js`)
+  draws a stack on one shared axis + playhead. Self reads `stateAt`; tide is a
+  forecast entity over the baseline tide channel; the IKAROS-3 satellite is a
+  mock provider (DEC-49) returning pass windows. The timeline strip + `makeTimeline`
+  are removed — the phase track subsumes them.
+- **Coincidence:** v1 is **human-scan only** (DEC-53/NF9) — no automated window
+  detection. The cursor readout reports each aspect's state at H+t (ford
+  open/closed, sat overhead) so coincidences are visible while scrubbing; advisory
+  banded windows (H2) and first-class coincidence objects (H3) stay designed-for.
+- **Rendering:** the SVG rebuilds only when projected content changes (a content
+  signature: sel id, schedule, horizon, catalogue); the cursor slides every tick.
+  This keeps playback/scrub cheap and lets drag handlers survive mid-scrub (they
+  are not re-bound per tick).
+- **Trade-offs:** display-only (no cast-to-channel — that is C9/H3); one default
+  role preset (the catalogue is structured for per-role presets but only one is
+  wired). The satellite ephemeris is a hand-tuned mock, chosen so the first pass
+  coincides with the default OP dwell — illustrative, NF9-honest.

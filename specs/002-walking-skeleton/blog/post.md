@@ -93,6 +93,14 @@ the object store and seam traffic live, so the substrate is visible, not asserte
   5 min"); big ones forfeit the low-tide window, and the wingman flags the
   re-assessment (≋ wait → open → detour via K-9) as the deadline consequences
   land in the margin bands.
+- **The timeline grew into a Sync Matrix.** The single schedule strip is now a
+  stack of time-aligned tracks — own-force phase + fuel, the tide forecast
+  (height curve + ford-open windows) and a recce satellite's overhead passes —
+  all under one playhead. It's the SME's graph-paper practice made live: each
+  track projects one *aspect* of an *entity* (self, forecast, provider — all
+  three provenances), the catalogue is config, and you scan vertically for
+  coincidences. The set-piece: the first satellite pass falls right across the
+  OP dwell — exactly when you'd want overhead imagery.
 
 ## Screenshots
 
@@ -103,3 +111,5 @@ the object store and seam traffic live, so the substrate is visible, not asserte
 ![Learn: plan-vs-actual reconciliation and the NF3 replay — same stamp, same ids](screenshots/learn-replay.png)
 
 ![Execute: the vehicle holds at the bank for low water — the ford renders closed, phase 'hold', then it wades K-7 once the window opens](screenshots/tide-hold-at-bank.png)
+
+![Sync Matrix: own-force phase + fuel, the tide forecast (curve + ford-open window) and the IKAROS-3 satellite's overhead passes on one shared axis — the first pass coincides with the OP dwell](screenshots/sync-matrix-tracks.png)
