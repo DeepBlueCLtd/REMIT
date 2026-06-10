@@ -10,6 +10,7 @@
 import { PLACES } from '../kernel/world.js';
 
 const AUTHOR = 'ian';
+const EXFIL_DEADLINE_MIN = 180;   // command-fixed: be across the river by H+180
 
 /**
  * @param {HTMLElement} el
@@ -56,6 +57,12 @@ export function mountCapture(el, ctx) {
       <strong>Recorded ambiguity (resolvable later):</strong>
       ${ambiguities[0].question} — <em>${ambiguities[0].consequence}</em>
     </div>
+    <div class="command-fixed">
+      <strong>Command-fixed task (second commitment):</strong> on completion of the
+      observation, <b>exfiltrate east across the K-7 bridge</b> to ${PLACES.rvEast.name}
+      (cell ${PLACES.rvEast.x},${PLACES.rvEast.y}), not later than H+${EXFIL_DEADLINE_MIN} min.
+      Criticality HARD. <span class="muted">(The recce clears the bridge; the team then uses it.)</span>
+    </div>
     <div class="echo-back card" id="cap-echo" data-testid="cap-echo"></div>
     <div class="row">
       <button id="cap-commit" data-testid="cap-commit" class="primary">Commit (sign the echo-back)</button>
@@ -71,7 +78,9 @@ export function mountCapture(el, ctx) {
     return `ROVER-1 will VISIT ${op.name} (cell ${op.x},${op.y}), arriving not before `
       + `H+${slots.window_start.value} min and departing not later than H+${slots.window_end.value} min, `
       + `holding observation for at least ${slots.duration_min.value} min. `
-      + `Criticality: HARD — inviolable (command-issued).`;
+      + `Then EXFILTRATE east across the K-7 bridge to ${PLACES.rvEast.name} `
+      + `(cell ${PLACES.rvEast.x},${PLACES.rvEast.y}) not later than H+${EXFIL_DEADLINE_MIN} min. `
+      + `Both commitments HARD — inviolable (command-issued).`;
   };
 
   const renderLive = () => {
@@ -120,11 +129,31 @@ export function mountCapture(el, ctx) {
       },
       state: 'committed',
     };
+    const exfil = {
+      id: 'cmt-2',
+      activity: {
+        type: 'transit',
+        where: { x: PLACES.rvEast.x, y: PLACES.rvEast.y, alias: 'RV-EAST' },
+        when: { before_min: EXFIL_DEADLINE_MIN },
+        modifiers: { after: 'cmt-1' },             // sequenced: only after the observation
+        effects: [],
+        outcome_model: 'boolean',
+        relevant_channels: ['mobility'],
+      },
+      criticality: 'hard',
+      provenance: {
+        issuing_role: 'command', authority: AUTHOR, owner: AUTHOR,
+        waiver_authority: 'command',
+        rationale: 'Exfiltrate east across K-7 once the bridge is confirmed clear by the recce.',
+      },
+      capture: { answers: [], echo_back: 'Exfil E across K-7 to RV EAST.', ambiguities: [] },
+      state: 'committed',
+    };
     const requirement = {
       version: 1,
-      intent: 'Establish observation of the K-7 bridge and confirm crossing viability.',
+      intent: 'Observe the K-7 bridge, confirm crossing viability, then exfiltrate east across it.',
       provenance: { issuing_role: 'command', authority: AUTHOR, at },
-      commitments: [commitment],
+      commitments: [commitment, exfil],
       lineage: {},
     };
 

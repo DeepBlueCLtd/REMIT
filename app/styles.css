@@ -126,6 +126,8 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .chip.defaulted { color: var(--warn); border-color: rgba(240,180,41,.5); }
 .chip.confirmed { color: var(--ok); border-color: rgba(126,231,135,.5); }
 .ambiguity { font-size: .85rem; color: var(--muted); border-left: 3px solid var(--warn); padding: .3em .7em; margin: .6rem 0; }
+.command-fixed { font-size: .85rem; color: var(--muted); border-left: 3px solid var(--accent); padding: .3em .7em; margin: .6rem 0; }
+.command-fixed b { color: var(--fg); }
 .echo-back { font-size: .95rem; line-height: 1.5; }
 .echo-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .35em; }
 

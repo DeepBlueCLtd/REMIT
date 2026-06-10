@@ -68,6 +68,28 @@ Each build-plan §4 exit criterion is asserted by `e2e/skeleton.spec.ts` and cap
    store's object ids for `Plan` records cover the materialisation cache, while the
    decision identity remains `plan.id` (stamp ⊕ strategy) — both labelled in-app (NF9).
 
+## Post-skeleton extensions (maintainer-directed, on this branch)
+
+Built on top of the skeleton in the same PR, at the maintainer's request:
+
+- **Two-commitment requirement (exfil East).** The requirement now carries a second
+  hard commitment: after the observation, exfiltrate east across the **K-7 bridge** to
+  **RV EAST**, by a deadline (H+180). The kernel routes a two-leg path (start→OP→RV)
+  through the only river crossing (the bridge), scores both commitments, and Execute
+  completes at the RV with a combined verdict. Sets up the DEC-54 tidal slice (next).
+- **Stakeholder wording.** "handful" → **courses of action (COAs)**; "AO Package" →
+  **"Load the operating area"** with plain-language gloss (the register keeps its
+  deliberate terms; only the UI is plain).
+
+### Planned next (DEC-54 first slices)
+
+- **Tidal estuary + ford (mudflat slice, G6/DEC-54).** Make K-7 a tidal **ford**
+  crossable only within ±3 h of low tide; the optimiser then weighs *wait for the
+  window and cross at K-7* vs *detour south to the always-open highway bridge*.
+- **Sync Matrix temporal plot (entity slice, D6/DEC-53).** Expand the timeline into
+  time-aligned tracks: tide curve + crossing-window band, fuel line, mission outer
+  bounds, and the current plan's phases. Tide appears from the World step on.
+
 ## Out of scope (per DEC-44)
 
 Steering gestures, excursions, providers, Sync Matrix/entities, multi-channel worlds,

@@ -13,11 +13,11 @@ const AXES = ['time/speed', 'exposure', 'robustness', 'completeness'];
 /**
  * @param {HTMLElement} el
  * @param {{seam: import('../seam/seam.js').SeamClient,
- *          handful: any[], commitment: any,
+ *          handful: any[], commitments: any[],
  *          onSelected: (planId: string, rationale: any, rationaleId: string) => void}} ctx
  */
 export function mountCompare(el, ctx) {
-  const { handful, commitment } = ctx;
+  const { handful } = ctx;
 
   // Comparability guard (DEC-23/48): objective comparison is valid only across
   // plans sharing the full stamp basis. One kernel call → trivially true here,
@@ -28,39 +28,44 @@ export function mountCompare(el, ctx) {
   ]);
   const comparable = new Set(handful.map(basisOf)).size === 1;
 
-  const bandChip = (band) =>
-    `<span class="band band-${band}">${band}</span>`;
+  const bandChip = (band) => `<span class="band band-${band}">${band}</span>`;
+  // Commitment columns, derived from the first plan's satisfaction rows.
+  const commitCols = handful[0].scores.satisfaction.map((s) => s.label);
+  const satCell = (p, label) => {
+    const s = p.scores.satisfaction.find((x) => x.label === label);
+    return s
+      ? `<td class="${s.verdict}">${s.verdict}<div class="muted">${s.margin_min} min ${bandChip(s.margin_band)}</div></td>`
+      : `<td class="muted">—</td>`;
+  };
 
   el.innerHTML = `
-    <p class="stage-intro">Objective satisfaction matrix for the command hat; banded
-    cost × robustness for the implementer. Within a band, plans are co-equal — the
-    deciding axis is judgement, and it is recorded (DEC-23).
-    <em>Tip: scrub the playhead (right) to race the candidate ghosts along their
-    routes, with live measures beneath the map.</em></p>
+    <p class="stage-intro">Objective satisfaction matrix for the command hat — every
+    hard commitment (observe, exfil) scored per course of action; banded cost × robustness
+    for the implementer. Within a band, COAs are co-equal — the deciding axis is judgement,
+    and it is recorded (DEC-23).
+    <em>Tip: scrub the playhead (right) to race the COA ghosts along their routes, with
+    live measures beneath the map.</em></p>
     <div class="guard ${comparable ? 'ok-line' : 'bad-line'}" data-testid="cmp-guard">
       Comparability guard: ${comparable
-        ? '✓ all plans share the stamp basis (requirement · baseline · excursions · config-core · kernel)'
+        ? '✓ all COAs share the stamp basis (requirement · baseline · excursions · config-core · kernel)'
         : '✗ stamp mismatch — objective comparison would mislead (warning, not a matrix)'}
     </div>
     <table class="matrix" data-testid="cmp-matrix">
       <thead><tr>
-        <th></th><th>Plan</th><th>${commitment.id} (hard)</th>
-        <th>margin</th><th>cost</th><th>robustness</th><th>conflicts</th>
+        <th></th><th>Course of action</th>
+        ${commitCols.map((c) => `<th>${c} (hard)</th>`).join('')}
+        <th>cost</th><th>robustness</th><th>conflicts</th>
       </tr></thead>
       <tbody>
-        ${handful.map((p) => {
-          const sat = p.scores.satisfaction[0];
-          return `<tr>
+        ${handful.map((p) => `<tr>
             <td><input type="radio" name="cmp-pick" value="${p.id}" data-testid="pick-${p.strategy.key}"></td>
             <td><b style="color:${({direct:'#f0b429',tracked:'#4493f8',covered:'#38d39f'})[p.strategy.key]}">${p.strategy.label}</b>
                 <div class="muted">${p.strategy.blurb}</div></td>
-            <td class="${sat.verdict}">${sat.verdict}</td>
-            <td>${sat.margin_min} min ${bandChip(sat.margin_band)}</td>
+            ${commitCols.map((c) => satCell(p, c)).join('')}
             <td>${bandChip(p.scores.cost_band)}</td>
             <td>${bandChip(p.scores.robustness_band)} <span class="muted">(canned — NF9)</span></td>
             <td>${p.conflicts.length ? p.conflicts.map((c) => c.narrative).join('; ') : '—'}</td>
-          </tr>`;
-        }).join('')}
+          </tr>`).join('')}
       </tbody>
     </table>
     <div class="form-grid">

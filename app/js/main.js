@@ -59,6 +59,7 @@ const state = {
 const mapCanvas = /** @type {HTMLCanvasElement} */ (document.getElementById('map'));
 const map = makeMap(mapCanvas, world.baseline, null);
 let mapTarget = null;
+let mapRv = null;
 const timelineHost = /** @type {HTMLElement} */ (document.getElementById('timeline-host'));
 const timeline = makeTimeline(timelineHost, playhead);
 const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhead-slider'));
@@ -72,7 +73,7 @@ function renderProjection() {
   const sel = state.selectedPlan;
   map.render({
     plans: state.handful, selected: sel, t: playhead.t, actual: execActual,
-    target: mapTarget,
+    target: mapTarget, rv: mapRv,
   });
   const ghost = execActual ?? (sel ? stateAt(sel, playhead.t) : null);
   if (sel && ghost) {
@@ -94,13 +95,13 @@ function renderProjection() {
         <td><i class="dot" style="background:${c}"></i><b style="color:${c}">${p.strategy.label}</b></td>
         <td>${m.phase}</td>
         <td>${m.dist_km} km</td>
-        <td>${m.to_arrival_min > 0 ? `OP in ${Math.round(m.to_arrival_min)} min` : `dwell ${Math.round(m.dwell_min)} min`}</td>
+        <td>${m.milestone}</td>
         <td>fuel ${m.fuel_pct}%</td>
       </tr>`;
     }).join('');
     readout.innerHTML =
       `<table class="cmp-live" data-testid="cmp-live"><tbody>${rows}</tbody></table>`
-      + `<div class="muted cmp-live-caption">candidates at <b>H+${Math.round(playhead.t)}</b> — kernel evaluator, NF1</div>`;
+      + `<div class="muted cmp-live-caption">COAs at <b>H+${Math.round(playhead.t)}</b> — kernel evaluator, NF1</div>`;
   } else {
     readout.innerHTML = `<span class="muted">terrain provisioned — awaiting a plan</span>`;
   }
@@ -220,7 +221,7 @@ function mountStage(key) {
   if (key === 'plan') mountPlan();
   if (key === 'compare') {
     mountCompare(panel('compare'), {
-      seam, handful: state.handful, commitment: state.requirement.commitments[0],
+      seam, handful: state.handful, commitments: state.requirement.commitments,
       onSelected(planId, _rationale, rationaleId) {
         state.selectedPlan = state.handful.find((p) => p.id === planId);
         state.ids.rationale = rationaleId;
@@ -234,7 +235,9 @@ function mountStage(key) {
   if (key === 'execute') {
     mountWingman(panel('execute'), {
       seam, missionId: MISSION_ID, plan: state.selectedPlan,
-      commitment: state.requirement.commitments[0], bandUnit: state.bandUnit,
+      commitment: state.requirement.commitments[0],
+      exfilCommitment: state.requirement.commitments[1],
+      bandUnit: state.bandUnit,
       playhead,
       resetLog: () => logs.reset(MISSION_ID),
       renderViews({ actual }) { execActual = actual; renderProjection(); },
@@ -263,18 +266,20 @@ function mountStage(key) {
 function mountWorld() {
   const el = panel('world');
   el.innerHTML = `
-    <p class="stage-intro">A single synthetic baseline — one <code>mobility</code> channel on a
-    ${world.baseline.medium.grid.w}×${world.baseline.medium.grid.h} static grid — plus the own-force
-    profile, provisioned as immutable, content-addressed objects. The world-defining
-    <em>config core</em> canonicalises and hashes; that hash becomes a stamp axis (DEC-48).</p>
+    <p class="stage-intro">Load the <b>area of operations</b> — the ground the team will
+    work in: the terrain/mobility map, the own-force vehicle, and the conditions that
+    define this world. Each is stored as an immutable, content-addressed object; the
+    world-defining settings (the <em>config core</em>) are hashed, and that hash becomes
+    part of every plan's identity so plans built for different worlds can't be confused
+    (DEC-48).</p>
     <ul class="fact-list">
-      <li>AO: <b>${world.baseline.name}</b> · land · ${world.baseline.medium.grid.cell_m} m cells</li>
-      <li>Channel: <b>mobility</b> (raster · confidence high · static) → band unit <b>${state.bandUnit} min</b> (NF10: derived from confidence)</li>
+      <li>Area of operations: <b>${world.baseline.name}</b> · land · ${world.baseline.medium.grid.cell_m} m cells</li>
+      <li>Conditions: <b>mobility</b> map (how fast each cell is to cross) → margin band unit <b>${state.bandUnit} min</b></li>
       <li>Own force: <b>${world.profile.name}</b> · ${world.profile.speed_by_medium.land_kph} km/h · start ${PLACES.base.name} (${world.state.position.x},${world.state.position.y})</li>
-      <li>Instance shell (branding/view defaults) stays out of the hash — identity-free (DEC-48)</li>
+      <li>Branding/view defaults stay out of the world's identity hash (DEC-48)</li>
     </ul>
     <div class="row">
-      <button id="world-provision" class="primary" data-testid="world-provision">Provision AO package</button>
+      <button id="world-provision" class="primary" data-testid="world-provision">Load the operating area</button>
       <span id="world-result" class="result"></span>
     </div>`;
   el.querySelector('#world-provision')?.addEventListener('click', async () => {
@@ -288,9 +293,12 @@ function mountWorld() {
     state.ids.configCore = c.id;
     state.configCoreHash = await contentId(world.configCore);
     worldProvisioned = true;
-    const t = state.requirement.commitments[0].activity.where;
-    mapTarget = t;
-    state.horizonMin = state.requirement.commitments[0].activity.when.window.end_min + 60;
+    const cmts = state.requirement.commitments;
+    mapTarget = cmts[0].activity.where;
+    mapRv = cmts[1]?.activity?.where ?? null;
+    // Horizon spans the whole mission: the exfil deadline if present, else the
+    // observation window, plus headroom for execution delay.
+    state.horizonMin = (cmts[1]?.activity?.when?.before_min ?? cmts[0].activity.when.window.end_min) + 60;
     slider.max = String(state.horizonMin);
     renderProjection();
     el.querySelectorAll('button').forEach((n) => (n.disabled = true));
@@ -305,8 +313,9 @@ function mountPlan() {
   const el = panel('plan');
   el.innerHTML = `
     <p class="stage-intro">One stamped kernel call fans out the strategy axes and returns
-    <em>a</em> handful — banded, distinct, reproducible (DEC-22/40-C). The mock kernel is an
-    honest non-planner: real A* paths, illustrative scores (NF9).</p>
+    a set of distinct <b>courses of action (COAs)</b> — banded, reproducible (DEC-22/40-C).
+    Each COA routes to the OP, holds the observation, then exfils east across K-7. The
+    mock kernel is an honest non-planner: real A* paths, illustrative scores (NF9).</p>
     <div class="form-grid">
       <label>Appetite · tempo
         <select id="plan-tempo"><option>deliberate</option><option selected>balanced</option><option>rapid</option></select>
@@ -318,7 +327,7 @@ function mountPlan() {
       <label>kernel <input value="${KERNEL_VERSION}" disabled></label>
     </div>
     <div class="row">
-      <button id="plan-run" class="primary" data-testid="plan-run">Request handful — POST /plan/handful</button>
+      <button id="plan-run" class="primary" data-testid="plan-run">Generate courses of action — POST /plan/handful</button>
       <span id="plan-result" class="result"></span>
     </div>
     <div id="plan-cards" class="plan-cards"></div>`;
@@ -347,19 +356,20 @@ function mountPlan() {
 
     el.querySelectorAll('select,button').forEach((n) => /** @type {any} */ (n).disabled = true);
     /** @type {HTMLElement} */ (el.querySelector('#plan-result')).innerHTML =
-      `${res.plans.length} plans · stamp <code class="hash" data-testid="plan-stampid">${shortId(stampPut.id)}</code> committed`;
+      `${res.plans.length} COAs · stamp <code class="hash" data-testid="plan-stampid">${shortId(stampPut.id)}</code> committed`;
 
     const cards = /** @type {HTMLElement} */ (el.querySelector('#plan-cards'));
     cards.innerHTML = state.handful.map((p) => {
-      const sat = p.scores.satisfaction[0];
-      const arr = p.materialisation ? `H+${p.materialisation.schedule[0].end_min}` : '∅';
+      const obs = p.scores.satisfaction.find((s) => s.label === 'Observe OP');
+      const exf = p.scores.satisfaction.find((s) => s.label === 'Exfil E');
+      const rv = p.materialisation?.schedule.find((s) => s.kind === 'exfil');
       return `<div class="plan-card" data-testid="plan-card-${p.strategy.key}">
-        <h4 style="color:${({ direct: '#f0b429', tracked: '#4493f8', covered: '#38d39f' })[p.strategy.key]}">${p.strategy.label}</h4>
+        <h4 style="color:${STRAT_COLORS[p.strategy.key]}">${p.strategy.label}</h4>
         <div class="muted">${p.strategy.blurb}</div>
-        <div>arrival <b>${arr}</b> · margin <b>${sat.margin_min} min</b></div>
-        <div><span class="band band-${sat.margin_band}">${sat.margin_band}</span>
+        <div>observe <span class="band band-${obs.margin_band}">${obs.margin_band} ${obs.margin_min}m</span></div>
+        <div>exfil ${rv ? `H+${rv.end_min} ` : ''}<span class="band band-${exf?.margin_band ?? 'crossed'}">${exf?.margin_band ?? 'n/a'}${exf ? ` ${exf.margin_min}m` : ''}</span>
              <span class="band band-${p.scores.cost_band}">cost ${p.scores.cost_band}</span></div>
-        <div class="muted">plan id <code class="hash">${shortId(p.id)}</code> = hash(stamp ⊕ strategy)</div>
+        <div class="muted">id <code class="hash">${shortId(p.id)}</code> = hash(stamp ⊕ strategy)</div>
       </div>`;
     }).join('');
 

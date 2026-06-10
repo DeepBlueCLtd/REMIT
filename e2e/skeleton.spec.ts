@@ -41,6 +41,20 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   for (const strat of ['direct', 'tracked', 'covered']) {
     await expect(page.getByTestId(`plan-card-${strat}`)).toBeVisible();
   }
+  // Two-commitment requirement: every COA scores observe + exfil, and routes a
+  // second leg (exfil E across the bridge).
+  await expect(page.getByTestId('plan-card-direct')).toContainText('exfil');
+  const shape = await page.evaluate(() => {
+    const h = (window as any).__remit.state.handful;
+    return {
+      count: h.length,
+      sats: h.map((p: any) => p.scores.satisfaction.length),
+      allHaveExfil: h.every((p: any) => p.materialisation.schedule.some((s: any) => s.kind === 'exfil')),
+    };
+  });
+  expect(shape.count).toBe(3);
+  expect(shape.sats).toEqual([2, 2, 2]);
+  expect(shape.allHaveExfil).toBe(true);
   await shot(page, '03-plan');
 
   // --- 4 Compare: guard passes, matrix shown; scrubbing the playhead races
@@ -48,6 +62,8 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await page.getByTestId('continue-compare').click();
   await expect(page.getByTestId('cmp-guard')).toContainText('✓');
   await expect(page.getByTestId('cmp-matrix').locator('tbody tr')).toHaveCount(3);
+  await expect(page.getByTestId('cmp-matrix')).toContainText('Observe OP');
+  await expect(page.getByTestId('cmp-matrix')).toContainText('Exfil E');
 
   const ghosts = () => page.getByTestId('map').getAttribute('data-ghost');
   await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
@@ -118,6 +134,7 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   // --- 7 Learn: after-action exists; replay from stamp is identical (NF3).
   await page.getByTestId('continue-learn').click();
   await expect(page.getByTestId('aa-recon')).toBeVisible();
+  await expect(page.getByTestId('aa-recon')).toContainText('Exfil E'); // both commitments reconciled
   await page.getByTestId('aa-replay').click();
   await expect(page.getByTestId('aa-replay-result')).toContainText('identical decision');
   await shot(page, '07-learn');
