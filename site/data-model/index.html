@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REMIT — Data Model</title>
+  <meta name="description" content="A human-oriented tour of the REMIT data model: the objects mission planning is built from, the rules they all obey, and how they fit together.">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --bg-soft: #f6f7f9;
+      --card: #ffffff;
+      --ink: #1b1f24;
+      --ink-soft: #5b6470;
+      --line: #e3e6ea;
+      --line-strong: #c9ced6;
+      --accent: #2f6db5;
+      --accent-soft: #eaf1fb;
+      --accent-ink: #1f4f86;
+      --chip: #eef1f4;
+      --mono-bg: #f1f3f6;
+      --shadow: 0 1px 2px rgba(20,30,45,.05), 0 8px 24px rgba(20,30,45,.06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0e1116;
+        --bg-soft: #12161d;
+        --card: #161b22;
+        --ink: #e6edf3;
+        --ink-soft: #9aa6b2;
+        --line: #232a33;
+        --line-strong: #323b46;
+        --accent: #6ca8e8;
+        --accent-soft: #16243a;
+        --accent-ink: #9cc4f0;
+        --chip: #1c222b;
+        --mono-bg: #1b212a;
+        --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 4.5rem; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+    /* ---- header ---- */
+    header.site {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; gap: 1rem;
+      padding: .65rem clamp(1rem, 4vw, 2.5rem);
+      background: color-mix(in srgb, var(--bg) 85%, transparent);
+      backdrop-filter: saturate(180%) blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    header.site .brand { font-weight: 700; letter-spacing: .02em; text-decoration: none; color: var(--ink); }
+    header.site .brand span { color: var(--accent); }
+    header.site nav { margin-left: auto; display: flex; gap: .25rem; flex-wrap: wrap; }
+    header.site nav a {
+      text-decoration: none; color: var(--ink-soft);
+      font-size: .82rem; padding: .35rem .55rem; border-radius: .4rem;
+    }
+    header.site nav a:hover { color: var(--ink); background: var(--bg-soft); }
+
+    .wrap { max-width: 72rem; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2.5rem); }
+
+    /* ---- hero ---- */
+    .hero {
+      padding: clamp(2.5rem, 7vw, 5rem) 0 2rem;
+      background:
+        radial-gradient(1200px 400px at 15% -10%, var(--accent-soft), transparent 60%),
+        radial-gradient(900px 380px at 95% 0%, var(--accent-soft), transparent 55%);
+    }
+    .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; font-weight: 700; color: var(--accent-ink); margin: 0 0 .6rem; }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.08; margin: 0 0 .75rem; letter-spacing: -.02em; }
+    .hero p.lede { font-size: clamp(1.05rem, 2.2vw, 1.3rem); color: var(--ink-soft); max-width: 46rem; margin: 0; }
+    .source-note {
+      margin-top: 1.5rem; font-size: .85rem; color: var(--ink-soft);
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .45rem .75rem; border: 1px solid var(--line); border-radius: 2rem; background: var(--card);
+    }
+    .source-note b { color: var(--ink); font-weight: 600; }
+
+    section { padding: 2.75rem 0; border-top: 1px solid var(--line); }
+    section:first-of-type { border-top: 0; }
+    .sec-head { max-width: 48rem; margin-bottom: 1.75rem; }
+    .sec-head h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); margin: 0 0 .4rem; letter-spacing: -.01em; }
+    .sec-head .num { color: var(--accent); font-weight: 700; margin-right: .5rem; }
+    .sec-head p { color: var(--ink-soft); margin: 0; }
+
+    /* ---- universal rules ---- */
+    .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+    .rule {
+      background: var(--card); border: 1px solid var(--line); border-radius: .9rem;
+      padding: 1.4rem 1.4rem 1.5rem; box-shadow: var(--shadow); position: relative; overflow: hidden;
+    }
+    .rule::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--accent); }
+    .rule .glyph { font-size: 1.5rem; }
+    .rule h3 { margin: .5rem 0 .35rem; font-size: 1.08rem; }
+    .rule p { margin: 0; color: var(--ink-soft); font-size: .92rem; }
+    .rule .dec { margin-top: .8rem; }
+
+    /* ---- lifecycle spine ---- */
+    .spine-card {
+      background: var(--card); border: 1px solid var(--line); border-radius: .9rem;
+      padding: 1.4rem; box-shadow: var(--shadow);
+    }
+    .spine { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+    .spine .step {
+      background: var(--accent-soft); color: var(--accent-ink); font-weight: 600;
+      padding: .4rem .8rem; border-radius: 2rem; font-size: .9rem; white-space: nowrap;
+    }
+    .spine .arrow { color: var(--line-strong); font-weight: 700; }
+    .spine-card p { margin: 1rem 0 0; color: var(--ink-soft); font-size: .9rem; }
+
+    /* ---- entity cards ---- */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr)); gap: 1rem; align-items: start; }
+    .entity {
+      background: var(--card); border: 1px solid var(--line); border-radius: .85rem;
+      padding: 1.2rem 1.25rem 1.1rem; box-shadow: var(--shadow);
+      transition: transform .15s ease, border-color .15s ease;
+    }
+    .entity:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+    .entity .top { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+    .entity h3 { margin: 0; font-size: 1.12rem; font-family: ui-monospace, monospace; letter-spacing: -.01em; }
+    .tag {
+      font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 700;
+      padding: .12rem .45rem; border-radius: .3rem; background: var(--chip); color: var(--ink-soft);
+    }
+    .tag.immutable { background: var(--accent-soft); color: var(--accent-ink); }
+    .entity .desc { margin: .6rem 0 .85rem; color: var(--ink); font-size: .94rem; }
+    .fields { list-style: none; margin: 0 0 .85rem; padding: 0; display: grid; gap: .3rem; }
+    .fields li { display: grid; grid-template-columns: minmax(6rem, auto) 1fr; gap: .6rem; font-size: .85rem; align-items: baseline; }
+    .fields .k { font-family: ui-monospace, monospace; color: var(--accent-ink); background: var(--mono-bg); padding: .05rem .35rem; border-radius: .25rem; justify-self: start; }
+    .fields .v { color: var(--ink-soft); }
+    .dec { display: flex; flex-wrap: wrap; gap: .3rem; }
+    .dec .chip {
+      font-size: .68rem; font-family: ui-monospace, monospace; color: var(--ink-soft);
+      border: 1px solid var(--line); border-radius: .3rem; padding: .08rem .4rem; background: var(--bg-soft);
+    }
+
+    /* ---- relationships ---- */
+    .rel-card {
+      background: var(--card); border: 1px solid var(--line); border-radius: .9rem;
+      padding: 1.6rem 1.7rem; box-shadow: var(--shadow); max-width: 52rem;
+    }
+    .rel-card p { margin: 0; font-size: 1.02rem; }
+    .rel-card strong { color: var(--accent-ink); }
+
+    footer.site {
+      border-top: 1px solid var(--line); margin-top: 1rem;
+      padding: 2rem 0 3rem; color: var(--ink-soft); font-size: .85rem;
+    }
+    footer.site a { font-weight: 600; }
+    .backlinks { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <a class="brand" href="../"><span>REMIT</span> · Data Model</a>
+    <nav>
+      <a href="#rules">Rules</a>
+      <a href="#spine">Lifecycle</a>
+      <a href="#requirement">Requirement</a>
+      <a href="#world">World</a>
+      <a href="#force">Own force</a>
+      <a href="#entities">Entities</a>
+      <a href="#plan">Plans</a>
+      <a href="#record">Record</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Requirement · Effects · Mission Intent Tasking</p>
+      <h1>The shapes mission planning is built from</h1>
+      <p class="lede">REMIT models a mission as a small set of immutable, attributed,
+      content-addressed objects. This is a guided tour of those objects — what each one
+      <em>means</em>, the rules they all obey, and how they fit together into a plan you can
+      trust and replay.</p>
+      <div class="source-note">
+        <span>📐</span>
+        <span>Derived from <b>docs/remit-data-model.md</b> (draft 0.3) and the Discussion
+        Register. LinkML becomes the generating source once the schema is authored (DEC‑57).</span>
+      </div>
+    </div>
+  </div>
+
+  <main class="wrap">
+
+    <!-- THREE UNIVERSAL RULES -->
+    <section id="rules">
+      <div class="sec-head">
+        <h2><span class="num">§</span>Three universal rules</h2>
+        <p>Every object below obeys these three. They are why a REMIT plan can be compared,
+        audited, and replayed perfectly years later.</p>
+      </div>
+      <div class="rules">
+        <div class="rule">
+          <div class="glyph">🔒</div>
+          <h3>Versioned objects are immutable</h3>
+          <p>Requirements, baselines, excursions and profiles never mutate. A change is a
+          <em>new version</em> with lineage back to the old one.</p>
+          <div class="dec"><span class="chip">DEC-5</span><span class="chip">DEC-7</span><span class="chip">DEC-18</span></div>
+        </div>
+        <div class="rule">
+          <div class="glyph">✍️</div>
+          <h3>Everything decided is attributed</h3>
+          <p>Every committing act carries a role-hat, an author, and a time. Nothing changes
+          the record anonymously.</p>
+          <div class="dec"><span class="chip">DEC-15</span><span class="chip">NF2</span></div>
+        </div>
+        <div class="rule">
+          <div class="glyph">🧬</div>
+          <h3>Identity is content</h3>
+          <p>An immutable object's ID is the hash of its canonical form. Names are just
+          aliases; lineage is hash-linked and tamper-evident.</p>
+          <div class="dec"><span class="chip">DEC-35</span><span class="chip">NF8</span><span class="chip">DEC-25</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIFECYCLE SPINE -->
+    <section id="spine">
+      <div class="sec-head">
+        <h2><span class="num">↻</span>The lifecycle spine</h2>
+        <p>The objects flow through one thin lap of the mission lifecycle (DEC-44). Each stage
+        reads and writes a slice of the model.</p>
+      </div>
+      <div class="spine-card">
+        <div class="spine">
+          <span class="step">Capture</span><span class="arrow">→</span>
+          <span class="step">World</span><span class="arrow">→</span>
+          <span class="step">Plan</span><span class="arrow">→</span>
+          <span class="step">Compare</span><span class="arrow">→</span>
+          <span class="step">Views</span><span class="arrow">→</span>
+          <span class="step">Execute</span><span class="arrow">→</span>
+          <span class="step">Learn</span>
+        </div>
+        <p><b>Capture</b> turns intent into Requirements and Commitments · <b>World</b> assembles
+        the Baseline and Excursions · <b>Plan</b> runs the kernel to produce Plans · <b>Compare</b>
+        reads their scores under the comparability guard · <b>Views</b> project Entities across
+        synchronised displays · <b>Execute</b> re-anchors the kernel to live State and appends
+        to the log · <b>Learn</b> proposes new versions — never mutations.</p>
+      </div>
+    </section>
+
+    <!-- 1. REQUIREMENT & PROMISES -->
+    <section id="requirement">
+      <div class="sec-head">
+        <h2><span class="num">1</span>The requirement, and the promises in it</h2>
+        <p>What the command wants, in their words — decomposed into individual promises the
+        plan must keep.</p>
+      </div>
+      <div class="grid">
+        <article class="entity">
+          <div class="top"><h3>Requirement</h3><span class="tag immutable">immutable · the primary object</span></div>
+          <p class="desc">The command's narrative intent, owned as a versioned object. Amend it
+          and you get a new version with lineage — the original stands.</p>
+          <ul class="fields">
+            <li><span class="k">intent</span><span class="v">the command's narrative, in their words</span></li>
+            <li><span class="k">provenance</span><span class="v">issuing role / authority + time</span></li>
+            <li><span class="k">commitments</span><span class="v">the promises it decomposes into</span></li>
+            <li><span class="k">lineage</span><span class="v">previous version · amending order ref</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-5</span><span class="chip">DEC-18</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>Commitment</h3><span class="tag">a single promise</span></div>
+          <p class="desc">One thing the plan must achieve. Either <em>hard</em> (must hold) or
+          <em>soft</em> with a priority. Carries the negotiated contract text and any unresolved
+          ambiguities, and walks a lifecycle of states.</p>
+          <ul class="fields">
+            <li><span class="k">activity</span><span class="v">the thing to do</span></li>
+            <li><span class="k">criticality</span><span class="v">hard · soft(priority)</span></li>
+            <li><span class="k">capture</span><span class="v">answers, echo-back text, open ambiguities</span></li>
+            <li><span class="k">state</span><span class="v">proposed → committed → satisfied / violated / waived</span></li>
+            <li><span class="k">waiver?</span><span class="v">by / authority / when / why</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-16</span><span class="chip">DEC-17</span><span class="chip">DEC-22</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>Activity</h3><span class="tag">the thing to actually do</span></div>
+          <p class="desc">The verb of a commitment — visit, loiter, avoid, transit, maintain.
+          <em>Where</em> can be a waypoint or a boolean predicate over map cells; <em>when</em> is a
+          window, before/after, or recurring.</p>
+          <ul class="fields">
+            <li><span class="k">type</span><span class="v">visit · loiter · avoid · transit · maintain</span></li>
+            <li><span class="k">where</span><span class="v">waypoint, or a predicate tree over cells</span></li>
+            <li><span class="k">when</span><span class="v">window · before · after · recurring</span></li>
+            <li><span class="k">effects</span><span class="v">self-state delta, persistent marker</span></li>
+            <li><span class="k">relevant_channels</span><span class="v">what to sample / trigger on</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-16</span><span class="chip">DEC-21</span><span class="chip">DEC-33</span></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 2. THE WORLD -->
+    <section id="world">
+      <div class="sec-head">
+        <h2><span class="num">2</span>The world the plan moves through</h2>
+        <p>The environment as known truth, plus the what-if overlays and edits applied on top of
+        it. The kernel always evaluates <span class="mono">baseline ⊕ excursion ⊕ plan-effects-to-date</span>.</p>
+      </div>
+      <div class="grid">
+        <article class="entity">
+          <div class="top"><h3>Baseline</h3><span class="tag immutable">immutable · one truth</span></div>
+          <p class="desc">The world as known: a medium (land / sea / air grid) carrying channels,
+          and a single fact layer that observations append to.</p>
+          <ul class="fields">
+            <li><span class="k">medium</span><span class="v">domain, grid, cell attributes</span></li>
+            <li><span class="k">channels</span><span class="v">the fields over space &amp; time</span></li>
+            <li><span class="k">facts</span><span class="v">the one truth; observations append here</span></li>
+            <li><span class="k">forecast_changepoints</span><span class="v">when the world is expected to shift</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-7</span><span class="chip">DEC-20</span><span class="chip">DEC-28</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>Channel</h3><span class="tag">a field over space &amp; time</span></div>
+          <p class="desc">A quantity that varies across the map and the clock — tide, cloud, risk.
+          Its values are a function of <span class="mono">(cell, t)</span>, however realised.</p>
+          <ul class="fields">
+            <li><span class="k">values</span><span class="v">f(cell, t)</span></li>
+            <li><span class="k">realisation</span><span class="v">raster · analytic · provider service</span></li>
+            <li><span class="k">confidence</span><span class="v">how trusted</span></li>
+            <li><span class="k">freshness</span><span class="v">how recent</span></li>
+            <li><span class="k">sampling_step</span><span class="v">tide coarse · cloud fine &amp; wide</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-19</span><span class="chip">DEC-21</span><span class="chip">DEC-49</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>MovementModel</h3><span class="tag">how costly it is to move</span></div>
+          <p class="desc">Per-domain cost of travel — and <em>anisotropic</em>: a property of the edge
+          between cells, not the cell. Slope along direction on land; current / wind vectors at sea
+          and in the air.</p>
+          <ul class="fields">
+            <li><span class="k">cost_speed</span><span class="v">f(cell→cell, t, profile)</span></li>
+            <li><span class="k">realisation</span><span class="v">parametric(type, params) · provider</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-34</span><span class="chip">DEC-49</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>Excursion</h3><span class="tag immutable">immutable · a what-if overlay</span></div>
+          <p class="desc">A named, versioned set of deltas layered on a baseline — "what if the
+          weather turns?" — without disturbing the underlying truth.</p>
+          <ul class="fields">
+            <li><span class="k">base</span><span class="v">the baseline version it sits on</span></li>
+            <li><span class="k">delta</span><span class="v">a list of ChannelDeltas</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-7</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>ChannelDelta · Effect</h3><span class="tag">edits to the world</span></div>
+          <p class="desc">How the world is changed. A delta is parametric (time-shift, scale,
+          mask) or a raw cell patch. An Effect is a delta a plan's activity applies from a point
+          in time.</p>
+          <ul class="fields">
+            <li><span class="k">ParametricDelta</span><span class="v">type + params (registry)</span></li>
+            <li><span class="k">CellPatch</span><span class="v">(cell, t, value) — the escape hatch</span></li>
+            <li><span class="k">Effect</span><span class="v">source, active_from, delta</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-19</span><span class="chip">DEC-34</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>AOPackage</h3><span class="tag">the provisioned bundle</span></div>
+          <p class="desc">Everything provisioned for an Area of Operations, packaged together
+          ready to plan against.</p>
+          <ul class="fields">
+            <li><span class="k">baseline_versions</span><span class="v">the worlds in scope</span></li>
+            <li><span class="k">excursions</span><span class="v">the what-ifs</span></li>
+            <li><span class="k">profiles</span><span class="v">the platforms available</span></li>
+            <li><span class="k">entities?</span><span class="v">located things to display</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-11</span><span class="chip">DEC-12</span><span class="chip">DEC-52</span></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 3. OWN FORCE -->
+    <section id="force">
+      <div class="sec-head">
+        <h2><span class="num">3</span>Own force</h2>
+        <p>The platform doing the mission — its fixed capabilities, and its live condition.</p>
+      </div>
+      <div class="grid">
+        <article class="entity">
+          <div class="top"><h3>Profile</h3><span class="tag immutable">immutable · capabilities</span></div>
+          <p class="desc">What a platform <em>can</em> do — the levers a sensitivity sweep varies.</p>
+          <ul class="fields">
+            <li><span class="k">speed_by_medium</span><span class="v">how fast, where</span></li>
+            <li><span class="k">endurance</span><span class="v">how long it can keep going</span></li>
+            <li><span class="k">sensors</span><span class="v">what it can perceive</span></li>
+            <li><span class="k">dynamics</span><span class="v">how it manoeuvres</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-19</span><span class="chip">DEC-20</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>State</h3><span class="tag">the platform, right now</span></div>
+          <p class="desc">The live condition the kernel re-anchors to during execution. It is the
+          privileged <em>self-entity</em> — its fields are dynamic aspects (position, endurance).</p>
+          <ul class="fields">
+            <li><span class="k">position</span><span class="v">which cell</span></li>
+            <li><span class="k">clock</span><span class="v">the current time</span></li>
+            <li><span class="k">endurance_fuel</span><span class="v">how much is left</span></li>
+            <li><span class="k">availability</span><span class="v">up / down</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-19</span><span class="chip">DEC-52</span></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 4. ENTITIES & PROJECTIONS -->
+    <section id="entities">
+      <div class="sec-head">
+        <h2><span class="num">4</span>Entities &amp; projections</h2>
+        <p>Anything <em>located</em> with an identity — yourself, an actor, a feature, a phenomenon.
+        Where a Channel is a field, an Entity is a thing, projected across synchronised views.</p>
+      </div>
+      <div class="grid">
+        <article class="entity">
+          <div class="top"><h3>Entity</h3><span class="tag">a located thing</span></div>
+          <p class="desc">Something with a place and a history. To affect the plan it is <em>cast</em>
+          to a Channel or Commitment (an actor → a moving risk channel; a window → a timing
+          commitment). In v1 entities are display-only.</p>
+          <ul class="fields">
+            <li><span class="k">kind</span><span class="v">self · actor · feature · phenomenon</span></li>
+            <li><span class="k">provenance</span><span class="v">planned · forecast · observed</span></li>
+            <li><span class="k">aspects</span><span class="v">its time-varying facets</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-52</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>Aspect</h3><span class="tag">one facet, over time</span></div>
+          <p class="desc">A single time-function of an entity — its position, an altitude, a
+          timing window, an up/down status — rendered onto a shared axis by a view.</p>
+          <ul class="fields">
+            <li><span class="k">type</span><span class="v">cell · scalar · window · status</span></li>
+            <li><span class="k">value</span><span class="v">f(t) — a time function</span></li>
+            <li><span class="k">unit? / channel_ref?</span><span class="v">unit · source channel</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-52</span><span class="chip">DEC-53</span></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 5. PLANS -->
+    <section id="plan">
+      <div class="sec-head">
+        <h2><span class="num">5</span>Plan identity, and plans</h2>
+        <p>A plan's identity <em>is</em> the fingerprint of everything that went into it — so two
+        plans are only comparable when that fingerprint shares a basis.</p>
+      </div>
+      <div class="grid">
+        <article class="entity">
+          <div class="top"><h3>Stamp</h3><span class="tag immutable">immutable · the fingerprint</span></div>
+          <p class="desc">Every input that determines a plan, bundled into one identity: which
+          requirement, which world, which config core, what appetites and steering, which kernel
+          and seed.</p>
+          <ul class="fields">
+            <li><span class="k">requirement_version</span><span class="v">what was asked</span></li>
+            <li><span class="k">baseline / excursions</span><span class="v">the world used</span></li>
+            <li><span class="k">config_core_hash</span><span class="v">the world-defining config</span></li>
+            <li><span class="k">appetites</span><span class="v">the implementer's risk dials</span></li>
+            <li><span class="k">steering</span><span class="v">interpreted gestures</span></li>
+            <li><span class="k">kernel_version · seed</span><span class="v">part of identity</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-23</span><span class="chip">DEC-29</span><span class="chip">DEC-48</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>Plan</h3><span class="tag immutable">immutable · a candidate answer</span></div>
+          <p class="desc">A candidate solution whose ID <em>is</em> the hash of its Stamp. Its
+          materialisation (schedule, trajectory, state curves) is cached and regenerable; its
+          scores and conflicts make it comparable.</p>
+          <ul class="fields">
+            <li><span class="k">id</span><span class="v">= hash(Stamp)</span></li>
+            <li><span class="k">materialisation</span><span class="v">schedule · trajectory · state curves · verified</span></li>
+            <li><span class="k">scores</span><span class="v">satisfaction, cost band, robustness band</span></li>
+            <li><span class="k">conflicts</span><span class="v">first-class, named clashes</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-5</span><span class="chip">DEC-22</span><span class="chip">DEC-29</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>Conflict</h3><span class="tag">a named clash</span></div>
+          <p class="desc">When commitments cannot all be kept, the clash is a first-class object —
+          named, with the parties and a narrative — not a silent failure.</p>
+          <ul class="fields">
+            <li><span class="k">kind</span><span class="v">structural · emergent</span></li>
+            <li><span class="k">parties</span><span class="v">the commitments in tension</span></li>
+            <li><span class="k">narrative</span><span class="v">what the clash is, in words</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-22</span></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 6. DECISION & EXECUTION RECORD -->
+    <section id="record">
+      <div class="sec-head">
+        <h2><span class="num">6</span>The record: why, and what happened</h2>
+        <p>Decision and execution records, append-only. Together with stamps they give a
+        complete after-action record with perfect replay.</p>
+      </div>
+      <div class="grid">
+        <article class="entity">
+          <div class="top"><h3>SelectionRationale</h3><span class="tag">why this plan</span></div>
+          <p class="desc">The record of a choice: which plan won, which it beat, on which axis,
+          and who decided.</p>
+          <ul class="fields">
+            <li><span class="k">chosen / beaten</span><span class="v">the winner and the field</span></li>
+            <li><span class="k">deciding_axis</span><span class="v">what tipped it</span></li>
+            <li><span class="k">by · role · at</span><span class="v">attribution</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-23</span></div>
+        </article>
+
+        <article class="entity">
+          <div class="top"><h3>ExecutionLog</h3><span class="tag">append-only · what happened</span></div>
+          <p class="desc">The live history of a mission: alerts when a band is crossed,
+          observations that update truth, waivers, and replans — never overwritten.</p>
+          <ul class="fields">
+            <li><span class="k">Alert</span><span class="v">a band crossing (commitment / score / infeasible)</span></li>
+            <li><span class="k">Observation</span><span class="v">a fact delta → the fact layer</span></li>
+            <li><span class="k">Waiver</span><span class="v">a relaxed commitment, attributed</span></li>
+            <li><span class="k">Replan</span><span class="v">from one plan to another, with rationale</span></li>
+          </ul>
+          <div class="dec"><span class="chip">DEC-23</span><span class="chip">DEC-25</span><span class="chip">DEC-26</span></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- RELATIONSHIPS -->
+    <section id="relationships">
+      <div class="sec-head">
+        <h2><span class="num">∞</span>How it all fits together</h2>
+        <p>One paragraph, end to end.</p>
+      </div>
+      <div class="rel-card">
+        <p>A <strong>Requirement</strong> version owns <strong>Commitments</strong>, each wrapping an
+        <strong>Activity</strong>. The kernel — a pure function — takes a <strong>Stamp</strong>'s inputs
+        (requirement version, <strong>Baseline</strong> ⊕ <strong>Excursions</strong>, the config core hash,
+        appetites, steering, seed) plus a <strong>Profile</strong> and the domain
+        <strong>MovementModel</strong>, and emits the handful of <strong>Plans</strong> — each plan's identity
+        <em>is</em> its stamp, with materialisation cached and verified. Comparison reads plans'
+        scores under the comparability guard (same stamp basis). Committing writes a
+        <strong>SelectionRationale</strong>. Execution re-anchors the same kernel to live
+        <strong>State</strong> (the self-entity's aspects); <strong>Observations</strong> append to the
+        baseline's fact layer, and the <strong>ExecutionLog</strong> accumulates the after-action
+        record. <strong>Entities</strong> are projected across synchronised views and <em>cast</em> to
+        channels or commitments where they must affect the plan. Learning proposes new
+        <em>versions</em> — never mutations.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <div class="backlinks">
+        <a href="../">← Home</a>
+        <a href="../app/">Walking skeleton</a>
+        <a href="../blog/">Blog</a>
+      </div>
+      Notation is conceptual and language-neutral; <code>?</code> = optional, <code>[]</code> = list.
+      Each object cites the decisions it falls out of (DEC-n). This page is a human-oriented view of
+      <code>docs/remit-data-model.md</code> — when the LinkML schema is authored (DEC-57) it becomes the
+      generating source.
+    </div>
+  </footer>
+</body>
+</html>

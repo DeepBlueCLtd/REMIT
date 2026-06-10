@@ -25,4 +25,6 @@ evidence (e.g. `specs/<feature>/evidence/`).
 
 | 2026-06-10 | PR #2 | Golden-fixture kernel tests + plan-free coincidence rule. `test/kernel.golden.test.mjs` (`npm run test:unit`, node's runner, zero deps): pins the deterministic planner's tidal-ford set-pieces — 45-dwell→WAIT, 15-dwell→DETOUR, no-go both crossings→infeasible — with golden plan ids (NF3). Third coincidence rule `open-ford-pass` (sat ∧ ford open, H+146–164): pure forecast×provider, surfaces with no COA selected. 4 unit + 9 e2e passing. | [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
 
+| 2026-06-10 | `claude/data-model-mini-site-uqykia` | Data Model mini-site: bespoke, attractive `site/data-model/index.html` (self-contained, light/dark, no build) presenting the v1 data model as a human-oriented tour — three universal rules, lifecycle spine, and entity cards (Requirement → ExecutionLog) with plain-English field glosses + DEC chips, plus the relationships paragraph. Linked from `site/index.html` welcome page. Derived from `docs/remit-data-model.md` (draft 0.3); becomes a generated view once the LinkML schema is authored (DEC-57). Note: no LinkML schema exists in-repo yet. | `site/data-model/` |
+
 <!-- Add new rows above as work completes. -->
