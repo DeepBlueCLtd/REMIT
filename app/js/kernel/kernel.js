@@ -217,11 +217,13 @@ async function finalisePlan(stamp, strat, materialisation, ctx) {
     satisfaction.push({ commitment_id: exfilC.id, label: 'Exfil E', ...s });
   }
 
-  // Cost: total mission time (incl. exfil) bucketed — illustrative (NF9).
-  const totalMin = infeasible ? Infinity : (rvArrival ?? arrival);
-  const cost_band = totalMin <= 100 ? 'robust' : totalMin <= 140 ? 'marginal' : 'fragile';
-  // Robustness: canned per strategy — single baseline, no real sampling (NF9).
-  const robustness_band = { tracked: 'robust', direct: 'marginal', covered: 'marginal' }[strat.key];
+  // Cost × robustness: canned per strategy (illustrative, NF9) to present a
+  // genuine three-way trade-off so the risk appetite has a real effect —
+  // direct is cheap but exposed, covered is dear but safe, tracked is between.
+  const cost_band = infeasible ? 'fragile'
+    : { direct: 'robust', tracked: 'marginal', covered: 'fragile' }[strat.key];
+  const robustness_band = infeasible ? 'fragile'
+    : { direct: 'fragile', tracked: 'marginal', covered: 'robust' }[strat.key];
 
   const conflicts = ctx.conflicts ?? [
     ...(satisfaction[0].verdict === 'violated' && !infeasible

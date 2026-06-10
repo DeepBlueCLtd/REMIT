@@ -79,6 +79,16 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await page.getByTestId('cmp-exposure').selectOption('cautious');
   await expect(page.getByTestId('rec-tag')).toHaveCount(1);
 
+  // Appetites visibly re-rank: cautious vs rapid/bold recommend different COAs.
+  const recPick = () => page.evaluate(() =>
+    document.querySelector('.matrix tr.recommended [data-testid^="pick-"]')?.getAttribute('data-testid'));
+  const recCautious = await recPick();
+  await page.getByTestId('cmp-exposure').selectOption('bold');
+  await page.getByTestId('cmp-tempo').selectOption('rapid');
+  expect(await recPick()).not.toBe(recCautious);
+  await page.getByTestId('cmp-exposure').selectOption('balanced');
+  await page.getByTestId('cmp-tempo').selectOption('balanced');
+
   const ghosts = () => page.getByTestId('map').getAttribute('data-ghost');
   await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
     el.value = '0';
