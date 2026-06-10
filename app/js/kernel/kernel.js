@@ -232,6 +232,45 @@ export function stateAt(plan, tau) {
 }
 
 /**
+ * Time-varying measures for one plan at plan-time t — what a candidate looks
+ * like mid-flight if followed exactly. Compare's racing ghosts and the live
+ * measures strip render this; nothing outside the kernel re-derives it (NF1).
+ * @param {any} plan
+ * @param {number} t
+ * @returns {{phase: string, x: number, y: number, fuel_pct: number,
+ *            dist_km: number, to_arrival_min: number, dwell_min: number} | null}
+ */
+export function measuresAt(plan, t) {
+  const m = plan.materialisation;
+  if (!m) return null;
+  const st = stateAt(plan, t);
+  const traj = m.trajectory;
+  const visit = m.schedule[m.schedule.length - 1];
+  const arrival = m.schedule[0].end_min;
+
+  // Cumulative distance along the kernel's own trajectory, interpolating the
+  // segment in progress.
+  let dist = 0;
+  for (let i = 1; i < traj.length; i++) {
+    const a = traj[i - 1], b = traj[i];
+    const seg = Math.hypot(b.x - a.x, b.y - a.y) * CELL_M;
+    if (t >= b.t) { dist += seg; continue; }
+    if (t > a.t) dist += seg * ((t - a.t) / (b.t - a.t));
+    break;
+  }
+
+  const dwell = Math.max(0, Math.min(t, visit.end_min) - visit.start_min);
+  return {
+    phase: st.phase,
+    x: st.x, y: st.y,
+    fuel_pct: st.fuel_pct,
+    dist_km: Math.round(dist / 100) / 10,
+    to_arrival_min: Math.max(0, round1(arrival - t)),
+    dwell_min: round1(dwell),
+  };
+}
+
+/**
  * Live margin assessment for one commitment under an accumulated delay —
  * the wingman's band monitor and Compare's matrix both come through here.
  * @param {any} plan

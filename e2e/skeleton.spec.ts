@@ -43,14 +43,30 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   }
   await shot(page, '03-plan');
 
-  // --- 4 Compare: guard passes, matrix shown, rationale committed.
+  // --- 4 Compare: guard passes, matrix shown; scrubbing the playhead races
+  // all three candidate ghosts and drives the live measures strip (NF1).
   await page.getByTestId('continue-compare').click();
   await expect(page.getByTestId('cmp-guard')).toContainText('✓');
   await expect(page.getByTestId('cmp-matrix').locator('tbody tr')).toHaveCount(3);
+
+  const ghosts = () => page.getByTestId('map').getAttribute('data-ghost');
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '0';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const ghosts0 = await ghosts();
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '40';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect.poll(ghosts).not.toBe(ghosts0);
+  await expect(page.getByTestId('cmp-live')).toContainText('Direct');
+  await expect(page.locator('.cmp-live-caption')).toContainText('H+40');
+  await shot(page, '04-compare');
+
   await page.getByTestId('pick-direct').check();
   await page.getByTestId('cmp-commit').click();
   await expect(page.getByTestId('cmp-ratid')).toBeVisible();
-  await shot(page, '04-compare');
 
   // --- 5 Views: scrubbing the playhead moves the map ghost (NF1 projection).
   // (Rail navigation still works for unlocked stages — hop away and back.)
