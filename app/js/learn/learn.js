@@ -50,6 +50,7 @@ export async function mountLearn(el, ctx) {
         <p>chosen <code class="hash">${rationale.chosen.slice(7, 15)}</code>
            over ${rationale.beaten.map((b) => `<code class="hash">${b.slice(7, 15)}</code>`).join(' ')}</p>
         <p>deciding axis: <b>${rationale.deciding_axis}</b> — “${rationale.note}”</p>
+        <p class="muted">appetites: tempo ${rationale.appetites?.tempo ?? '—'}, exposure ${rationale.appetites?.exposure ?? '—'}${rationale.mitigations?.length ? ` · mitigations: <b>${rationale.mitigations.join(', ')}</b>` : ''}</p>
         <p class="muted">by ${rationale.by} (${rationale.role} hat), ${rationale.at}</p>
       </div>
       <div class="card">

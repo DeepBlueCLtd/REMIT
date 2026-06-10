@@ -81,7 +81,27 @@ Built on top of the skeleton in the same PR, at the maintainer's request:
   **"Load the operating area"** with plain-language gloss (the register keeps its
   deliberate terms; only the UI is plain).
 
-### Planned next (DEC-54 first slices)
+### Plan/Compare role split (maintainer-directed)
+
+Sharpened what each stage is *for* (not merged — the kernel-generates / human-decides
+boundary is load-bearing, DEC-14/22/23):
+
+- **Plan = shape the problem.** Where the operator adds intelligence as **constraints**,
+  spatial and/or temporally bounded (steering, DEC-24, over the CellPredicate grammar
+  DEC-33). *Built so far:* appetites removed from Plan; intro flags constraints as next.
+- **Compare = tune the response.** Risk **appetites** (DEC-6) moved here as a ranking
+  lens that highlights a **★ recommended** COA; plus risk **mitigations** that buy down
+  a risk for a cost — an **Armed Escort** toggle (+1 robustness band, −1 cost band,
+  shown inline). The rationale records appetites + mitigations.
+- **New concept for the gate (DEC-47):** *mitigations* (buy-down-risk-for-cost) are not
+  in the register. v1 models the escort as a comparison-layer band modifier (NF9-labelled);
+  a fuller model would make it a profile/steering input that re-plans. Also: appetites are
+  a stamp input (DEC-6/29) — v1 treats the Compare appetites as a ranking lens only.
+
+### Planned next (DEC-54 first slices + steering)
+
+- **Plan-side steering** — paint spatial (and later temporal) no-go constraints on the
+  map; the kernel routes around them. Temporal bounds share the tide machinery below.
 
 - **Tidal estuary + ford (mudflat slice, G6/DEC-54).** Make K-7 a tidal **ford**
   crossable only within ±3 h of low tide; the optimiser then weighs *wait for the

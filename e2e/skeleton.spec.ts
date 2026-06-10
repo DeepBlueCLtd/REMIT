@@ -65,6 +65,15 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await expect(page.getByTestId('cmp-matrix')).toContainText('Observe OP');
   await expect(page.getByTestId('cmp-matrix')).toContainText('Exfil E');
 
+  // Implementer controls (DEC-6): appetites recommend a COA; the armed-escort
+  // mitigation buys robustness for a cost.
+  await expect(page.getByTestId('rec-tag')).toHaveCount(1);
+  await page.getByTestId('cmp-escort').check();
+  await expect(page.getByTestId('band-mod').first()).toBeVisible();
+  await page.getByTestId('cmp-escort').uncheck();
+  await page.getByTestId('cmp-exposure').selectOption('cautious');
+  await expect(page.getByTestId('rec-tag')).toHaveCount(1);
+
   const ghosts = () => page.getByTestId('map').getAttribute('data-ghost');
   await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
     el.value = '0';
