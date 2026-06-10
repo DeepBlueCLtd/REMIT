@@ -201,6 +201,21 @@ and the catalogue (`app/js/entities/entities.js`) is **config** (entity / aspect
   horizon); the cursor just slides, so live playback and scrubbing stay cheap.
 - Evidence: `15-sync-matrix.png`, `16-sync-matrix-tracks.png`.
 
+#### H2 advisory coincidence windows ✅
+
+The vertical-scan payoff, promoted from "human-only" to **advisory**. A
+**coincidence rule** is a declared **conjunction of aspect-predicates** (config,
+`coincidenceRules()`); where every predicate holds at once, the tracks line up
+into a **coincidence window**. Two rules ship: **Imagery window** (own force
+observing ∧ satellite overhead → H+51–69, the first pass over the OP dwell) and
+**Tide-aligned crossing** (exfil phase ∧ ford open → H+88–95). Windows are drawn
+as faint full-height **guide columns** behind the stack (the column-aggregation
+visual) plus a labelled **⌖ Coincidence** advisory lane; the cursor readout names
+any window it sits inside. **Advisory only — it never alters the plan** (the
+C10-lite discipline, DEC-32); the lane is labelled `advisory · C10-lite`.
+First-class coincidence *objects* the kernel could exploit (rendezvous, C9) stay
+H3. Evidence: `17-coincidence-advisory.png`.
+
 ## Out of scope (per DEC-44)
 
 Steering gestures, excursions, multi-channel worlds beyond the tide, cast-to-channel

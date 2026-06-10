@@ -101,6 +101,13 @@ the object store and seam traffic live, so the substrate is visible, not asserte
   three provenances), the catalogue is config, and you scan vertically for
   coincidences. The set-piece: the first satellite pass falls right across the
   OP dwell — exactly when you'd want overhead imagery.
+- **Then the matrix learned to spot the coincidences for you — advisorily.** A
+  coincidence rule is a declared *conjunction of aspect-predicates* (observing
+  AND satellite-overhead = an "imagery window"; exfil AND ford-open = a
+  "tide-aligned crossing"). Where the predicates all hold, the columns light up
+  and a labelled advisory band appears. It's strictly advisory — it never
+  changes the plan (the C10-lite discipline) — so the operator keeps the
+  opportunity-spotting seat, with the system pointing rather than deciding.
 
 ## Screenshots
 
@@ -113,3 +120,5 @@ the object store and seam traffic live, so the substrate is visible, not asserte
 ![Execute: the vehicle holds at the bank for low water — the ford renders closed, phase 'hold', then it wades K-7 once the window opens](screenshots/tide-hold-at-bank.png)
 
 ![Sync Matrix: own-force phase + fuel, the tide forecast (curve + ford-open window) and the IKAROS-3 satellite's overhead passes on one shared axis — the first pass coincides with the OP dwell](screenshots/sync-matrix-tracks.png)
+
+![Advisory coincidence: the imagery window (satellite overhead during the OP dwell) and the tide-aligned crossing surface as labelled advisory bands, with the columns lit up across the stack — advisory only, never deciding](screenshots/coincidence-advisory.png)

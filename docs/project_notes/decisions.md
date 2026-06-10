@@ -177,3 +177,23 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   role preset (the catalogue is structured for per-role presets but only one is
   wired). The satellite ephemeris is a hand-tuned mock, chosen so the first pass
   coincides with the default OP dwell — illustrative, NF9-honest.
+
+## ADR-0009 (2026-06-10) — Coincidence as advisory declared-conjunction windows (H2, DEC-53)
+
+- **Context:** the Sync Matrix (ADR-0008) shipped coincidence as human-scan only.
+  DEC-53's designed-for next step is **advisory banded coincidence windows** — the
+  temporal dual of C10's spatial column-aggregation — under the C10-lite discipline
+  (DEC-32): advisory, never decides.
+- **Decision:** a coincidence **rule** is config (`coincidenceRules()`): a declared
+  CONJUNCTION of aspect-predicates over entities (e.g. `self.phase === 'visit' ∧
+  sat.pass overhead` = "Imagery window"). `coincidenceWindows()` scans [0,horizon]
+  for the maximal intervals where a rule holds; the matrix renders them as faint
+  full-height guide columns behind the tracks plus a labelled advisory lane, and the
+  cursor readout names any window it sits inside.
+- **Discipline:** advisory ONLY — the windows are computed from, and rendered over,
+  the existing projection; they never feed the kernel, never alter the plan, and are
+  labelled `advisory · C10-lite`. First-class coincidence *objects* the kernel could
+  exploit (rendezvous, C9) are deferred to H3 (the opportunity-dual of conflict C1).
+- **Trade-offs:** rules are hand-authored demo set-pieces (NF9-honest); the scan is
+  1-min resolution (fine for advisory). Both shipped rules need a selected COA
+  (self.phase), so windows appear from Views on, not the World step.

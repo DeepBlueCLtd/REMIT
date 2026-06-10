@@ -336,6 +336,26 @@ test('sync matrix: tide + satellite tracks project from the World step; own-forc
   await expect(sm).toContainText('Own force · fuel');
   await expect(sm).toContainText('self');
   expect(await page.getByTestId('sync-matrix-host').getAttribute('data-self-active')).toBe('1');
+
+  // H2 advisory coincidence (DEC-53): declared conjunctions of aspect-predicates
+  // surface as advisory windows — the imagery window (sat overhead during the OP
+  // dwell) and the tide-aligned crossing — clearly labelled advisory/C10-lite.
+  await expect(sm).toContainText('Coincidence');
+  await expect(sm).toContainText('advisory');
+  expect(await page.getByTestId('sync-matrix-host').getAttribute('data-coincidences'))
+    .toContain('imagery:51-69');
+  // The cursor inside the imagery window (H+60) → it's named, marked advisory.
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '60'; el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.getByTestId('sm-advisory')).toContainText('Imagery window');
+  await expect(page.getByTestId('sm-advisory')).toContainText('advisory');
+  // Outside any window → no advisory cue (e.g. H+10, still in transit).
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '10'; el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.getByTestId('sm-advisory')).toHaveCount(0);
+
   // Dragging the matrix scrubs the shared playhead (map ghost moves with it).
   const ghost0 = await page.getByTestId('map').getAttribute('data-ghost');
   const box = await sm.boundingBox();
