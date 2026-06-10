@@ -23,7 +23,7 @@ need a value.
 | Walking skeleton | `app/` (no build step, ES modules under `app/js/`) — spec + evidence in `specs/002-walking-skeleton/` |
 | Skeleton scenario | AO "Kara Crossing" 28×18 @ 500 m · base (2,15) · OP-A (21,3) · window H+30..H+120 · dwell 45 min · band unit 20 min · seed 1337 · kernel `mock-0.1` |
 | Tide (increment A) | semidiurnal, period 745 min · first low tide H+268 · ford open ±180 min → [H+88, H+448] · ford cells (23,5)(24,5) mobility 0.55 · K-9 detour ≈ +13 min over open ford |
-| Sync Matrix (D6) | `app/js/entities/entities.js` (entities + config catalogue) + `app/js/views/sync-matrix.js` (renderer). Entities: self (own force, via `stateAt`) · tide (forecast) · IKAROS-3 sat (provider). Sat ephemeris: period 95 min · pass 18 min · first centre H+60 (first pass ≈ H+51–69, over the OP dwell). Render types: status/line/band. Coincidence = human-scan only (DEC-53). |
+| Sync Matrix (D6) | `app/js/entities/entities.js` (entities + config catalogue) + `app/js/views/sync-matrix.js` (renderer). Entities: self (own force, via `stateAt`) · tide (forecast) · IKAROS-3 sat (provider). Sat ephemeris: period 95 min · pass 18 min · first centre H+60 (first pass ≈ H+51–69, over the OP dwell). Render types: status/line/band. Coincidence = human scan + advisory banded windows (H1-lite, DEC-53). |
 | e2e CI | `.github/workflows/e2e.yml` — Playwright suite on every PR / push to main |
 
 _Pages URLs resolve once GitHub Pages is enabled (served from `gh-pages`). Add

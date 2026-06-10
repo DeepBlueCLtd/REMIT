@@ -195,13 +195,13 @@ and the catalogue (`app/js/entities/entities.js`) is **config** (entity / aspect
   readout reports each aspect's state at H+t ("≋ ford open / closed", "🛰 sat
   overhead / below horizon") so the operator sees coincidences while scrubbing;
   the demo's set-piece is the first satellite pass falling across the OP dwell.
-  Advisory banded windows and first-class coincidence objects stay designed-for
-  (H2/H3).
+  Advisory banded windows (H1-lite) shipped next (see below); first-class
+  coincidence objects stay designed-for (H3).
 - The SVG rebuilds only when the projected content changes (plan/schedule/
   horizon); the cursor just slides, so live playback and scrubbing stay cheap.
 - Evidence: `15-sync-matrix.png`, `16-sync-matrix-tracks.png`.
 
-#### H2 advisory coincidence windows ✅
+#### Advisory coincidence windows (H1-lite) ✅
 
 The vertical-scan payoff, promoted from "human-only" to **advisory**. A
 **coincidence rule** is a declared **conjunction of aspect-predicates** (config,
@@ -214,10 +214,11 @@ visual) plus a labelled **⌖ Coincidence** advisory lane; the cursor readout na
 any window it sits inside. **Advisory only — it never alters the plan** (the
 C10-lite discipline, DEC-32); the lane is labelled `advisory · C10-lite`.
 First-class coincidence *objects* the kernel could exploit (rendezvous, C9) stay
-H3. Evidence: `17-coincidence-advisory.png`.
+H3. Filed **H1-lite** — the temporal sibling of C10's banded overlay (`H1-lite`),
+not H2 — see ADR-0009. Evidence: `17-coincidence-advisory.png`.
 
 ## Out of scope (per DEC-44)
 
 Steering gestures, excursions, multi-channel worlds beyond the tide, cast-to-channel
-(entities are display-only in v1, DEC-53), advisory/first-class coincidence (H2/H3),
+(entities are display-only in v1, DEC-53), first-class coincidence objects (H3),
 waiting-as-a-move beyond the hold leg, any real planning quality.

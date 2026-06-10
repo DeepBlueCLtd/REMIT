@@ -165,10 +165,11 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   forecast entity over the baseline tide channel; the IKAROS-3 satellite is a
   mock provider (DEC-49) returning pass windows. The timeline strip + `makeTimeline`
   are removed — the phase track subsumes them.
-- **Coincidence:** v1 is **human-scan only** (DEC-53/NF9) — no automated window
-  detection. The cursor readout reports each aspect's state at H+t (ford
-  open/closed, sat overhead) so coincidences are visible while scrubbing; advisory
-  banded windows (H2) and first-class coincidence objects (H3) stay designed-for.
+- **Coincidence:** at this slice, v1 is **human-scan only** (DEC-53/NF9) — no
+  automated window detection. The cursor readout reports each aspect's state at H+t
+  (ford open/closed, sat overhead) so coincidences are visible while scrubbing.
+  Advisory banded windows (**H1-lite**, the C10-lite dual — shipped next in ADR-0009)
+  and first-class coincidence objects (H3) were designed-for from here.
 - **Rendering:** the SVG rebuilds only when projected content changes (a content
   signature: sel id, schedule, horizon, catalogue); the cursor slides every tick.
   This keeps playback/scrub cheap and lets drag handlers survive mid-scrub (they
@@ -178,7 +179,7 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   wired). The satellite ephemeris is a hand-tuned mock, chosen so the first pass
   coincides with the default OP dwell — illustrative, NF9-honest.
 
-## ADR-0009 (2026-06-10) — Coincidence as advisory declared-conjunction windows (H2, DEC-53)
+## ADR-0009 (2026-06-10) — Coincidence as advisory declared-conjunction windows (H1-lite, DEC-53)
 
 - **Context:** the Sync Matrix (ADR-0008) shipped coincidence as human-scan only.
   DEC-53's designed-for next step is **advisory banded coincidence windows** — the
@@ -194,6 +195,12 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   the existing projection; they never feed the kernel, never alter the plan, and are
   labelled `advisory · C10-lite`. First-class coincidence *objects* the kernel could
   exploit (rendezvous, C9) are deferred to H3 (the opportunity-dual of conflict C1).
+- **Horizon (consistency fix):** filed **H1-lite**, not H2. This advisory banded
+  tier is the temporal sibling of C10's banded overlay, which is itself `H1-lite`
+  and ships in v1 (DEC-32) — duals under one discipline must share a horizon. The
+  register's earlier `(H2)` tag on the D6 coincidence tier and DEC-53's "v1
+  human-scan only" wording were realigned to H1-lite to match C10; the H3 boundary
+  (first-class objects) is unchanged.
 - **Trade-offs:** rules are hand-authored demo set-pieces (NF9-honest); the scan is
   1-min resolution (fine for advisory). Both shipped rules need a selected COA
   (self.phase), so windows appear from Views on, not the World step.

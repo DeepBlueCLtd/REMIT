@@ -243,7 +243,7 @@ One synchronised projection among several; implementer default (with D1). Gestur
 
 ### D6 — Sync Matrix (temporal multi-track projection) `decided` (DEC-53) `H1`
 
-A configurable **stack of time-aligned tracks** over a shared scroll/zoom time axis; each track projects one **aspect** of an **entity** (A6) via a render type (scalar→line/gradient-as-speed, window→band, status→ticks, cell→glyph &/or distance-along-track). Generalises D1/D4: own-plan altitude, distance-along-track (gradient = speed), endurance, activity-status are all self-entity aspects; external entities (satellite passes, convoy windows, a submarine surface-window) sit on the same axis. **Catalogue is config** (entity types/aspects/render-types/role-presets, DEC-48/49/50). **Coincidence** = the vertical-scan payoff (temporal dual of C10): v1 human-scanned only; advisory banded windows designed-for (H2, C10-lite discipline); first-class *opportunity* objects = H3 (dual to C1, exploitable by rendezvous C9). **v1 set** (DEC-53, Q5-C): self + one forecast + one provider entity, display-only.
+A configurable **stack of time-aligned tracks** over a shared scroll/zoom time axis; each track projects one **aspect** of an **entity** (A6) via a render type (scalar→line/gradient-as-speed, window→band, status→ticks, cell→glyph &/or distance-along-track). Generalises D1/D4: own-plan altitude, distance-along-track (gradient = speed), endurance, activity-status are all self-entity aspects; external entities (satellite passes, convoy windows, a submarine surface-window) sit on the same axis. **Catalogue is config** (entity types/aspects/render-types/role-presets, DEC-48/49/50). **Coincidence** = the vertical-scan payoff (temporal dual of C10): v1 ships human scan **plus** advisory banded windows (**H1-lite**, C10-lite discipline — the temporal sibling of C10's own v1-lite banded overlay, DEC-32); first-class *opportunity* objects = H3 (dual to C1, exploitable by rendezvous C9). **v1 set** (DEC-53, Q5-C): self + one forecast + one provider entity, display-only.
 
 - Reframe note: D1 timeline, D4 state-curves, D5 map are now *presets* of the A6 projection mechanism, not separate constructs.
 
@@ -418,7 +418,7 @@ Per DEC-9, capabilities and qualities are defined before the data model. **Quali
 - NL tasking (B6); lazy kernel-in-the-loop clarification (B2/H2).
 - Recalibration (F2), playbooks (F3), inferred appetites (F4), procurement/twin (F5).
 - Full C10 aggregation-function set; warm branches (E4); tension view (D3); multi-user roles (DEC-15).
-- **Entity (A6) deferred internals:** cast-to-channel/commitment mechanics; planning-*against* entities (= multi-actor, C9/H3); advisory coincidence-window detection (D6, H2 — the temporal C10); coincidence-as-first-class-opportunity dual to C1 (H3, with rendezvous C9).
+- **Entity (A6) deferred internals:** cast-to-channel/commitment mechanics; planning-*against* entities (= multi-actor, C9/H3); coincidence-as-first-class-opportunity dual to C1 (H3, with rendezvous C9). *(Advisory coincidence-window detection — the temporal C10, H1-lite — has shipped: ADR-0009.)*
 
 ### K2 — v1 detail still loose inside decided entries
 

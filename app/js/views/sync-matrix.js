@@ -5,7 +5,7 @@
 // Generalises the skeleton's single timeline: own-force phase + fuel, the tide
 // forecast (height curve + ford-open windows) and a provider satellite's
 // overhead passes all sit on the same axis, so the operator scans VERTICALLY
-// for coincidences (human-only in v1 — DEC-53/NF9; no automated detection).
+// for coincidences — augmented by the advisory window lane (H1-lite, DEC-53/NF9).
 //
 // The SVG is rebuilt only when the projected CONTENT changes (selected plan,
 // schedule, horizon, catalogue) — the playhead cursor just slides — so live
@@ -77,7 +77,7 @@ export function makeSyncMatrix(host, playhead) {
 function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalogue, coincidences, tx }) {
   const dataBottom = TOP + (catalogue.length - 1) * (TH + GAP) + TH;
 
-  // Coincidence guides (H2) — faint full-height columns where a rule's tracks
+  // Coincidence guides (H1-lite) — faint full-height columns where a rule's tracks
   // line up, drawn BEHIND the tracks (the column-aggregation visual).
   let guides = '';
   for (const c of coincidences) {
@@ -100,7 +100,7 @@ function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalog
       ${body}</g>`;
   }).join('');
 
-  // Advisory coincidence lane (H2) — labelled bands for each window; advisory
+  // Advisory coincidence lane (H1-lite) — labelled bands for each window; advisory
   // only, never alters the plan (C10-lite). Sits below the projected tracks.
   const advY = TOP + catalogue.length * (TH + GAP);
   let advisory =
