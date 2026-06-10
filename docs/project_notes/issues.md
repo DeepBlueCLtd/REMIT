@@ -31,6 +31,10 @@ evidence (e.g. `specs/<feature>/evidence/`).
 
 | 2026-06-10 | PR #4 | **LinkML data model authored (DEC-57).** `schema/remit.yaml` — 60 classes, 20 enums — from the `remit-data-model.md` spine, reconciled field-by-field against the walking skeleton's real shapes (schema ≡ code). `schema/generate.sh` (venv-bootstrapping) generates JSON Schema + TypeScript (`schema/gen/`) and a single self-contained **human-readable HTML reference** (`schema/build-reference.py` → `site/data-model/index.html`, ~90 KB, classes/fields/enums with linkages + ER diagram) that **replaces the hand-authored tour**. No Pydantic yet. Two LinkML gotchas hit + recorded (bugs.md). | ADR-0011 · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
 
-| 2026-06-10 | PR #4 | Recorded the "LinkML one-source-of-truth" type rules (constitution) adapted to REMIT — CLAUDE.md "Data model" section, spec-kit constitution, ADR-0012. Deferred follow-ups: GENERATED banners + regen-no-diff CI check; golden-fixtures adherence test; migrate skeleton inline shapes onto generated TS (own spec). | ADR-0012 · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
+| 2026-06-10 | PR #4 | Recorded the "LinkML one-source-of-truth" type rules (constitution) adapted to REMIT — CLAUDE.md "Data model" section, spec-kit constitution v1.0.0, ADR-0012. Deferred follow-ups: GENERATED banners + regen-no-diff CI check; golden-fixtures adherence test; migrate skeleton inline shapes onto generated TS (own spec). | ADR-0012 · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
+
+| 2026-06-10 | PR #4 | Split the LinkML schema into discrete modules under `schema/` (`common`/`requirement`/`world`/`force`/`entities`/`plan`/`records`) stitched by the entry `schema/remit.yaml` — version-control hygiene. Star topology (modules import only `common`; cross-module refs resolve at merge) avoids circular imports; identical output. | ADR-0011 · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
+
+| 2026-06-10 | PR #4 | Reworked the data-model reference into a hierarchical navigator (`build-reference.py`): a sticky module→class sidebar TOC, a "model at a glance" module overview, and class cards grouped under their module (derived from each class's `from_schema`). Mirrors the modular schema. | `site/data-model/` · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
 
 <!-- Add new rows above as work completes. -->
