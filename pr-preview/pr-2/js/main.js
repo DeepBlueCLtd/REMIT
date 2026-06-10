@@ -66,16 +66,20 @@ const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhea
 const readout = /** @type {HTMLElement} */ (document.getElementById('projection-readout'));
 
 let worldProvisioned = false;
-let execActual = null; // during playback: kernel-evaluated actual state
+/** Set by the wingman while mounted; lets a slider grab pause live playback. */
+let pausePlayback = null;
 
 function renderProjection() {
   if (!worldProvisioned) return;
   const sel = state.selectedPlan;
+  // The playhead is the single authority for "what time we're viewing": the map
+  // ghost is the kernel's evaluator at that time (NF1). During execution the
+  // wingman advances the playhead; the user can also scrub it to review.
   map.render({
-    plans: state.handful, selected: sel, t: playhead.t, actual: execActual,
+    plans: state.handful, selected: sel, t: playhead.t,
     target: mapTarget, rv: mapRv,
   });
-  const ghost = execActual ?? (sel ? stateAt(sel, playhead.t) : null);
+  const ghost = sel ? stateAt(sel, playhead.t) : null;
   if (sel && ghost) {
     readout.innerHTML =
       `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${Math.round(ghost.x)},${Math.round(ghost.y)}</b>`
@@ -111,6 +115,7 @@ playhead.on((t) => {
   slider.value = String(t);
   renderProjection();
 });
+slider.addEventListener('pointerdown', () => pausePlayback?.());  // grabbing the scrubber pauses live play
 slider.addEventListener('input', () => playhead.set(Number(slider.value)));
 
 // --- drawers ---------------------------------------------------------------
@@ -237,19 +242,19 @@ function mountStage(key) {
   }
   if (key === 'views') mountViews();
   if (key === 'execute') {
-    mountWingman(panel('execute'), {
+    const wm = mountWingman(panel('execute'), {
       seam, missionId: MISSION_ID, plan: state.selectedPlan,
       commitment: state.requirement.commitments[0],
       exfilCommitment: state.requirement.commitments[1],
       bandUnit: state.bandUnit,
       playhead,
       resetLog: () => logs.reset(MISSION_ID),
-      renderViews({ actual }) { execActual = actual; renderProjection(); },
       onComplete(summary) {
         state.execSummary = summary;
         advance('execute');
       },
     });
+    pausePlayback = wm.pause;
   }
   if (key === 'learn') {
     mountLearn(panel('learn'), {
@@ -264,6 +269,7 @@ function mountStage(key) {
       showFault(`assembling the after-action record: ${err?.message ?? err}`);
       console.error(err);
     });
+    playhead.set(0);   // scrubber starts at the route's beginning in Learn
   }
 }
 
