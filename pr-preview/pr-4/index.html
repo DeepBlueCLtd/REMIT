@@ -3,124 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>REMIT — walking skeleton</title>
-  <link rel="stylesheet" href="styles.css">
-  <script>
-    // Global fault surface — inline and ES5-safe so it works even if the ES
-    // modules fail to load or parse. Nothing in the app may fail silently.
-    (function () {
-      function fault(msg) {
-        var el = document.getElementById('fault');
-        if (!el) {
-          document.addEventListener('DOMContentLoaded', function () { fault(msg); });
-          return;
-        }
-        el.hidden = false;
-        el.textContent = '⚠ ' + msg + ' — please screenshot this and report it.';
-      }
-      window.__remitFault = fault;
-      window.addEventListener('error', function (e) {
-        fault((e.message || 'script error')
-          + (e.filename ? ' [' + String(e.filename).split('/').pop() + ':' + e.lineno + ']' : ''));
-      });
-      window.addEventListener('unhandledrejection', function (e) {
-        var r = e.reason || {};
-        fault(r.message ? r.message : String(e.reason));
-      });
-    })();
-  </script>
+  <title>REMIT</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { margin-bottom: .25rem; }
+    .lede { color: #777; margin-top: 0; }
+    ul.nav { list-style: none; padding: 0; display: grid; gap: .75rem; margin-top: 2rem; }
+    ul.nav a { display: block; padding: 1rem 1.25rem; border: 1px solid #8884; border-radius: .5rem; text-decoration: none; color: inherit; }
+    ul.nav a:hover { border-color: #888; }
+    ul.nav strong { display: block; }
+    ul.nav span { color: #777; font-size: .9rem; }
+    footer { margin-top: 3rem; color: #888; font-size: .85rem; }
+    code { font-family: ui-monospace, monospace; }
+  </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <h1>REMIT</h1>
-      <span class="subtitle">walking skeleton — one thin lap of the spine (DEC-44)</span>
-    </div>
-    <details class="idchips" id="idchips">
-      <summary>identity <span class="idchips-count" id="chips-count">0</span></summary>
-      <div id="chips" class="chips"></div>
-    </details>
-    <nav class="topnav">
-      <a id="nav-landing" href="../">Landing</a>
-      <a id="nav-blog" href="../blog/">Blog</a>
-    </nav>
-  </header>
+  <h1>REMIT</h1>
+  <p class="lede">Requirement, Effects &amp; Mission Intent Tasking &mdash; the greenfield
+  mission-planning system. Navigation hub for the live app, per-PR previews, and the blog.</p>
 
-  <div id="fault" class="fault" hidden></div>
+  <ul class="nav">
+    <li><a href="app/"><strong>Walking skeleton &rarr;</strong><span>One thin lap of the
+      lifecycle spine: capture &rarr; world &rarr; plan &rarr; compare &rarr; views &rarr;
+      execute &rarr; learn (DEC-44).</span></a></li>
+    <li><a href="data-model/"><strong>Data model &rarr;</strong><span>A human-oriented tour of
+      the objects mission planning is built from &mdash; the rules they obey and how they fit
+      together.</span></a></li>
+    <li><a href="blog/"><strong>Blog &rarr;</strong><span>Posts generated from completed specs.</span></a></li>
+  </ul>
 
-  <main class="layout">
-    <nav id="rail" class="rail" aria-label="Lifecycle stages"></nav>
-
-    <div class="panels">
-      <section class="stage-panel active" data-panel="world">
-        <h2>1 · World <span class="hat-chip">provisioning</span></h2>
-        <div class="panel-body"></div>
-      </section>
-      <section class="stage-panel" data-panel="capture">
-        <h2>2 · Capture <span class="hat-chip">command hat</span></h2>
-        <div class="panel-body"></div>
-      </section>
-      <section class="stage-panel" data-panel="plan">
-        <h2>3 · Plan <span class="hat-chip">implementer hat</span></h2>
-        <div class="panel-body"></div>
-      </section>
-      <section class="stage-panel" data-panel="compare">
-        <h2>4 · Compare &amp; decide <span class="hat-chip">implementer hat</span></h2>
-        <div class="panel-body"></div>
-      </section>
-      <section class="stage-panel" data-panel="views">
-        <h2>5 · Views <span class="hat-chip">all hats</span></h2>
-        <div class="panel-body"></div>
-      </section>
-      <section class="stage-panel" data-panel="execute">
-        <h2>6 · Execute <span class="hat-chip">operator hat</span></h2>
-        <div class="panel-body"></div>
-      </section>
-      <section class="stage-panel" data-panel="learn">
-        <h2>7 · Learn <span class="hat-chip">all hats</span></h2>
-        <div class="panel-body"></div>
-      </section>
-    </div>
-
-    <aside class="projection">
-      <h2 class="proj-title">Plan-in-its-world <span class="muted">— synchronised projections</span></h2>
-      <canvas id="map" data-testid="map" aria-label="AO map"></canvas>
-      <div id="sync-matrix-host" class="sync-matrix-host" data-testid="sync-matrix-host"></div>
-      <div class="playhead-row">
-        <label for="playhead-slider" class="muted">playhead</label>
-        <input id="playhead-slider" data-testid="playhead" type="range" min="0" max="180" step="1" value="0">
-      </div>
-      <div id="projection-readout" class="readout-line">
-        <span class="muted">world not provisioned yet</span>
-      </div>
-      <div class="legend">
-        <span><i style="background:#565b66"></i>road</span>
-        <span><i style="background:#5d5142"></i>track</span>
-        <span><i style="background:#2e3a2a"></i>open</span>
-        <span><i style="background:#41402d"></i>rough</span>
-        <span><i style="background:#1c3323"></i>forest</span>
-        <span><i style="background:#27383a"></i>marsh</span>
-        <span><i style="background:#7a6a45"></i>ford (tidal)</span>
-        <span><i style="background:#173550"></i>river</span>
-      </div>
-    </aside>
-  </main>
-
-  <footer class="foot">
-    <details>
-      <summary>Object store <span class="pill" id="store-count">0</span>
-        <span class="muted">immutable · content-addressed (DEC-35)</span></summary>
-      <ul id="store-list" class="drawer-list" data-testid="store-list"></ul>
-    </details>
-    <details>
-      <summary>Seam traffic <span class="pill" id="seam-count">0</span>
-        <span class="muted">the REST contract the client speaks (DEC-39/42)</span></summary>
-      <ul id="seam-list" class="drawer-list" data-testid="seam-list"></ul>
-    </details>
-    <p class="honesty">Demo honesty (NF9 / DEC-41): this walking skeleton illustrates flow and UX on a
-      mock kernel — real A* paths, illustrative scores. It does not validate planner quality.</p>
+  <footer>
+    This landing page ships with the project template &mdash; edit <code>site/index.html</code> to customise it.
+    Per-PR previews are published under <code>pr-preview/pr-&lt;n&gt;/</code>.
   </footer>
-
-  <script type="module" src="js/main.js"></script>
 </body>
 </html>
