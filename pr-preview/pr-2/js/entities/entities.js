@@ -13,8 +13,8 @@
 // is a FORECAST entity backed by the baseline's parametric channel; the recce
 // satellite is a PROVIDER entity (DEC-49) — a mock ephemeris returning a track,
 // not a field. All are DISPLAY-ONLY in v1 (no cast-to-channel); the operator
-// scans the aligned tracks for coincidences by eye (the vertical-scan payoff is
-// human-only in v1 — DEC-53, NF9-honest; advisory windows are designed-for H2).
+// scans the aligned tracks for coincidences by eye, now augmented by advisory
+// banded windows (H1-lite, the C10-lite dual — see below; DEC-53, NF9-honest).
 
 import { stateAt } from '../kernel/kernel.js';
 import { TIDE, fordOpenAt } from '../kernel/world.js';
@@ -117,7 +117,7 @@ export function syncCatalogue() {
 }
 
 // ---------------------------------------------------------------------------
-// Coincidence analytic (H2, DEC-53): the temporal dual of C10's spatial
+// Coincidence analytic (H1-lite, DEC-53): the temporal dual of C10's spatial
 // column-aggregation. A rule is a DECLARED CONJUNCTION of aspect-predicates;
 // where every predicate holds at once, the tracks "line up" into a coincidence
 // window. ADVISORY ONLY — it never decides or alters the plan (the C10-lite

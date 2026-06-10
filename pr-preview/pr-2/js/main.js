@@ -100,7 +100,7 @@ function renderProjection() {
   });
   // The Sync Matrix (D6) is the temporal projection — tide + satellite tracks
   // appear from the World step on; own-force tracks fill in once a COA exists.
-  // Coincidence windows (H2) are advisory only — they never alter the plan.
+  // Coincidence windows (H1-lite) are advisory only — they never alter the plan.
   const coincidences = coincidenceWindows(coincRules, entities, sel, state.horizonMin);
   syncMatrix.render({
     sel, commitment: state.requirement?.commitments?.[0],
@@ -109,7 +109,7 @@ function renderProjection() {
   });
   // Coincidence at the cursor (forecast tide + provider satellite, NF1 reads of
   // each aspect) — the operator's vertical scan, surfaced as plain state. Any
-  // advisory window the cursor sits inside is named (H2, never decides).
+  // advisory window the cursor sits inside is named (H1-lite, never decides).
   const t = playhead.t;
   const hits = coincidences.filter((c) => t >= c.start && t <= c.end);
   const advisory = hits.length
