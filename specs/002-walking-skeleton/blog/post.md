@@ -86,6 +86,13 @@ the object store and seam traffic live, so the substrate is visible, not asserte
   shortening the dwell flips all three to the detour. The map renders the ford
   open/closed at the projected time, and the vehicle visibly pauses at the
   water's edge in playback.
+- **Execution stays honest about the tide too:** an obstruction during playback
+  is a *local re-plan* — a hold is spliced in where the vehicle stands and the
+  remainder re-timed through the same wait-vs-detour chooser. Small delays are
+  visibly absorbed by the holds ("re-planned, RV unchanged — holds absorbed
+  5 min"); big ones forfeit the low-tide window, and the wingman flags the
+  re-assessment (≋ wait → open → detour via K-9) as the deadline consequences
+  land in the margin bands.
 
 ## Screenshots
 

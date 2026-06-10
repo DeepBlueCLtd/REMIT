@@ -125,6 +125,11 @@ export function chooseExfilRoute(cells, grid, profile, opts) {
 
   const matNat = materialiseExfil(cells, grid, profile, natural, departMin, fuel0, suffix);
   if (!matNat.via_ford) {
+    // Already east of the river (e.g. a rebase after crossing): no tide story.
+    if (from.x > 24) {
+      matNat.legs[0].label = `Exfil E · continue to RV${suffix}`;
+      return { ...matNat, decision: null };
+    }
     return { ...matNat, decision: {
       mode: 'no-ford', wait_min: 0,
       narrative: 'route avoids the tidal ford — via K-9 bridge (no tide exposure)',
@@ -286,6 +291,7 @@ export async function planHandful(input) {
     plans.push(await finalisePlan(stamp, strat, {
       schedule, trajectory,
       state_curves: { fuel_end_pct: round1(fuel) },
+      tide: tideDecision,                       // live copy — rebases update it
       verified: true, kernel_version_verified: KERNEL_VERSION,
     }, { visitC, exfilC, unit, latestOkArrival, arrival, exfilDeadline, rvArrival, tideDecision }));
   }
@@ -420,9 +426,9 @@ export function measuresAt(plan, t) {
   if (st.phase === 'transit') milestone = `OP in ${Math.round(Math.max(0, visit.start_min - t))} min`;
   else if (st.phase === 'hold') {
     const leg = m.schedule.find((s) => s.kind === 'hold' && t >= s.start_min && t < s.end_min);
-    milestone = leg?.label?.includes('tide')
-      ? `awaiting low tide · ford opens in ${Math.round(Math.max(0, leg.end_min - t))} min`
-      : 'holding — window not open';
+    if (leg?.label?.includes('tide')) milestone = `awaiting low tide · ford opens in ${Math.round(Math.max(0, leg.end_min - t))} min`;
+    else if (leg?.label?.startsWith('Obstruction')) milestone = `track blocked · clears in ${Math.round(Math.max(0, leg.end_min - t))} min`;
+    else milestone = 'holding — window not open';
   }
   else if (st.phase === 'visit') milestone = `observing · ${Math.round(Math.max(0, t - visit.start_min))} min`;
   else if (st.phase === 'exfil') milestone = `RV E in ${Math.round(Math.max(0, exfil.end_min - t))} min`;
@@ -451,7 +457,9 @@ export function assess(plan, commitment, unit, delayMin = 0) {
   }
   const window = commitment.activity.when.window;
   const duration = commitment.activity.duration.min_min;
-  const plannedArrival = plan.materialisation.schedule[0].end_min;     // transit→OP end
+  // OP arrival = end of the last transit leg (a rebase may split the transit
+  // around obstruction holds; the final piece always ends at the OP).
+  const plannedArrival = plan.materialisation.schedule.findLast((s) => s.kind === 'transit').end_min;
   const projected = round1(plannedArrival + delayMin);
   const margin = round1((window.end_min - duration) - projected);
   const band = bandFor(margin, unit);
@@ -492,16 +500,22 @@ export function routeLeg(cells, grid, profile, from, to, blocked) {
 }
 
 /**
- * Re-route the in-flight plan from the vehicle's current cell to the remaining
- * objective(s), avoiding `blocked`. Keeps everything already travelled (t < tau,
- * with the in-progress leg truncated at tau) and splices a fresh, re-timed tail;
- * exfil legs go through the same tide-aware wait-vs-detour chooser as planning.
- * Mutates `plan.materialisation`. Returns true, or false if the vehicle is
- * blocked in (no route) — plan left unchanged.
+ * Re-route / re-time the in-flight plan from the vehicle's current cell to the
+ * remaining objective(s), avoiding `blocked`. Keeps everything already
+ * travelled (t < tau, the in-progress leg truncated at tau — except a visit in
+ * progress, which is a commitment and stays whole), optionally inserts a hold
+ * of `holdMin` at the current cell (an obstruction = a local re-plan, so
+ * plan-time stays equal to sim-time and downstream holds absorb the delay),
+ * then splices a fresh, re-timed tail; exfil legs go through the same
+ * tide-aware wait-vs-detour chooser as planning, evaluated at the new absolute
+ * times. Mutates `plan.materialisation` (and records the live tide decision on
+ * it as `m.tide`). Returns true, or false if the vehicle is blocked in (no
+ * route) — plan left unchanged.
  * @returns {boolean}
  */
 export function rerouteExecution(plan, opts) {
-  const { cells, grid, profile, tau, blocked, opCell, rvCell, dwellMin, windowStart } = opts;
+  const { cells, grid, profile, tau, blocked, opCell, rvCell, dwellMin, windowStart,
+          holdMin = 0, holdLabel = 'Obstruction — track blocked' } = opts;
   const m = plan.materialisation;
   const visit = m.schedule.find((s) => s.kind === 'visit');
   const exfilCid = m.schedule.find((s) => s.kind === 'exfil')?.commitment_id;
@@ -513,9 +527,11 @@ export function rerouteExecution(plan, opts) {
     (blocked.has(a) || blocked.has(b)) ? Infinity : edgeMinutes(cells, profile, a, b, diag);
   const hScale = CELL_M / (profile.speed_by_medium.land_kph * 1000 / 60);
 
-  let t = tau, fuel = cur.fuel_pct;
+  const t0 = round1(tau + holdMin);
+  let t = t0, fuel = cur.fuel_pct;
   const traj = m.trajectory.filter((p) => p.t < tau);
-  traj.push({ x: curCell.x, y: curCell.y, t: round1(t), fuel_pct: round1(fuel) });
+  traj.push({ x: curCell.x, y: curCell.y, t: round1(tau), fuel_pct: round1(fuel) });
+  if (holdMin > 0) traj.push({ x: curCell.x, y: curCell.y, t: t0, fuel_pct: round1(fuel) });
   const advance = (path) => {
     for (let i = 1; i < path.length; i++) {
       const from = path[i - 1].y * grid.w + path[i - 1].x;
@@ -527,39 +543,48 @@ export function rerouteExecution(plan, opts) {
     }
   };
 
-  // Past legs survive verbatim; the in-progress one is truncated at tau.
+  // Past legs survive verbatim; the in-progress one is truncated at tau (a
+  // visit in progress survives whole — the dwell is a commitment, not routing).
   const schedule = [];
+  let keptVisitWhole = false;
   for (const leg of m.schedule) {
     if (leg.end_min <= tau) schedule.push(leg);
-    else if (leg.start_min < tau) schedule.push({ ...leg, end_min: round1(tau) });
+    else if (leg.start_min < tau) {
+      if (leg.kind === 'visit') { schedule.push(leg); keptVisitWhole = true; }
+      else schedule.push({ ...leg, end_min: round1(tau) });
+    }
   }
+  if (holdMin > 0) schedule.push({ kind: 'hold', label: holdLabel, start_min: round1(tau), end_min: t0 });
+
+  const spliceExfil = (from, departMin) => {
+    const ex = chooseExfilRoute(cells, grid, profile, {
+      from, rv: rvCell, departMin, fuel0: fuel, cost, hScale, suffix: ' (re-routed)',
+    });
+    if (!ex) return false;
+    traj.push(...ex.points);
+    for (const leg of ex.legs) schedule.push({ ...leg, commitment_id: exfilCid });
+    m.tide = ex.decision;
+    return true;
+  };
 
   if (!reachedOP) {
     const toOP = routeLeg(cells, grid, profile, curCell, opCell, blocked);
     if (!toOP) return false;                          // blocked in
     advance(toOP);
     const arrival = round1(t);
-    schedule.push({ kind: 'transit', label: 'Transit to OP (re-routed)', start_min: round1(tau), end_min: arrival });
+    if (arrival > t0) schedule.push({ kind: 'transit', label: 'Transit to OP (re-routed)', start_min: t0, end_min: arrival });
     const visitStart = Math.max(arrival, windowStart);
     if (visitStart > arrival) schedule.push({ kind: 'hold', label: 'Hold (await window)', start_min: arrival, end_min: visitStart });
     const dwellEnd = round1(visitStart + dwellMin);
     schedule.push({ kind: 'visit', label: 'Observe OP', commitment_id: visit.commitment_id, start_min: visitStart, end_min: dwellEnd });
     traj.push({ x: opCell.x, y: opCell.y, t: dwellEnd, fuel_pct: round1(fuel) });
-    if (rvCell) {
-      const ex = chooseExfilRoute(cells, grid, profile, {
-        from: opCell, rv: rvCell, departMin: dwellEnd, fuel0: fuel, cost, hScale, suffix: ' (re-routed)',
-      });
-      if (!ex) return false;                          // no way across at all
-      traj.push(...ex.points);
-      for (const leg of ex.legs) schedule.push({ ...leg, commitment_id: exfilCid });
-    }
+    if (rvCell && !spliceExfil(opCell, dwellEnd)) return false;   // no way across at all
   } else {
-    const ex = chooseExfilRoute(cells, grid, profile, {
-      from: curCell, rv: rvCell, departMin: tau, fuel0: fuel, cost, hScale, suffix: ' (re-routed)',
-    });
-    if (!ex) return false;                            // blocked in
-    traj.push(...ex.points);
-    for (const leg of ex.legs) schedule.push({ ...leg, commitment_id: exfilCid });
+    // A block during the dwell re-routes the exfil but still finishes the dwell.
+    const depart = keptVisitWhole ? Math.max(t0, visit.end_min) : t0;
+    if (depart > t0) traj.push({ x: curCell.x, y: curCell.y, t: depart, fuel_pct: round1(fuel) });
+    t = depart;
+    if (!spliceExfil(curCell, depart)) return false;  // blocked in
   }
 
   m.trajectory = traj;

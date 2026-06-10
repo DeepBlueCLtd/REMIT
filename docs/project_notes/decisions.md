@@ -130,3 +130,23 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   tide" → cross); RV arrival is the **last** exfil leg (`findLast` — assessExfil,
   measuresAt, plan cards, AAR). Band tracking keys off the visit's end, not the
   phase, so the mid-exfil hold doesn't flip the monitored commitment.
+
+## ADR-0007 (2026-06-10) — Execution disturbances are local re-plans (plan-time ≡ sim-time)
+
+- **Context:** increment A's wingman modelled obstruction delays as a uniform
+  offset against the planned timeline (`assess(…, delayMin)`), which became
+  dishonest once schedules contained tide holds: a delay before the bank is
+  really absorbed by the wait, and a large one forfeits the window entirely.
+- **Decision:** drop the offset. An obstruction splices a `hold` leg at the
+  vehicle's position and re-times the remainder via `rerouteExecution` — the same
+  machinery as blocked-cell re-routes — whose exfil legs re-run the tide-aware
+  wait-vs-detour chooser at the new absolute times. Plan-time equals sim-time;
+  the assessors read the rebased plan with no delay parameter; `m.tide` carries
+  the live decision and the wingman alerts (≋, `tide_reassessment`) whenever a
+  rebase changes its mode (wait → open, open → detour on forfeit, …).
+- **Trade-offs:** the committed plan stays immutable (the wingman rebases its
+  execution clone); the execution log records each rebase with the absorbed
+  minutes. Repeated obstructions extend the standing hold; an in-progress visit
+  survives rebases whole (the dwell is a commitment, not routing). The uniform
+  `delayMin` parameter remains on the kernel assessors for API compatibility but
+  the wingman no longer uses it.

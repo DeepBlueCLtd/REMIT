@@ -342,6 +342,33 @@ test('tidal ford: the optimiser weighs wait-for-tide against the K-9 detour', as
   await expect(page.locator('#fault')).toBeHidden();
 });
 
+test('execution re-assessment: holds absorb delays; a forfeited window re-plans via K-9', async ({ page }) => {
+  await gotoExecute(page);
+  await page.getByTestId('wx-step10').click();          // τ=10, in transit
+
+  // +5 min: fully absorbed by the tide hold — RV unchanged at H+95.5.
+  await page.getByTestId('wx-delay5').click();
+  await expect(page.getByTestId('wx-log')).toContainText('holds absorbed 5 min');
+  const rv = () => page.evaluate(() =>
+    (window as any).__remit.state.execPlan.materialisation.schedule.at(-1).end_min);
+  expect(await rv()).toBe(95.5);
+
+  // +25 more (extends the standing blockage): the bank is now reached after the
+  // window opens — the wingman re-assesses the tide decision and flags it.
+  await page.getByTestId('wx-delay').click();
+  await expect(page.getByTestId('wx-tide-alert')).toContainText('wait → open');
+  expect(await rv()).toBe(110.5);
+
+  // Pile on +350 more: the bank slips past the window close (H+448); the
+  // re-plan forfeits the ford and flips to the K-9 detour.
+  for (let i = 0; i < 14; i++) await page.getByTestId('wx-delay').click();
+  await expect(page.getByTestId('wx-tide-alert').nth(1)).toContainText('open → detour');
+  const labels = await page.evaluate(() =>
+    (window as any).__remit.state.execPlan.materialisation.schedule.map((s: any) => s.label).join(' | '));
+  expect(labels).toContain('via K-9 bridge');
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
 test('tidal ford: a short dwell flips the choice to the K-9 detour', async ({ page }) => {
   // Scenario 2 — 15 min dwell: the bank is reached ~43 min before the window;
   // waiting now loses to the detour, so every plan exfils via the K-9 bridge.

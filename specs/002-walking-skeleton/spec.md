@@ -141,12 +141,32 @@ H+268 → window opens H+88), and its open/close edges populate the baseline's
   (closed → water with wave dashes; open → dashed low-water outline); scrubbing
   the playhead across H+88 flips it live. Mid-mission re-routes go through the
   same wait-vs-detour chooser, so blocking cells near the ford detours honestly.
-- **Known simplification (→ increment B).** Execution-delay assessment still
-  shifts the whole timeline uniformly; in reality a delay before the bank is
-  partly absorbed by the tide wait. Re-assessing the crossing against the window
-  during execution (and alerting when a delay forfeits it) is the next increment.
 - Evidence: `11-tide-plan-weighing.png`, `12-tide-hold-at-bank.png`,
   `13-tide-detour-flip.png`.
+
+### Tidal ford — increment B: execution-time re-assessment ✅
+
+Increment A left one dishonesty: execution delays shifted the whole timeline
+uniformly, though a delay before the bank is really absorbed by the tide wait.
+Increment B removes the delay offset entirely — **an obstruction is now a local
+re-plan** (ADR-0007): the wingman splices a hold leg where the vehicle is and
+re-times the remainder through the same tide-aware chooser, so plan-time stays
+equal to sim-time and the *plan itself* carries every disturbance.
+
+- **Absorption is real and visible.** +5 min in transit leaves RV unchanged at
+  H+95.5 (the tide hold shrinks); the log says "re-planned, RV H+95.5 (holds
+  absorbed 5 min)". Both the OP-window hold and the tide hold absorb.
+- **The tide decision is re-assessed on every disturbance.** When a rebase
+  changes the chooser's verdict the wingman raises a distinct ≋ alert: +30 total
+  flips **wait → open** (bank reached after H+88, no hold needed); piling on
+  ~+375 pushes the bank past the window close (H+448) — the ford is **forfeited**
+  and the re-plan flips **open → detour** via K-9, with the deadline consequences
+  showing in the exfil band (violated).
+- **Repeated obstructions extend the standing blockage** (clicking +25 during an
+  obstruction hold lengthens it); blocks during a hold carry its remainder
+  through the rebase. A visit in progress survives rebases whole — the dwell is
+  a commitment, not routing.
+- Evidence: `14-tide-reassessment.png`.
 
 ### Planned next (DEC-54 first slices)
 

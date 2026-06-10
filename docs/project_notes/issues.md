@@ -17,4 +17,6 @@ evidence (e.g. `specs/<feature>/evidence/`).
 
 | 2026-06-10 | PR #2 | Tidal ford increment A (G6/DEC-54): K-7 → tidal ford (±3 h of low tide, parametric periodic channel + forecast changepoints); kernel weighs wait-at-bank vs K-9 detour (`chooseExfilRoute`, decision on each COA card); split exfil legs with `Await low tide` hold; tide-state ford rendering; re-routes tide-aware; 2 new e2e tests + evidence `11–13`. Also Execute: +5 min obstruction, block-next-cell in-flight re-route, speed label fixed to `N min/s`. | ADR-0006 · `specs/002-walking-skeleton/` · [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
 
+| 2026-06-10 | PR #2 | Tidal ford increment B (ADR-0007): obstruction = local re-plan (hold leg + re-timed tail through the tide chooser); plan-time ≡ sim-time, no delay offset; holds absorb delays ("absorbed N min" logged); ≋ tide re-assessment alerts on decision change (wait→open, open→detour on window forfeit); visit survives rebases whole; pending blockage carried through block-rebases. 1 new e2e test (8 passing) + evidence `14`. | ADR-0007 · [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
+
 <!-- Add new rows above as work completes. -->
