@@ -154,6 +154,11 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .fact-list li { margin: .25em 0; }
 
 /* capture */
+/* The "Observe from" select needs room; the three numeric inputs are tiny. */
+#cap-form { display: flex; flex-wrap: wrap; align-items: end; gap: .7rem; }
+#cap-form > label:first-child { flex: 1 1 16rem; min-width: 11rem; }
+#cap-form > label:not(:first-child) { flex: 0 1 7rem; }
+#cap-form select, #cap-form input { width: 100%; }
 .slot-audit { margin: .5rem 0; display: flex; gap: .4rem; flex-wrap: wrap; }
 .chip { font-size: .78rem; border-radius: 999px; padding: .12em .6em; border: 1px solid var(--border); }
 .chip.defaulted { color: var(--warn); border-color: rgba(240,180,41,.5); }
