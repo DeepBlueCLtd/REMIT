@@ -167,8 +167,16 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .legend i { display: inline-block; width: .9em; height: .9em; border-radius: 3px; vertical-align: -.1em; margin-right: .3em; }
 
 /* execute */
-.exec-controls .readout { font-size: .85rem; color: var(--muted); }
-.exec-controls .readout b { color: var(--fg); margin-left: .25em; }
+.speed-ctl { display: inline-flex; align-items: center; gap: .45rem; font-size: .8rem; color: var(--muted); }
+.speed-ctl input[type=range] { width: 92px; }
+.speed-ctl b { color: var(--fg); min-width: 2.8em; }
+.exec-readouts {
+  display: flex; gap: 1.2rem; flex-wrap: wrap;
+  background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: .5em .85em; margin: .65rem 0;
+  font-size: .85rem; color: var(--muted);
+}
+.exec-readouts .readout b { color: var(--fg); margin-left: .3em; }
 .alerts .alert {
   border: 1px solid; border-radius: 8px; padding: .4em .8em; margin: .35rem 0;
   font-size: .9rem; background: rgba(255,123,114,.07);
