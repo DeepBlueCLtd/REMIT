@@ -147,6 +147,12 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await expect(page.getByTestId('seam-list')).toContainText('/plan/handful');
   await shot(page, '08-substrate');
 
+  // Top bar stays compact: the identity hashes are collapsed into a disclosure.
+  await expect(page.locator('#chips')).toBeHidden();
+  await expect(page.locator('#chips-count')).toHaveText('5'); // req·baseline·config-core·stamp·plan
+  await page.locator('#idchips > summary').click();
+  await expect(page.locator('#chips')).toContainText('config-core');
+
   await expect(page.locator('#fault')).toBeHidden(); // no silent (or loud) faults
   expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([]);
 });

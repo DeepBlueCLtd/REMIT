@@ -136,10 +136,14 @@ function chip(label, id) {
   return id ? `<span class="idchip">${label} <code class="hash">${shortId(id)}</code></span>` : '';
 }
 function refreshChips() {
+  const ids = [
+    ['req', state.ids.requirement], ['baseline', state.ids.baseline],
+    ['config-core', state.configCoreHash], ['stamp', state.ids.stamp],
+    ['plan', state.selectedPlan ? state.selectedPlan.id : ''],
+  ];
   document.getElementById('chips').innerHTML =
-    chip('req', state.ids.requirement) + chip('baseline', state.ids.baseline)
-    + chip('config-core', state.configCoreHash) + chip('stamp', state.ids.stamp)
-    + (state.selectedPlan ? chip('plan', state.selectedPlan.id) : '');
+    ids.map(([label, id]) => chip(label, id)).join('') || '<span class="muted">nothing committed yet</span>';
+  document.getElementById('chips-count').textContent = String(ids.filter(([, id]) => id).length);
 }
 
 // --- stage rail + gating -----------------------------------------------------

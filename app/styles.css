@@ -59,13 +59,37 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 }
 .brand h1 { font-size: 1.25rem; display: inline; letter-spacing: .04em; }
 .subtitle { color: var(--muted); margin-left: .6em; font-size: .85rem; }
-.chips { display: flex; gap: .45rem; flex-wrap: wrap; flex: 1; }
+
+/* Identity chips collapse into a disclosure so they don't eat a vertical band
+   at the top (they're transparency, not primary info). */
+.idchips { position: relative; margin-left: auto; }
+.idchips > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  font-size: .78rem; color: var(--muted);
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 999px; padding: .15em .75em;
+}
+.idchips > summary::-webkit-details-marker { display: none; }
+.idchips > summary::after { content: ' ▾'; opacity: .7; }
+.idchips[open] > summary::after { content: ' ▴'; }
+.idchips-count {
+  display: inline-block; min-width: 1.3em; text-align: center;
+  background: var(--bg); border-radius: 999px; padding: 0 .35em; margin-left: .3em;
+  color: var(--ok); font-variant-numeric: tabular-nums;
+}
+.chips {
+  position: absolute; top: calc(100% + .4rem); right: 0; z-index: 30;
+  display: flex; gap: .4rem; flex-wrap: wrap; max-width: min(78vw, 360px);
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  padding: .55rem .6rem; box-shadow: 0 10px 28px rgba(0,0,0,.45);
+}
 .idchip {
   font-size: .78rem; color: var(--muted);
   background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 999px; padding: .12em .65em;
+  border-radius: 999px; padding: .12em .65em; white-space: nowrap;
 }
 .idchip .hash { color: var(--ok); }
+.topnav { margin-left: .4rem; }
 .topnav a { color: var(--accent); text-decoration: none; margin-left: .9em; font-size: .9rem; }
 
 /* ---- layout ----
