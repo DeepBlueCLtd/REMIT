@@ -31,10 +31,10 @@ config-core hash as a stamp axis (DEC-48), append-only log store.
 Each build-plan §4 exit criterion is asserted by `e2e/skeleton.spec.ts` and captured in
 `evidence/screenshots/`:
 
-1. **Capture** — committed `visit` is content-addressed, committed via echo-back,
-   retrievable by id (round-trip ✓). `01-capture.png`
-2. **World** — baseline + profile resolve to a searchable grid; config core canonicalises
-   and hashes. `02-world.png`
+1. **World** (now first) — baseline + profile resolve to a searchable grid; config core
+   canonicalises and hashes; the candidate OPs render on the AO map. `01-world.png`
+2. **Capture** — with the AO on the map, the picked OP is highlighted (and follows the
+   dropdown); committed `visit` is content-addressed, retrievable (round-trip ✓). `02-capture.png`
 3. **Plan** — one stamped call yields a handful of 3 distinct banded plans; same stamp →
    same ids across a full page reload (NF3, decision-level). `03-plan.png`
 4. **Compare** — comparability guard passes; one plan selected; rationale committed (NF2).
@@ -50,6 +50,11 @@ Each build-plan §4 exit criterion is asserted by `e2e/skeleton.spec.ts` and cap
 
 ## Local deviations & build discoveries (hold for the gate, DEC-47)
 
+0. **World provisioned before Capture (tool order).** The spine narrative is
+   capture→model-world (DEC-2/5), but Capture points at map features, so the tool runs
+   **World first** and renders the candidate OPs on the AO map for Capture to choose from.
+   This doesn't demote the requirement — DEC-5 primacy is about the requirement being the
+   durable object, not its position in the tool flow. Candidate register note for the gate.
 1. **No-build ES modules instead of TypeScript** (vs DEC-41 "v1 = TypeScript in-browser").
    The deploy pipeline's contract here is *no build step* (`pages.config.yml`,
    ADR-0001/0005); modules are `// @ts-check` + JSDoc typed instead. The seam/data-shape

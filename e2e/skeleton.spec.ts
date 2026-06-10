@@ -18,20 +18,25 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle(/REMIT/);
 
-  // --- 1 Capture: committed via echo-back, content-addressed, retrievable.
+  // --- 1 World (now first): provision the AO so Capture can see the map.
+  await page.getByTestId('world-provision').click();
+  await expect(page.getByTestId('world-baseid')).toBeVisible();
+  await expect(page.locator('#world-result')).toContainText('config-core hash');
+  await shot(page, '01-world');
+
+  // --- 2 Capture: with the AO on the map, the picked OP is highlighted, and
+  // changing it moves the highlight; committed via echo-back, retrievable.
+  await page.getByTestId('continue-capture').click();
+  const hi0 = await page.getByTestId('map').getAttribute('data-highlight');
+  await page.getByTestId('cap-where').selectOption('OP-C');
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-highlight')).not.toBe(hi0);
+  await page.getByTestId('cap-where').selectOption('OP-A'); // default for the rest of the lap
   await page.getByTestId('cap-dur').fill('45'); // touch a slot → confirmed
   await expect(page.getByTestId('cap-echo')).toContainText('holding observation for at least 45 min');
   await page.getByTestId('cap-commit').click();
   await expect(page.getByTestId('cap-reqid')).toBeVisible();
   await expect(page.locator('#cap-result')).toContainText('round-trip ✓');
-  await shot(page, '01-capture');
-
-  // --- 2 World: baseline + config core resolve and hash.
-  await page.getByTestId('continue-world').click();
-  await page.getByTestId('world-provision').click();
-  await expect(page.getByTestId('world-baseid')).toBeVisible();
-  await expect(page.locator('#world-result')).toContainText('config-core hash');
-  await shot(page, '02-world');
+  await shot(page, '02-capture');
 
   // --- 3 Plan: one stamped call → a handful of distinct banded plans.
   await page.getByTestId('continue-plan').click();
@@ -186,9 +191,9 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
 
 test('same stamp, same decision — re-issuing the identical request reproduces the ids (NF3)', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('cap-commit').click();
-  await page.getByTestId('continue-world').click();
   await page.getByTestId('world-provision').click();
+  await page.getByTestId('continue-capture').click();
+  await page.getByTestId('cap-commit').click();
   await page.getByTestId('continue-plan').click();
   await page.getByTestId('plan-run').click();
   await expect(page.locator('.plan-card')).toHaveCount(3);
@@ -211,9 +216,9 @@ test('same stamp, same decision — re-issuing the identical request reproduces 
 /** Walk the lap as far as a mounted, ready Execute stage. */
 async function gotoExecute(page: Page) {
   await page.goto('/');
-  await page.getByTestId('cap-commit').click();
-  await page.getByTestId('continue-world').click();
   await page.getByTestId('world-provision').click();
+  await page.getByTestId('continue-capture').click();
+  await page.getByTestId('cap-commit').click();
   await page.getByTestId('continue-plan').click();
   await page.getByTestId('plan-run').click();
   await expect(page.locator('.plan-card')).toHaveCount(3);

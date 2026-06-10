@@ -17,9 +17,12 @@ import { contentId, shortId } from './shapes/canonical.js';
 const MISSION_ID = 'M-001';
 const STRATEGY_SEED = 1337;
 
+// World provisions the AO before Capture so command can point at features it can
+// see on the map (the requirement stays the primary object — DEC-5 is about
+// primacy, not tool order). Spine-order deviation noted for the DEC-47 gate.
 const STAGES = [
-  { key: 'capture', n: 1, label: 'Capture', hat: 'command' },
-  { key: 'world',   n: 2, label: 'World',   hat: 'provision' },
+  { key: 'world',   n: 1, label: 'World',   hat: 'provision' },
+  { key: 'capture', n: 2, label: 'Capture', hat: 'command' },
   { key: 'plan',    n: 3, label: 'Plan',    hat: 'implementer' },
   { key: 'compare', n: 4, label: 'Compare', hat: 'implementer' },
   { key: 'views',   n: 5, label: 'Views',   hat: 'all hats' },
@@ -36,8 +39,8 @@ const playhead = new Playhead();
 
 /** Mission state accumulated along the lap. */
 const state = {
-  stage: 'capture',
-  unlocked: new Set(['capture']),
+  stage: 'world',
+  unlocked: new Set(['world']),
   done: new Set(),
   requirement: /** @type {any} */ (null),
   ids: { requirement: '', baseline: '', profile: '', configCore: '', stamp: '', rationale: '' },
@@ -60,6 +63,8 @@ const mapCanvas = /** @type {HTMLCanvasElement} */ (document.getElementById('map
 const map = makeMap(mapCanvas, world.baseline, null);
 let mapTarget = null;
 let mapRv = null;
+let mapCandidates = null;   // candidate OPs shown on the map during Capture
+let mapHighlight = null;    // the OP currently picked in Capture (live)
 const timelineHost = /** @type {HTMLElement} */ (document.getElementById('timeline-host'));
 const timeline = makeTimeline(timelineHost, playhead);
 const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhead-slider'));
@@ -78,6 +83,7 @@ function renderProjection() {
   map.render({
     plans: state.handful, selected: sel, t: playhead.t,
     target: mapTarget, rv: mapRv,
+    candidates: mapCandidates, highlight: mapHighlight,
   });
   const ghost = sel ? stateAt(sel, playhead.t) : null;
   if (sel && ghost) {
@@ -227,6 +233,7 @@ const panel = (key) => /** @type {HTMLElement} */ (document.querySelector(`[data
 // --- stage mounting -----------------------------------------------------------
 function mountStage(key) {
   if (key === 'world') mountWorld();
+  if (key === 'capture') mountCaptureStage();
   if (key === 'plan') mountPlan();
   if (key === 'compare') {
     mountCompare(panel('compare'), {
@@ -303,19 +310,38 @@ function mountWorld() {
     state.ids.configCore = c.id;
     state.configCoreHash = await contentId(world.configCore);
     worldProvisioned = true;
-    const cmts = state.requirement.commitments;
-    mapTarget = cmts[0].activity.where;
-    mapRv = cmts[1]?.activity?.where ?? null;
-    // Horizon spans the whole mission: the exfil deadline if present, else the
-    // observation window, plus headroom for execution delay.
-    state.horizonMin = (cmts[1]?.activity?.when?.before_min ?? cmts[0].activity.when.window.end_min) + 60;
-    slider.max = String(state.horizonMin);
+    // With the AO on the map, show the candidate OPs so Capture can point at
+    // features it can see; the chosen target/RV are set when Capture commits.
+    mapCandidates = PLACES.ops;
     renderProjection();
     el.querySelectorAll('button').forEach((n) => (n.disabled = true));
     /** @type {HTMLElement} */ (el.querySelector('#world-result')).innerHTML =
       `provisioned · baseline <code class="hash" data-testid="world-baseid">${shortId(b.id)}</code>`
       + ` · config-core hash <code class="hash">${shortId(state.configCoreHash)}</code>`;
     advance('world');
+  });
+}
+
+/** Capture is mounted on demand (after World), so the AO map is already shown. */
+function mountCaptureStage() {
+  mountCapture(panel('capture'), {
+    seam,
+    onPick(op) { mapHighlight = op; renderProjection(); },
+    onCommitted(requirement, id) {
+      state.requirement = requirement;
+      state.ids.requirement = id;
+      const cmts = requirement.commitments;
+      mapTarget = cmts[0].activity.where;
+      mapRv = cmts[1]?.activity?.where ?? null;
+      mapCandidates = null;   // committed — stop offering the alternatives
+      mapHighlight = null;
+      // Horizon spans the whole mission: the exfil deadline if present, else the
+      // observation window, plus headroom for execution delay.
+      state.horizonMin = (cmts[1]?.activity?.when?.before_min ?? cmts[0].activity.when.window.end_min) + 60;
+      slider.max = String(state.horizonMin);
+      renderProjection();
+      advance('capture');
+    },
   });
 }
 
@@ -413,16 +439,9 @@ function renderTimeline() {
 }
 
 // --- boot ----------------------------------------------------------------------
-mountCapture(panel('capture'), {
-  seam,
-  onCommitted(requirement, id) {
-    state.requirement = requirement;
-    state.ids.requirement = id;
-    advance('capture');
-  },
-});
+mountWorld();           // World is the first stage now (provision the AO, then Capture)
 renderRail();
-showStage('capture');
+showStage('world');
 refreshChips();
 
 // Base-path-safe links back to the landing page / blog (works at /app/ and
