@@ -31,9 +31,10 @@ export function makeSyncMatrix(host, playhead) {
   return {
     /**
      * @param {{sel: any, commitment: any, exfilCommitment: any,
-     *          horizonMin: number, entities: any, catalogue: any[]}} opts
+     *          horizonMin: number, entities: any, catalogue: any[],
+     *          coincidences?: any[]}} opts
      */
-    render({ sel, commitment, exfilCommitment, horizonMin, entities, catalogue }) {
+    render({ sel, commitment, exfilCommitment, horizonMin, entities, catalogue, coincidences = [] }) {
       const horizon = horizonMin || 180;
       const tx = (t) => LBL + (Math.max(0, Math.min(horizon, t)) / horizon) * PW;
 
@@ -42,9 +43,10 @@ export function makeSyncMatrix(host, playhead) {
         sel?.id ?? null, horizon, catalogue.map((r) => r.key),
         commitment?.activity?.when?.window, exfilCommitment?.activity?.when?.before_min,
         sel?.materialisation?.schedule?.map((s) => `${s.kind}:${s.start_min}-${s.end_min}`),
+        coincidences.map((c) => `${c.id}:${c.start}-${c.end}`),
       ]);
       if (sig !== lastSig) {
-        host.innerHTML = buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalogue, tx });
+        host.innerHTML = buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalogue, coincidences, tx });
         const svg = /** @type {SVGSVGElement} */ (host.querySelector('svg'));
         cursor = host.querySelector('#sm-cursor');
         tracksBottom = Number(svg.dataset.tracksBottom);
@@ -67,11 +69,23 @@ export function makeSyncMatrix(host, playhead) {
       }
       host.dataset.tracks = String(catalogue.length);
       host.dataset.selfActive = sel ? '1' : '0';
+      host.dataset.coincidences = coincidences.map((c) => `${c.id}:${c.start}-${c.end}`).join('|');
     },
   };
 }
 
-function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalogue, tx }) {
+function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalogue, coincidences, tx }) {
+  const dataBottom = TOP + (catalogue.length - 1) * (TH + GAP) + TH;
+
+  // Coincidence guides (H2) — faint full-height columns where a rule's tracks
+  // line up, drawn BEHIND the tracks (the column-aggregation visual).
+  let guides = '';
+  for (const c of coincidences) {
+    const x = tx(c.start), w = Math.max(2, tx(c.end) - x);
+    guides += `<rect x="${x}" y="${TOP}" width="${w}" height="${dataBottom - TOP}"
+        fill="${c.color}14"/>`;
+  }
+
   const rows = catalogue.map((row, i) => {
     const yTop = TOP + i * (TH + GAP);
     const ent = entities[row.entity];
@@ -86,7 +100,25 @@ function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalog
       ${body}</g>`;
   }).join('');
 
-  const tracksBottom = TOP + (catalogue.length - 1) * (TH + GAP) + TH;
+  // Advisory coincidence lane (H2) — labelled bands for each window; advisory
+  // only, never alters the plan (C10-lite). Sits below the projected tracks.
+  const advY = TOP + catalogue.length * (TH + GAP);
+  let advisory =
+    `<rect x="${LBL}" y="${advY}" width="${PW}" height="${TH}" fill="rgba(240,180,41,.04)" stroke="var(--border)"/>
+     <text x="4" y="${advY + 13}" class="sm-label">⌖ Coincidence</text>
+     <text x="4" y="${advY + 25}" class="sm-prov" fill="#f0b429">advisory · C10-lite</text>`;
+  if (!coincidences.length) {
+    advisory += `<text x="${LBL + PW / 2}" y="${advY + TH / 2 + 3}" text-anchor="middle" class="sm-empty">no coincidence windows in horizon</text>`;
+  } else {
+    for (const c of coincidences) {
+      const x = tx(c.start), w = Math.max(3, tx(c.end) - x);
+      advisory += `<rect x="${x}" y="${advY + 6}" width="${w}" height="${TH - 12}" rx="3"
+          fill="${c.color}59" stroke="${c.color}"><title>${esc(c.label)} — ${esc(c.hint)} · H+${c.start}–${c.end} (advisory)</title></rect>`;
+      if (w > 46) advisory += `<text x="${x + w / 2}" y="${advY + TH / 2 + 3}" text-anchor="middle" class="sm-seg">${esc(c.label)}</text>`;
+    }
+  }
+
+  const tracksBottom = advY + TH;
   const H = tracksBottom + AX;
 
   // Exfil deadline — a vertical marker across every track (a hard bound).
@@ -109,7 +141,7 @@ function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalog
 
   return `<svg viewBox="0 0 ${W} ${H}" class="sync-matrix" data-testid="sync-matrix"
       data-tracks-bottom="${tracksBottom}" preserveAspectRatio="xMidYMid meet">
-    ${rows}${overlays}${axis}${cursor}</svg>`;
+    ${guides}${rows}${advisory}${overlays}${axis}${cursor}</svg>`;
 }
 
 /** Project one catalogue row to SVG, dispatched by its render type. */

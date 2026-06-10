@@ -237,6 +237,7 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .sm-coincide { display: inline-flex; gap: .5em; }
 .sm-cue { color: var(--muted); }
 .sm-cue.on { color: var(--fg); font-weight: 600; }
+.sm-cue.adv { color: #f0b429; font-weight: 600; }
 .playhead-row { display: flex; align-items: center; gap: .6rem; margin-top: .45rem; }
 .playhead-row input[type=range] { flex: 1; }
 .readout-line { font-size: .85rem; margin-top: .4rem; min-height: 1.4em; }

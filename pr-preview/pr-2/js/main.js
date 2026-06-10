@@ -13,7 +13,7 @@ import { mountWingman } from './wingman/wingman.js';
 import { mountLearn } from './learn/learn.js';
 import { Playhead, makeMap, STRAT_COLORS } from './views/render.js';
 import { makeSyncMatrix } from './views/sync-matrix.js';
-import { buildEntities, syncCatalogue, satOverhead } from './entities/entities.js';
+import { buildEntities, syncCatalogue, satOverhead, coincidenceRules, coincidenceWindows } from './entities/entities.js';
 import { contentId, shortId } from './shapes/canonical.js';
 
 const MISSION_ID = 'M-001';
@@ -77,6 +77,7 @@ const syncHost = /** @type {HTMLElement} */ (document.getElementById('sync-matri
 const syncMatrix = makeSyncMatrix(syncHost, playhead);
 const entities = buildEntities();
 const catalogue = syncCatalogue();
+const coincRules = coincidenceRules();
 const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhead-slider'));
 const readout = /** @type {HTMLElement} */ (document.getElementById('projection-readout'));
 
@@ -99,17 +100,25 @@ function renderProjection() {
   });
   // The Sync Matrix (D6) is the temporal projection — tide + satellite tracks
   // appear from the World step on; own-force tracks fill in once a COA exists.
+  // Coincidence windows (H2) are advisory only — they never alter the plan.
+  const coincidences = coincidenceWindows(coincRules, entities, sel, state.horizonMin);
   syncMatrix.render({
     sel, commitment: state.requirement?.commitments?.[0],
     exfilCommitment: state.requirement?.commitments?.[1],
-    horizonMin: state.horizonMin, entities, catalogue,
+    horizonMin: state.horizonMin, entities, catalogue, coincidences,
   });
   // Coincidence at the cursor (forecast tide + provider satellite, NF1 reads of
-  // each aspect) — the operator's vertical scan, surfaced as plain state.
+  // each aspect) — the operator's vertical scan, surfaced as plain state. Any
+  // advisory window the cursor sits inside is named (H2, never decides).
   const t = playhead.t;
+  const hits = coincidences.filter((c) => t >= c.start && t <= c.end);
+  const advisory = hits.length
+    ? `<span class="sm-cue adv" data-testid="sm-advisory">⌖ ${hits.map((c) => c.label).join(' + ')} (advisory)</span>`
+    : '';
   const coincidence =
     `<span class="sm-cue ${fordOpenAt(t) ? 'on' : ''}">≋ ford ${fordOpenAt(t) ? 'open' : 'closed'}</span>`
-    + `<span class="sm-cue ${satOverhead(t) ? 'on' : ''}">🛰 sat ${satOverhead(t) ? 'overhead' : 'below horizon'}</span>`;
+    + `<span class="sm-cue ${satOverhead(t) ? 'on' : ''}">🛰 sat ${satOverhead(t) ? 'overhead' : 'below horizon'}</span>`
+    + advisory;
   const ghost = sel ? stateAt(sel, playhead.t) : null;
   if (sel && ghost) {
     readout.innerHTML =
