@@ -236,6 +236,7 @@ function mountStage(key) {
       seam, missionId: MISSION_ID, plan: state.selectedPlan,
       commitment: state.requirement.commitments[0], bandUnit: state.bandUnit,
       playhead,
+      resetLog: () => logs.reset(MISSION_ID),
       renderViews({ actual }) { execActual = actual; renderProjection(); },
       onComplete(summary) {
         state.execSummary = summary;

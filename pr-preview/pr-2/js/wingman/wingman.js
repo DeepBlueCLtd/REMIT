@@ -16,6 +16,7 @@ import { assess, stateAt } from '../kernel/kernel.js';
  *          missionId: string, plan: any, commitment: any, bandUnit: number,
  *          playhead: import('../views/render.js').Playhead,
  *          renderViews: (opts: {t: number, actual: any}) => void,
+ *          resetLog?: () => void,
  *          onComplete: (summary: any) => void}} ctx
  */
 export function mountWingman(el, ctx) {
@@ -39,10 +40,11 @@ export function mountWingman(el, ctx) {
     <div class="row exec-controls">
       <button id="wx-play" class="primary" data-testid="wx-play">▶ Play ×64</button>
       <label class="speed-ctl">speed
-        <input id="wx-speed" data-testid="wx-speed" type="range" min="3" max="9" step="1" value="6"
+        <input id="wx-speed" data-testid="wx-speed" type="range" min="1" max="9" step="1" value="6"
                aria-label="time acceleration">
         <b id="wx-speed-label">×64</b>
       </label>
+      <button id="wx-restart" data-testid="wx-restart">↺ Restart</button>
       <button id="wx-step10" data-testid="wx-step10">Step +10 min</button>
       <button id="wx-step" data-testid="wx-step">Step +30 min</button>
       <button id="wx-delay" class="warn" data-testid="wx-delay">Obstruction +25 min</button>
@@ -122,7 +124,7 @@ export function mountWingman(el, ctx) {
 
   /** @type {number | undefined} */
   let playTimer;
-  /** Time acceleration from the slider: ×8 … ×512 (powers of two). */
+  /** Time acceleration from the slider: ×2 … ×512 (powers of two). */
   const speedOf = () => 2 ** Number(/** @type {HTMLInputElement} */ ($('#wx-speed')).value);
   const refreshSpeedUI = () => {
     $('#wx-speed-label').textContent = `×${speedOf()}`;
@@ -141,6 +143,21 @@ export function mountWingman(el, ctx) {
     // 100 ms ticks; speed read per tick, so dragging the slider mid-play works.
     playTimer = /** @type {any} */ (setInterval(() => tick(speedOf() / 10), 100));
     refreshSpeedUI();
+  });
+  $('#wx-restart').addEventListener('click', async () => {
+    stopPlay();
+    exec.simT = 0;
+    exec.delayMin = 0;
+    exec.complete = false;
+    exec.lastBand = assess(plan, commitment, bandUnit, 0).band;
+    $('#wx-alerts').innerHTML = '';
+    $('#wx-final').textContent = '';
+    // A restart discards the previous simulated run and begins a fresh one; the
+    // execution log is append-only *within* a run (DEC-25/26), so the new run
+    // starts from an empty log.
+    ctx.resetLog?.();
+    await refreshLog();
+    await tick(0);
   });
   $('#wx-delay').addEventListener('click', async () => {
     if (exec.complete) return;
