@@ -23,4 +23,6 @@ evidence (e.g. `specs/<feature>/evidence/`).
 
 | 2026-06-10 | PR #2 | Advisory coincidence on the Sync Matrix (H1-lite; ADR-0009, DEC-53): config coincidence rules (declared conjunctions of aspect-predicates) + `coincidenceWindows()` scan; Imagery window (observe ∧ sat overhead, H+51–69) and Tide-aligned crossing (exfil ∧ ford open, H+88–95); rendered as faint guide columns + a labelled `⌖ Coincidence · advisory · C10-lite` lane; cursor readout names the window it's in. Advisory only — never alters the plan. Re-tagged H2→H1-lite to match C10's banded overlay (its spatial sibling); register + DEC-53 realigned. 9 e2e passing; evidence `17`. | ADR-0009 · [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
 
+| 2026-06-10 | PR #2 | Golden-fixture kernel tests + plan-free coincidence rule. `test/kernel.golden.test.mjs` (`npm run test:unit`, node's runner, zero deps): pins the deterministic planner's tidal-ford set-pieces — 45-dwell→WAIT, 15-dwell→DETOUR, no-go both crossings→infeasible — with golden plan ids (NF3). Third coincidence rule `open-ford-pass` (sat ∧ ford open, H+146–164): pure forecast×provider, surfaces with no COA selected. 4 unit + 9 e2e passing. | [#2](https://github.com/DeepBlueCLtd/REMIT/pull/2) |
+
 <!-- Add new rows above as work completes. -->

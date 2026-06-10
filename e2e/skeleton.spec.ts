@@ -342,8 +342,9 @@ test('sync matrix: tide + satellite tracks project from the World step; own-forc
   // dwell) and the tide-aligned crossing — clearly labelled advisory/C10-lite.
   await expect(sm).toContainText('Coincidence');
   await expect(sm).toContainText('advisory');
-  expect(await page.getByTestId('sync-matrix-host').getAttribute('data-coincidences'))
-    .toContain('imagery:51-69');
+  const coincidences = await page.getByTestId('sync-matrix-host').getAttribute('data-coincidences');
+  expect(coincidences).toContain('imagery:51-69');
+  expect(coincidences).toContain('open-ford-pass:146-164');   // plan-free (forecast × provider)
   // The cursor inside the imagery window (H+60) → it's named, marked advisory.
   await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
     el.value = '60'; el.dispatchEvent(new Event('input', { bubbles: true }));
