@@ -86,13 +86,15 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
 
   // --- 6 Execute: playback, band-crossing alerts, manual observation, log.
   // Speed slider drives the play button's acceleration label (no timers used
-  // here — playback in tests stays on the deterministic Step buttons).
+  // here — playback in tests stays on the deterministic Step buttons). The
+  // slider now reaches down to ×2.
   await expect(page.getByTestId('wx-play')).toContainText('×64');
+  await expect(page.getByTestId('wx-speed')).toHaveAttribute('min', '1');
   await page.getByTestId('wx-speed').evaluate((el: HTMLInputElement) => {
-    el.value = '8';
+    el.value = '1';
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await expect(page.getByTestId('wx-play')).toContainText('×256');
+  await expect(page.getByTestId('wx-play')).toContainText('×2');
   await page.getByTestId('wx-step10').click();           // τ=10, in transit
   await page.getByTestId('wx-delay').click();            // +25 → band drops
   await page.getByTestId('wx-delay').click();            // +50
@@ -154,4 +156,45 @@ test('same stamp, same decision — re-issuing the identical request reproduces 
   });
   expect(ids.second).toEqual(ids.first);
   expect(new Set(ids.first).size).toBe(3); // distinct plans, no duplicate trajectories
+});
+
+/** Walk the lap as far as a mounted, ready Execute stage. */
+async function gotoExecute(page: Page) {
+  await page.goto('/');
+  await page.getByTestId('cap-commit').click();
+  await page.getByTestId('continue-world').click();
+  await page.getByTestId('world-provision').click();
+  await page.getByTestId('continue-plan').click();
+  await page.getByTestId('plan-run').click();
+  await expect(page.locator('.plan-card')).toHaveCount(3);
+  await page.getByTestId('continue-compare').click();
+  await page.getByTestId('pick-direct').check();
+  await page.getByTestId('cmp-commit').click();
+  await page.getByTestId('continue-views').click();   // → Views
+  await page.getByTestId('views-continue').click();   // → Execute
+  await expect(page.getByTestId('wx-clock')).toBeVisible();
+}
+
+test('execute: Restart resets the simulated run to H+0 with an empty log', async ({ page }) => {
+  await gotoExecute(page);
+
+  // Accumulate state: advance, then drive the band across with obstructions.
+  await page.getByTestId('wx-step10').click();
+  await page.getByTestId('wx-delay').click();
+  await page.getByTestId('wx-delay').click();
+  await page.getByTestId('wx-delay').click();
+  await expect(page.getByTestId('wx-alert').first()).toBeVisible();
+  expect(await page.getByTestId('wx-log').locator('li').count()).toBeGreaterThan(0);
+  await expect(page.getByTestId('wx-clock')).not.toHaveText('H+0');
+
+  // Restart → clock, alerts and log all reset.
+  await page.getByTestId('wx-restart').click();
+  await expect(page.getByTestId('wx-clock')).toHaveText('H+0');
+  await expect(page.getByTestId('wx-alert')).toHaveCount(0);
+  await expect(page.getByTestId('wx-log').locator('li')).toHaveCount(0);
+
+  // And the run is live again: stepping advances from zero.
+  await page.getByTestId('wx-step').click();
+  await expect(page.getByTestId('wx-clock')).toHaveText('H+30');
+  await expect(page.locator('#fault')).toBeHidden();
 });

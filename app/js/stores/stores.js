@@ -86,4 +86,13 @@ export class LogStore {
     const list = this.logs.get(missionId) ?? [];
     return after === undefined ? [...list] : list.filter((e) => e.at > after);
   }
+
+  /**
+   * Discard a mission's log entirely. Used to restart a *simulated* run — not
+   * a contract operation (append-only holds within a run, DEC-25/26).
+   * @param {string} missionId
+   */
+  reset(missionId) {
+    this.logs.delete(missionId);
+  }
 }
