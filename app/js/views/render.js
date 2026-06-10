@@ -125,27 +125,33 @@ export function makeMap(canvas, baseline) {
       // No selection yet: show the whole handful at full strength; once a plan
       // is chosen the rest fall back to faint context.
       for (const p of plans) if (p !== selected) drawPath(g, p, { faint: !!selected });
-      const dot = (x, y, r, fill) => {
-        g.fillStyle = fill;
-        g.strokeStyle = '#0d1117';
-        g.lineWidth = 2;
-        g.beginPath(); g.arc((x + 0.5) * CELL_PX, (y + 0.5) * CELL_PX, r, 0, Math.PI * 2);
-        g.fill(); g.stroke();
+      // Vehicle marker: a high-contrast layered dot (coloured glow halo + ring +
+      // white core + dark outline) so it stays easy to spot on any terrain.
+      const drawVehicle = (x, y, color, big) => {
+        const cx = (x + 0.5) * CELL_PX, cy = (y + 0.5) * CELL_PX;
+        const r = big ? 9 : 6.5;
+        g.beginPath(); g.arc(cx, cy, r + (big ? 9 : 5), 0, Math.PI * 2);
+        g.fillStyle = color + '2e'; g.fill();                       // soft glow halo
+        g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2);
+        g.fillStyle = color; g.fill();
+        g.lineWidth = big ? 3 : 2; g.strokeStyle = '#0d1117'; g.stroke();
+        g.beginPath(); g.arc(cx, cy, r * (big ? 0.5 : 0.42), 0, Math.PI * 2);
+        g.fillStyle = '#fff'; g.fill();
       };
       if (selected) {
         drawPath(g, selected);
         const ghost = actual ?? stateAt(selected, t);
         if (ghost) {
-          dot(ghost.x, ghost.y, 7, '#e6edf3');
+          drawVehicle(ghost.x, ghost.y, STRAT_COLORS[selected.strategy.key] ?? '#4493f8', true);
           canvas.dataset.ghost = `${ghost.x.toFixed(2)},${ghost.y.toFixed(2)},${ghost.phase}`;
         }
       } else if (plans.length) {
-        // Compare mode: one racing ghost per candidate, in its strategy colour.
+        // Compare mode: one racing vehicle per candidate, in its strategy colour.
         const marks = [];
         for (const p of plans) {
           const ghost = p.materialisation && stateAt(p, t);
           if (!ghost) continue;
-          dot(ghost.x, ghost.y, 5.5, STRAT_COLORS[p.strategy.key] ?? '#e6edf3');
+          drawVehicle(ghost.x, ghost.y, STRAT_COLORS[p.strategy.key] ?? '#e6edf3', false);
           marks.push(`${p.strategy.key}:${ghost.x.toFixed(2)},${ghost.y.toFixed(2)}`);
         }
         canvas.dataset.ghost = marks.join('|');
