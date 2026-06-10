@@ -68,12 +68,21 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .idchip .hash { color: var(--ok); }
 .topnav a { color: var(--accent); text-decoration: none; margin-left: .9em; font-size: .9rem; }
 
-/* ---- layout ---- */
+/* ---- layout ----
+   Fully fluid: panels and projection are both flexible columns and the map
+   scales to its column (max-width:100%), so the map/timeline stay in view at
+   laptop and iPad-landscape widths instead of being pushed below the fold. */
 .layout {
-  display: grid; grid-template-columns: 172px minmax(380px, 1fr) auto;
+  display: grid;
+  grid-template-columns: 168px minmax(300px, 1fr) minmax(320px, 1fr);
+  grid-template-areas: "rail panels projection";
   gap: 1rem; padding: 1rem 1.1rem; align-items: start;
 }
-@media (max-width: 1280px) { .layout { grid-template-columns: 172px 1fr; } .projection { grid-column: 1 / -1; } }
+.rail { grid-area: rail; }
+.panels { grid-area: panels; min-width: 0; }
+.projection { grid-area: projection; min-width: 0; }
+/* Responsive overrides live at the end of this file (after the base component
+   rules) so source order lets them win — see "responsive overrides". */
 
 /* ---- stage rail ---- */
 .rail { display: flex; flex-direction: column; gap: .4rem; position: sticky; top: 1rem; }
@@ -157,7 +166,7 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
   padding: .9rem 1rem; position: sticky; top: 1rem;
 }
 .proj-title { font-size: .95rem; }
-#map { border-radius: 8px; border: 1px solid var(--border); display: block; max-width: 100%; }
+#map { border-radius: 8px; border: 1px solid var(--border); display: block; max-width: 100%; height: auto; }
 .timeline-host { margin-top: .6rem; }
 .timeline { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
 .tl-label { font-size: 9px; fill: var(--muted); }
@@ -211,3 +220,25 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .drawer-list { list-style: none; padding: .4rem 0 0 1rem; margin: 0; font-size: .82rem; max-height: 200px; overflow: auto; }
 .drawer-list li { margin: .2em 0; }
 .honesty { color: var(--muted); font-size: .8rem; margin: .8rem 0 0; }
+
+/* ---- responsive overrides ----
+   Placed last so source order lets them win over the base component rules. */
+
+/* Narrow / iPad portrait: rail becomes a wrapping top strip; panels sit BESIDE
+   the projection so the map stays visible without scrolling below the fold. */
+@media (max-width: 950px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr);
+    grid-template-areas:
+      "rail   rail"
+      "panels projection";
+  }
+  .rail { flex-direction: row; flex-wrap: wrap; position: static; top: auto; }
+  .rail-btn { flex: 1 1 6.5rem; }
+  .projection { position: static; top: auto; }
+}
+
+/* Phone: single column, everything stacked. */
+@media (max-width: 640px) {
+  .layout { grid-template-columns: 1fr; grid-template-areas: "rail" "panels" "projection"; }
+}
