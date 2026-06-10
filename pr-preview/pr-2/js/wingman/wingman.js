@@ -100,10 +100,12 @@ export function mountWingman(el, ctx) {
   async function tick(stepMin) {
     if (exec.complete) return;
     exec.simT = Math.round((exec.simT + stepMin) * 10) / 10;
-    // Monotonic plan-time: an obstruction adds delay, which freezes the vehicle
-    // *in place* (τ never jumps backward) until sim time catches up — so a
-    // mid-mission obstruction halts where the vehicle is, it doesn't restart it.
-    const tau = Math.max(exec.lastTau, Math.round((exec.simT - exec.delayMin) * 10) / 10);
+    // Plan-time ≡ sim-time: an obstruction is a LOCAL RE-PLAN (a hold leg is
+    // spliced in where the vehicle is, the remainder re-timed through the
+    // tide-aware chooser), so the plan itself carries every disturbance and no
+    // separate delay offset is needed — downstream holds absorb delays in the
+    // plan, not in the assessment.
+    const tau = exec.simT;
     exec.lastTau = tau;
     const ghost = stateAt(plan, tau);
 
@@ -115,11 +117,11 @@ export function mountWingman(el, ctx) {
     const visitLeg = plan.materialisation.schedule.find((s) => s.kind === 'visit');
     const inExfil = tau >= visitLeg.end_min;
     if (inExfil && exec.visitVerdict == null) {
-      exec.visitVerdict = assess(plan, commitment, bandUnit, exec.delayMin).verdict;
+      exec.visitVerdict = assess(plan, commitment, bandUnit).verdict;
     }
     const live = inExfil && exfilCommitment
-      ? assessExfil(plan, exfilCommitment, bandUnit, exec.delayMin)
-      : assess(plan, commitment, bandUnit, exec.delayMin);
+      ? assessExfil(plan, exfilCommitment, bandUnit)
+      : assess(plan, commitment, bandUnit);
     const label = inExfil && exfilCommitment ? 'exfil' : 'observe';
 
     $('#wx-clock').textContent = `H+${Math.round(exec.simT)}`;
@@ -147,14 +149,15 @@ export function mountWingman(el, ctx) {
     if (tau >= missionEnd) {
       exec.complete = true;
       stopPlay();
-      const visitVerdict = exec.visitVerdict ?? assess(plan, commitment, bandUnit, exec.delayMin).verdict;
-      const eRes = exfilCommitment ? assessExfil(plan, exfilCommitment, bandUnit, exec.delayMin) : null;
+      const visitVerdict = exec.visitVerdict ?? assess(plan, commitment, bandUnit).verdict;
+      const eRes = exfilCommitment ? assessExfil(plan, exfilCommitment, bandUnit) : null;
       const overall = (visitVerdict === 'violated' || eRes?.verdict === 'violated') ? 'violated' : 'satisfied';
       $('#wx-final').innerHTML = `mission playback complete — <b class="${overall}">${overall}</b>`
         + ` <span class="muted">(observe: ${visitVerdict}${eRes ? `, exfil: ${eRes.verdict}` : ''}`
-        + `${exec.delayMin ? `, +${exec.delayMin} min delay` : ''})</span>`;
+        + `${exec.delayMin ? `, +${exec.delayMin} min obstruction` : ''})</span>`;
       ctx.onComplete({
-        actual_arrival: Math.round((plan.materialisation.schedule[0].end_min + exec.delayMin) * 10) / 10,
+        // The rebased plan IS the actual: the last pre-OP transit ends at the OP.
+        actual_arrival: plan.materialisation.schedule.findLast((s) => s.kind === 'transit').end_min,
         delay_min: exec.delayMin,
         visit_verdict: visitVerdict,
         exfil_verdict: eRes?.verdict ?? null,
@@ -194,13 +197,13 @@ export function mountWingman(el, ctx) {
     exec.delayMin = 0;
     exec.lastTau = 0;
     exec.complete = false;
-    exec.lastBand = assess(plan, commitment, bandUnit, 0).band;
+    plan.materialisation = structuredClone(pristineMat);   // restore the original route
+    missionEnd = plan.materialisation.schedule[plan.materialisation.schedule.length - 1].end_min;
+    exec.lastBand = assess(plan, commitment, bandUnit).band; // re-seat AFTER the restore
     exec.lastLabel = 'observe';
     exec.visitVerdict = null;
     exec.obstructions = [];
     exec.blocked.clear();
-    plan.materialisation = structuredClone(pristineMat);   // restore the original route
-    missionEnd = plan.materialisation.schedule[plan.materialisation.schedule.length - 1].end_min;
     ctx.onObstructions?.([]);                // clear the track markers
     ctx.onBlocked?.([]);                     // clear the blocked-cell markers
     $('#wx-alerts').innerHTML = '';
@@ -212,26 +215,63 @@ export function mountWingman(el, ctx) {
     await refreshLog();
     await tick(0);
   });
+  /** Alert when a rebase changed the live tide decision (e.g. wait → open,
+   *  open → detour after the window is forfeited). */
+  async function maybeTideAlert(oldMode) {
+    const cur = plan.materialisation.tide;
+    if (!cur || !oldMode || cur.mode === oldMode) return;
+    await ctx.seam.appendLog(missionId, {
+      kind: 'Alert', at: Math.round(exec.simT),
+      cause: { type: 'tide_reassessment', from: oldMode, to: cur.mode },
+    });
+    $('#wx-alerts').innerHTML +=
+      `<div class="alert" data-testid="wx-tide-alert">≋ H+${Math.round(exec.simT)} — tide re-assessed: <b>${oldMode} → ${cur.mode}</b> · ${cur.narrative}</div>`;
+  }
+
   async function addObstruction(mins) {
-    if (exec.complete) return;
-    // Mid-mission obstruction: insert it where the vehicle is *now* (it freezes
-    // in place for the delay), and drop a marker on the track there. At the very
-    // start this lands at the departure point.
-    const pos = stateAt(plan, exec.lastTau);
-    if (pos.phase !== 'transit' && pos.phase !== 'exfil') {
+    if (exec.complete || !world) return;
+    const tau = exec.lastTau;
+    const pos = stateAt(plan, tau);
+    // An obstruction is a LOCAL RE-PLAN: splice a hold where the vehicle is and
+    // re-time the remainder through the tide-aware chooser — so downstream holds
+    // (tide, OP window) absorb the delay in the plan itself. Allowed while
+    // moving, or while already stopped by an obstruction (which it extends).
+    const activeHold = plan.materialisation.schedule.find((s) =>
+      s.kind === 'hold' && s.label.startsWith('Obstruction') && tau >= s.start_min && tau < s.end_min);
+    if (pos.phase !== 'transit' && pos.phase !== 'exfil' && !activeHold) {
       $('#wx-alerts').innerHTML +=
         `<div class="alert"><span class="muted">vehicle is static (OP dwell or tide hold) — obstructions apply while on the move</span></div>`;
       return;
     }
+    const holdMin = Math.round((mins + (activeHold ? activeHold.end_min - tau : 0)) * 10) / 10;
     const cell = { x: Math.round(pos.x), y: Math.round(pos.y) };
-    exec.obstructions.push({ tau: exec.lastTau, ...cell });
+    const oldEnd = missionEnd;
+    const oldMode = plan.materialisation.tide?.mode ?? null;
+    const ok = rerouteExecution(plan, {
+      cells: world.cells, grid: world.grid, profile: world.profile,
+      tau, blocked: exec.blocked, opCell, rvCell, dwellMin, windowStart,
+      holdMin, holdLabel: `Obstruction — track blocked (+${mins} min)`,
+    });
+    if (!ok) {
+      $('#wx-alerts').innerHTML +=
+        `<div class="alert band-violated">⚠ H+${Math.round(exec.simT)} — no viable re-plan around the obstruction</div>`;
+      return;
+    }
+    missionEnd = plan.materialisation.schedule[plan.materialisation.schedule.length - 1].end_min;
+    exec.delayMin = Math.round((exec.delayMin + mins) * 10) / 10;
+    exec.obstructions.push({ tau, ...cell });
     ctx.onObstructions?.(exec.obstructions);
-    exec.delayMin += mins;
+    const absorbed = Math.round((oldEnd + mins - missionEnd) * 10) / 10;
     await ctx.seam.appendLog(missionId, {
       kind: 'Observation', at: Math.round(exec.simT),
-      fact_delta: { note: `Obstruction at cell ${cell.x},${cell.y} (H+${Math.round(exec.simT)}) — +${mins} min`, tag: 'track-state' },
+      fact_delta: {
+        note: `Obstruction at cell ${cell.x},${cell.y} (H+${Math.round(exec.simT)}) — +${mins} min; `
+          + `re-planned, RV H+${missionEnd}${absorbed > 0 ? ` (holds absorbed ${absorbed} min)` : ''}`,
+        tag: 'track-state',
+      },
       source: 'operator', confidence: 'reported',
     });
+    await maybeTideAlert(oldMode);
     await refreshLog();
     await tick(0);
   }
@@ -253,9 +293,16 @@ export function mountWingman(el, ctx) {
     const bx = Math.round(next.x), by = Math.round(next.y);
     const idx = by * world.grid.w + bx;
     exec.blocked.add(idx);
+    const oldMode = plan.materialisation.tide?.mode ?? null;
+    // A pending obstruction hold is an exogenous fact — carry its remainder
+    // through the rebase (planned tide/window holds are re-derived instead).
+    const pendingHold = plan.materialisation.schedule.find((s) =>
+      s.kind === 'hold' && s.label.startsWith('Obstruction') && tau >= s.start_min && tau < s.end_min);
     const ok = rerouteExecution(plan, {
       cells: world.cells, grid: world.grid, profile: world.profile,
       tau, blocked: exec.blocked, opCell, rvCell, dwellMin, windowStart,
+      holdMin: pendingHold ? Math.round((pendingHold.end_min - tau) * 10) / 10 : 0,
+      holdLabel: pendingHold?.label,
     });
     if (!ok) {
       exec.blocked.delete(idx);              // keep the route; report being boxed in
@@ -270,6 +317,7 @@ export function mountWingman(el, ctx) {
       fact_delta: { note: `Cell ${bx},${by} blocked — re-routed in flight`, tag: 'track-state' },
       source: 'operator', confidence: 'reported',
     });
+    await maybeTideAlert(oldMode);
     await refreshLog();
     await tick(0);
   });
