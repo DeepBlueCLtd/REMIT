@@ -111,6 +111,17 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await expect(page.getByTestId('wx-play')).toContainText('×2');
+
+  // The playhead scrubs the route during execution (review elapsed / preview).
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '60'; el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const exScrub = await page.getByTestId('map').getAttribute('data-ghost');
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '0'; el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  expect(await page.getByTestId('map').getAttribute('data-ghost')).not.toBe(exScrub);
+
   await page.getByTestId('wx-step10').click();           // τ=10, in transit
   await page.getByTestId('wx-delay').click();            // +25 → band drops
   await page.getByTestId('wx-delay').click();            // +50
@@ -137,6 +148,13 @@ test('the walking skeleton walks the full lap', async ({ page }) => {
   await expect(page.getByTestId('aa-recon')).toContainText('Exfil E'); // both commitments reconciled
   await page.getByTestId('aa-replay').click();
   await expect(page.getByTestId('aa-replay-result')).toContainText('identical decision');
+
+  // Learn: the playback scrubber drives the map (replay the chosen route).
+  const lnGhost0 = await page.getByTestId('map').getAttribute('data-ghost');
+  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => {
+    el.value = '90'; el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-ghost')).not.toBe(lnGhost0);
   await shot(page, '07-learn');
 
   // --- substrate: store + seam drawers populated.

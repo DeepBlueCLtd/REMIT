@@ -42,7 +42,8 @@ export async function mountLearn(el, ctx) {
   el.innerHTML = `
     <p class="stage-intro">The after-action record — log + rationale + stamp — read back
     entirely over the seam. A reviewer years later answers “why this plan, not that?”
-    from this record alone (NF2/NF4).</p>
+    from this record alone (NF2/NF4). <em>Scrub the playhead (right) to replay the chosen
+    route on the map.</em></p>
     <div class="aa-grid">
       <div class="card">
         <h3>The decision</h3>

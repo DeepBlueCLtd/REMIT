@@ -13,11 +13,13 @@ import { assess, assessExfil, stateAt } from '../kernel/kernel.js';
 /**
  * @param {HTMLElement} el
  * @param {{seam: import('../seam/seam.js').SeamClient,
- *          missionId: string, plan: any, commitment: any, bandUnit: number,
+ *          missionId: string, plan: any, commitment: any, exfilCommitment?: any,
+ *          bandUnit: number,
  *          playhead: import('../views/render.js').Playhead,
- *          renderViews: (opts: {t: number, actual: any}) => void,
  *          resetLog?: () => void,
  *          onComplete: (summary: any) => void}} ctx
+ * @returns {{ pause: () => void }} handle so the host can pause live playback
+ *          (e.g. when the user grabs the scrubber to review).
  */
 export function mountWingman(el, ctx) {
   const { plan, commitment, exfilCommitment, bandUnit, missionId } = ctx;
@@ -104,8 +106,7 @@ export function mountWingman(el, ctx) {
       await refreshLog();
     }
 
-    ctx.playhead.set(tau);
-    ctx.renderViews({ t: tau, actual: ghost });
+    ctx.playhead.set(tau);   // drives the shared projection (map ghost + readout)
 
     if (tau >= missionEnd) {
       exec.complete = true;
@@ -195,4 +196,5 @@ export function mountWingman(el, ctx) {
   });
 
   tick(0);
+  return { pause: stopPlay };
 }
