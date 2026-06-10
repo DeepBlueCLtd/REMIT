@@ -204,3 +204,28 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
 - **Trade-offs:** rules are hand-authored demo set-pieces (NF9-honest); the scan is
   1-min resolution (fine for advisory). Both shipped rules need a selected COA
   (self.phase), so windows appear from Views on, not the World step.
+
+## ADR-0010 (2026-06-10) — PR previews publish the whole static site, not the app alone
+
+- **Context:** the landing page, `/data-model/`, and the blog are published only on
+  merge (by `deploy.yml`); the PR preview published `dist_dir` (the app) verbatim at
+  the preview root (see ADR-0001, and ADR-0005's "the preview publishes `app/`
+  verbatim"). So a PR that adds or changes a site/docs section (like the Data Model
+  mini-site) had nothing reviewable in its preview — the comment linked only to the app.
+- **Decision:** assemble the preview the same way `deploy.yml` assembles the merged
+  site: copy `site/.` to the preview root (landing page + static sections), then the
+  app under `/<app_path>/`. The preview comment now lands on the welcome page, from
+  which reviewers reach `/app/` and `/data-model/`. `pr-preview.yml` reads `app_path`
+  from `pages.config.yml` (it previously read only `build_command`/`dist_dir`).
+- **Options considered:** (a) leave it app-only, review docs locally — no per-PR
+  coverage for landing/docs changes; (b) copy only `/data-model/` alongside the
+  root app — narrow, and the welcome page itself stays unreviewable; (c) mirror the
+  full static-site assembly — **chosen**.
+- **Consequences:** the app moves from the preview root to `/<app_path>/` (the
+  welcome page's `app/` link resolves; bookmarks to the old root now hit the landing
+  page). The **blog is intentionally excluded** from previews: Jekyll only reads the
+  gh-pages *root* `_config.yml`/`_layouts`, so blog pages can't render from a
+  `pr-preview/pr-N/` subdir — the assemble step drops `_config.yml`, `_layouts/`,
+  and `blog/`, so the landing page's "Blog →" card 404s in-preview (it renders on the
+  merged site). This refines, and does not conflict with, ADR-0005: the app is still
+  published verbatim with no build step, just under `/<app_path>/` instead of at root.
