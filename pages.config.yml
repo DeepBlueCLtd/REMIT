@@ -11,11 +11,11 @@ app_name: "REMIT walking skeleton"
 # that needs no build step. Examples:
 #   build_command: "npm ci && npm run build"
 #   build_command: "pnpm install && pnpm build"
-build_command: ""
+build_command: "npm ci && npm run build"
 
 # Directory containing the built static site to publish. For a no-build static
 # app, point this at the folder that already holds your index.html.
-dist_dir: "app"
+dist_dir: "dist"
 
 # Path under the Pages site where the app is served:
 #   https://<user>.github.io/<repo>/<app_path>/
