@@ -16,11 +16,21 @@ import { STRAT_COLORS } from './render.js';
 
 const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const STRAT_RGB = Object.fromEntries(Object.entries(STRAT_COLORS).map(([k, v]) => [k, rgb(v)]));
-// A blank dark style keeps the map's transform valid in every environment (external
-// basemap tiles are blocked in cloud sessions, and an unloaded style leaves deck.gl
-// without a viewport). A real Carto/MapLibre basemap can layer on later behind a load
-// guard; the synthetic terrain hexes are the substance.
-const BLANK_STYLE = { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#0b0f14' } }] };
+// Keyless Carto dark-matter basemap, with a dark background layer *underneath* it as a
+// graceful fallback: where the tiles are blocked (cloud sessions, offline, a strict CSP)
+// the map degrades to the same flat dark field used before — the style still loads, so
+// deck.gl keeps a valid viewport — while in a normal browser the real basemap shows
+// through wherever the hex grid is toggled off. The synthetic terrain hexes remain the
+// substance; the basemap is geographic context (the AO is anchored to a real lat/lon).
+const CARTO_DARK_TILES = ['a', 'b', 'c', 'd'].map((s) => `https://${s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png`);
+const BASEMAP_STYLE = {
+  version: 8,
+  sources: { carto: { type: 'raster', tiles: CARTO_DARK_TILES, tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } },
+  layers: [
+    { id: 'bg', type: 'background', paint: { 'background-color': '#0b0f14' } },
+    { id: 'carto', type: 'raster', source: 'carto' },
+  ],
+};
 const shortH3 = (h) => h.slice(-6);
 
 /**
@@ -31,13 +41,15 @@ const shortH3 = (h) => h.slice(-6);
  */
 export function makeMap(el, baseline, ao, places) {
   const cells = baseline.cells;
+  let showHexes = true;   // hex-grid overlay visibility — toggleable to reveal the basemap
+  let lastOpts = {};      // remembered render opts so the toggle can re-render in place
   const llById = (id) => [ao.centers[id][1], ao.centers[id][0]];   // [lng,lat]
   const idOfH3 = (h3) => ao.idOf.get(h3);
   const hexTerrain = ao.indexes.map((h3, id) => ({ h3, id, terrain: cells[id].terrain }));
 
   const map = new maplibregl.Map({
-    container: el, style: BLANK_STYLE,
-    bounds: AO_BOUNDS, fitBoundsOptions: { padding: 8 }, attributionControl: false,
+    container: el, style: BASEMAP_STYLE,
+    bounds: AO_BOUNDS, fitBoundsOptions: { padding: 8 }, attributionControl: { compact: true },
   });
   map.on('error', () => {});
   const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
@@ -49,6 +61,8 @@ export function makeMap(el, baseline, ao, places) {
   // unproject the pixel through the map transform.
   el.addEventListener('click', (e) => {
     if (!clickFn) return;
+    // Clicks on map controls (the hex toggle, attribution, …) are not cell picks.
+    if (e.target instanceof Element && e.target.closest('.maplibregl-ctrl')) return;
     const rect = el.getBoundingClientRect();
     const lngLat = map.unproject([e.clientX - rect.left, e.clientY - rect.top]);
     const id = latLngToId(ao, lngLat.lat, lngLat.lng);
@@ -69,15 +83,19 @@ export function makeMap(el, baseline, ao, places) {
       const c = rgb(TERRAIN[d.terrain].color); return [c[0], c[1], c[2], d.terrain === 'water' ? 230 : 215];
     };
 
-    const layers = [
-      new H3HexagonLayer({
+    // Hex-grid overlay (terrain + situational no-go / blocked highlights). Toggleable:
+    // when hidden, the basemap shows through and the operational overlay (routes,
+    // markers, vehicle ghost) below still renders.
+    const layers = [];
+    if (showHexes) {
+      layers.push(new H3HexagonLayer({
         id: 'terrain', data: hexTerrain, getHexagon: (d) => d.h3, getFillColor: terrainColor,
         updateTriggers: { getFillColor: [fordOpen] }, highPrecision: true, getLineColor: [255, 255, 255, 18],
         lineWidthMinPixels: 1, stroked: true, filled: true, extruded: false, pickable: false,
-      }),
-    ];
-    if (nogoIds.length) layers.push(new H3HexagonLayer({ id: 'nogo', data: nogoIds, getHexagon: (id) => ao.indexes[id], highPrecision: true, getFillColor: [255, 123, 114, 90], getLineColor: [255, 123, 114, 210], lineWidthMinPixels: 1, stroked: true, filled: true }));
-    if (blockedIds.length) layers.push(new H3HexagonLayer({ id: 'blocked', data: blockedIds, getHexagon: (id) => ao.indexes[id], highPrecision: true, getFillColor: [255, 123, 114, 150], getLineColor: [255, 123, 114, 255], lineWidthMinPixels: 2, stroked: true, filled: true }));
+      }));
+      if (nogoIds.length) layers.push(new H3HexagonLayer({ id: 'nogo', data: nogoIds, getHexagon: (id) => ao.indexes[id], highPrecision: true, getFillColor: [255, 123, 114, 90], getLineColor: [255, 123, 114, 210], lineWidthMinPixels: 1, stroked: true, filled: true }));
+      if (blockedIds.length) layers.push(new H3HexagonLayer({ id: 'blocked', data: blockedIds, getHexagon: (id) => ao.indexes[id], highPrecision: true, getFillColor: [255, 123, 114, 150], getLineColor: [255, 123, 114, 255], lineWidthMinPixels: 2, stroked: true, filled: true }));
+    }
 
     // Routes — non-selected faint, selected bold (or all bold in compare mode).
     const path = (p) => p.materialisation.trajectory.map((q) => [q.lng, q.lat]);
@@ -124,11 +142,38 @@ export function makeMap(el, baseline, ao, places) {
     el.dataset.obstructions = obstructions.map((o) => shortH3(o.h3)).join('|');
   }
 
-  return {
-    render(opts = {}) {
-      overlay.setProps({ layers: buildLayers(opts) });   // overlaid deck renders without the basemap
-      setData(opts);
+  function render(opts = {}) {
+    lastOpts = opts;
+    overlay.setProps({ layers: buildLayers(opts) });   // deck overlay renders above the basemap
+    setData(opts);
+  }
+
+  // Hex-grid visibility toggle, as a MapLibre control button (top-right). Flipping it
+  // re-renders the remembered opts so the change is immediate at any lifecycle stage.
+  const hexToggleCtrl = {
+    onAdd() {
+      const div = document.createElement('div');
+      div.className = 'maplibregl-ctrl maplibregl-ctrl-group hex-toggle';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.testid = 'hex-toggle';
+      btn.textContent = '⬡ Hex grid';
+      const sync = () => {
+        btn.setAttribute('aria-pressed', String(showHexes));
+        btn.title = showHexes ? 'Hide the hex grid' : 'Show the hex grid';
+        el.dataset.hexes = showHexes ? 'on' : 'off';
+      };
+      btn.addEventListener('click', () => { showHexes = !showHexes; sync(); render(lastOpts); });
+      sync();
+      div.appendChild(btn);
+      return div;
     },
+    onRemove() {},
+  };
+  map.addControl(hexToggleCtrl, 'top-right');
+
+  return {
+    render,
     onCellClick(fn) { clickFn = fn; },
   };
 }

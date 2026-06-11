@@ -395,8 +395,11 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
     1-min steps, waiting allowed) replaces the octile search and **subsumes ADR-0006's chooser**
     — multiple fords are handled by arrival-time-gated edge feasibility; the wait-vs-detour
     decision emerges from the search and is read back into `plan.tide_decision`.
-  - **Rendering:** **MapLibre GL JS** (keyless Carto dark-matter basemap) + **deck.gl**
+  - **Rendering:** **MapLibre GL JS** (keyless Carto dark-matter raster basemap, behind a
+    dark-field load-guard so it degrades gracefully where tiles are blocked) + **deck.gl**
     `H3HexagonLayer`/`PathLayer`/`IconLayer` via `MapboxOverlay` replace the Canvas renderer.
+    The hex-cell overlay is independently **toggleable** (a MapLibre control) so the basemap
+    beneath can be revealed; routes/markers/ghost stay drawn either way.
   - The H3 **hierarchy is latent** — no active LOD / coarse-to-fine planning / aggregation yet.
 - **Trade-offs:** richer and geographically grounded, but a larger surface (build + WebGL + new
   coordinate model) and a deliberate identity change (the config-core hash and golden plan ids

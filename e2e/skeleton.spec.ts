@@ -141,6 +141,22 @@ test('plan steering: painting a no-go re-plans (routes bend around it)', async (
   void before;
 });
 
+test('the hex grid can be toggled off and on (basemap shows through)', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(1500);                        // map init
+  await page.getByTestId('world-provision').click();      // render the hex terrain
+  await expect(page.getByTestId('world-baseid')).toBeVisible();
+  const map = page.getByTestId('map');
+  await expect(map).toHaveAttribute('data-hexes', 'on');  // grid shown by default
+  await shot(page, 'hex-toggle-on');
+  await page.getByTestId('hex-toggle').click();
+  await expect(map).toHaveAttribute('data-hexes', 'off'); // grid hidden — basemap shows through
+  await page.waitForTimeout(300);
+  await shot(page, 'hex-toggle-off');
+  await page.getByTestId('hex-toggle').click();
+  await expect(map).toHaveAttribute('data-hexes', 'on');  // and back
+});
+
 test('execute: blocking the next hex re-routes in flight', async ({ page }) => {
   await page.goto('/');
   await walkToPlan(page);
