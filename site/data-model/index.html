@@ -68,10 +68,15 @@ td.card{font-family:ui-monospace,monospace;color:var(--ink-soft);white-space:now
 .empty{color:var(--ink-soft);font-size:.84rem;margin:.2rem 0 0}
 .pvs{list-style:none;margin:.2rem 0 0;padding:0;display:grid;gap:.25rem;font-size:.83rem;color:var(--ink-soft)}
 .pvs code{color:var(--enum);background:var(--enum-soft);padding:.03rem .35rem;border-radius:.25rem}
-/* ER (mermaid + svg) */
-.erd,.erd-svg{background:#fff;border:1px solid var(--line);border-radius:.7rem;padding:.8rem 1rem;margin-bottom:1.1rem;box-shadow:var(--shadow);overflow:auto;max-height:78vh}
-.erd-svg svg,.erd .mermaid svg{max-width:100%;height:auto}
-.mermaid-wrap{overflow:auto}.erd .mermaid{margin:0;text-align:center}
+/* ER (mermaid + svg) — pan/zoom viewport */
+.erd,.erd-svg{position:relative;overflow:hidden;height:clamp(22rem,72vh,58rem);background:#fff;border:1px solid var(--line);border-radius:.7rem;margin-bottom:.4rem;box-shadow:var(--shadow);cursor:grab;touch-action:none}
+.erd.grabbing,.erd-svg.grabbing{cursor:grabbing}
+.erd-svg svg,.erd .mermaid svg{position:absolute;top:0;left:0;max-width:none;transform-origin:0 0;will-change:transform}
+.erd .mermaid-wrap,.erd .mermaid{position:static;margin:0}
+.pz-ctrl{position:absolute;top:.55rem;right:.55rem;z-index:6;display:flex;gap:.2rem;background:color-mix(in srgb,var(--card) 84%,transparent);border:1px solid var(--line);border-radius:.5rem;padding:.2rem;box-shadow:var(--shadow);backdrop-filter:blur(6px)}
+.pz-ctrl button{width:1.7rem;height:1.7rem;border:0;background:transparent;color:var(--ink);font:600 1rem/1 system-ui,sans-serif;border-radius:.35rem;cursor:pointer;display:grid;place-items:center}
+.pz-ctrl button:hover{background:var(--bg-soft);color:var(--accent)}
+.pz-hint{position:absolute;left:.65rem;bottom:.55rem;z-index:6;font-size:.68rem;color:var(--ink-soft);background:color-mix(in srgb,var(--card) 78%,transparent);border:1px solid var(--line);border-radius:.4rem;padding:.08rem .45rem;pointer-events:none;backdrop-filter:blur(6px)}
 .erd-legend,.erd .legend{font-size:.73rem;color:var(--ink-soft);margin:.3rem 0 1.2rem}
 .erd-legend .cf,.erd .legend .cf{font-family:ui-monospace,monospace;background:var(--mono-bg);padding:.02rem .3rem;border-radius:.25rem}
 details.er{border:1px solid var(--line);border-radius:.7rem;background:var(--card);padding:.4rem .9rem}

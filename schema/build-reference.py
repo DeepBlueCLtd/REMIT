@@ -103,10 +103,15 @@ td.card{font-family:ui-monospace,monospace;color:var(--ink-soft);white-space:now
 .empty{color:var(--ink-soft);font-size:.84rem;margin:.2rem 0 0}
 .pvs{list-style:none;margin:.2rem 0 0;padding:0;display:grid;gap:.25rem;font-size:.83rem;color:var(--ink-soft)}
 .pvs code{color:var(--enum);background:var(--enum-soft);padding:.03rem .35rem;border-radius:.25rem}
-/* ER (mermaid + svg) */
-.erd,.erd-svg{background:#fff;border:1px solid var(--line);border-radius:.7rem;padding:.8rem 1rem;margin-bottom:1.1rem;box-shadow:var(--shadow);overflow:auto;max-height:78vh}
-.erd-svg svg,.erd .mermaid svg{max-width:100%;height:auto}
-.mermaid-wrap{overflow:auto}.erd .mermaid{margin:0;text-align:center}
+/* ER (mermaid + svg) — pan/zoom viewport */
+.erd,.erd-svg{position:relative;overflow:hidden;height:clamp(22rem,72vh,58rem);background:#fff;border:1px solid var(--line);border-radius:.7rem;margin-bottom:.4rem;box-shadow:var(--shadow);cursor:grab;touch-action:none}
+.erd.grabbing,.erd-svg.grabbing{cursor:grabbing}
+.erd-svg svg,.erd .mermaid svg{position:absolute;top:0;left:0;max-width:none;transform-origin:0 0;will-change:transform}
+.erd .mermaid-wrap,.erd .mermaid{position:static;margin:0}
+.pz-ctrl{position:absolute;top:.55rem;right:.55rem;z-index:6;display:flex;gap:.2rem;background:color-mix(in srgb,var(--card) 84%,transparent);border:1px solid var(--line);border-radius:.5rem;padding:.2rem;box-shadow:var(--shadow);backdrop-filter:blur(6px)}
+.pz-ctrl button{width:1.7rem;height:1.7rem;border:0;background:transparent;color:var(--ink);font:600 1rem/1 system-ui,sans-serif;border-radius:.35rem;cursor:pointer;display:grid;place-items:center}
+.pz-ctrl button:hover{background:var(--bg-soft);color:var(--accent)}
+.pz-hint{position:absolute;left:.65rem;bottom:.55rem;z-index:6;font-size:.68rem;color:var(--ink-soft);background:color-mix(in srgb,var(--card) 78%,transparent);border:1px solid var(--line);border-radius:.4rem;padding:.08rem .45rem;pointer-events:none;backdrop-filter:blur(6px)}
 .erd-legend,.erd .legend{font-size:.73rem;color:var(--ink-soft);margin:.3rem 0 1.2rem}
 .erd-legend .cf,.erd .legend .cf{font-family:ui-monospace,monospace;background:var(--mono-bg);padding:.02rem .3rem;border-radius:.25rem}
 details.er{border:1px solid var(--line);border-radius:.7rem;background:var(--card);padding:.4rem .9rem}
@@ -135,8 +140,50 @@ footer.site a{font-weight:600}.backlinks{display:flex;gap:1.25rem;flex-wrap:wrap
 
 MERMAID_SCRIPT = ('<script type="module">import mermaid from '
                   '"https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";'
-                  'mermaid.initialize({startOnLoad:true,securityLevel:"loose",'
-                  'theme:matchMedia("(prefers-color-scheme: dark)").matches?"dark":"default"});</script>')
+                  'mermaid.initialize({startOnLoad:false,securityLevel:"loose",'
+                  'theme:matchMedia("(prefers-color-scheme: dark)").matches?"dark":"default"});'
+                  'try{await mermaid.run();}catch(e){console.error(e);}'
+                  'window.remitInitPanzoom&&window.remitInitPanzoom();</script>')
+
+# Self-contained pan/zoom for the ER diagram boxes — no CDN, so it works on both
+# the in-browser Mermaid variant and the pre-rendered offline SVG variant.
+# Drag to pan, wheel to zoom toward the cursor, +/-/fit controls. Idempotent and
+# defers the initial fit until a box is actually visible (collapsed <details>).
+PANZOOM_SCRIPT = """<script>(function(){
+function size(svg){var vb=svg.viewBox&&svg.viewBox.baseVal;
+ if(vb&&vb.width&&vb.height)return{w:vb.width,h:vb.height};
+ try{var b=svg.getBBox();if(b.width&&b.height)return{w:b.width,h:b.height};}catch(e){}
+ var r=svg.getBoundingClientRect();return{w:r.width||320,h:r.height||220};}
+function setup(box){var svg=box.querySelector('svg');if(!svg||box.__pz)return;box.__pz=1;
+ svg.style.maxWidth='none';svg.style.transformOrigin='0 0';svg.style.position='absolute';svg.style.top='0';svg.style.left='0';
+ var s=1,tx=0,ty=0,n=null;
+ function apply(){svg.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';}
+ function clamp(v){return Math.max(0.05,Math.min(8,v));}
+ function measure(){n=size(svg);svg.style.width=n.w+'px';svg.style.height=n.h+'px';}
+ function fit(){if(!n)measure();var bw=box.clientWidth,bh=box.clientHeight;if(!bw||!bh)return;
+  var pad=28;s=clamp(Math.min((bw-pad)/n.w,(bh-pad)/n.h));tx=(bw-n.w*s)/2;ty=(bh-n.h*s)/2;apply();}
+ function zoomAt(cx,cy,f){var ns=clamp(s*f);var wx=(cx-tx)/s,wy=(cy-ty)/s;s=ns;tx=cx-wx*s;ty=cy-wy*s;apply();}
+ box.addEventListener('wheel',function(e){e.preventDefault();var r=box.getBoundingClientRect();
+  zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*0.0015));},{passive:false});
+ var drag=false,lx=0,ly=0;
+ box.addEventListener('pointerdown',function(e){if(e.button!==0)return;drag=true;lx=e.clientX;ly=e.clientY;
+  box.classList.add('grabbing');box.setPointerCapture(e.pointerId);});
+ box.addEventListener('pointermove',function(e){if(!drag)return;tx+=e.clientX-lx;ty+=e.clientY-ly;lx=e.clientX;ly=e.clientY;apply();});
+ function up(){drag=false;box.classList.remove('grabbing');}
+ box.addEventListener('pointerup',up);box.addEventListener('pointercancel',up);
+ var ctrl=document.createElement('div');ctrl.className='pz-ctrl';
+ function btn(t,lbl,fn){var b=document.createElement('button');b.type='button';b.textContent=t;b.title=lbl;b.setAttribute('aria-label',lbl);b.addEventListener('click',fn);ctrl.appendChild(b);}
+ btn('+','Zoom in',function(){zoomAt(box.clientWidth/2,box.clientHeight/2,1.3);});
+ btn('\\u2212','Zoom out',function(){zoomAt(box.clientWidth/2,box.clientHeight/2,1/1.3);});
+ btn('\\u2922','Fit',fit);
+ box.appendChild(ctrl);
+ var hint=document.createElement('div');hint.className='pz-hint';hint.textContent='scroll to zoom \\u00b7 drag to pan';box.appendChild(hint);
+ if('ResizeObserver'in window){var ro=new ResizeObserver(function(){if(box.clientWidth&&box.clientHeight&&!box.__fit){box.__fit=1;fit();}});ro.observe(box);}
+ if(box.clientWidth&&box.clientHeight){box.__fit=1;fit();}}
+function init(){document.querySelectorAll('.erd-svg,.erd').forEach(setup);}
+window.remitInitPanzoom=init;
+if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
+})();</script>"""
 
 
 def esc(s):
@@ -334,8 +381,8 @@ def main():
         return f'<div class="erd-svg">{svgs.get(key, "")}</div>{ER_LEGEND}' if svgs.get(key) else ""
 
     def mermaid_block(key):
-        return (f'<div class="erd"><div class="mermaid-wrap"><pre class="mermaid">{esc(srcmap[key])}</pre></div>'
-                f'{ER_LEGEND.replace("erd-legend", "legend")}</div>')
+        return (f'<div class="erd"><div class="mermaid-wrap"><pre class="mermaid">{esc(srcmap[key])}</pre></div></div>'
+                f'{ER_LEGEND}')
 
     # ---------- module sections (structure block depends on variant) ----------
     def module_sections(struct_fn):
@@ -379,7 +426,7 @@ def main():
         )
         return f'<div class="variant-banner"><b>Structure view:</b> {chips} <a href="./">compare ↗</a></div>'
 
-    def page(variant, top_section, struct_fn, mermaid_on, top_toc):
+    def page(variant, top_section, struct_fn, mermaid_on, top_toc, panzoom_on=True):
         return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>{title} — {esc(VARIANTS[variant][0])}</title>
 <style>{CSS}</style></head><body>
@@ -394,14 +441,14 @@ def main():
 <footer class="site"><div class="wrap"><div class="backlinks"><a href="../">← Home</a><a href="../app/">Walking skeleton</a><a href="../blog/">Blog</a></div>
 Generated from the modular LinkML schema under <code>schema/</code> by <code>schema/build-reference.py</code>.
 Cardinality: <code>1</code> required · <code>0..1</code> optional · <code>0..*/1..*</code> list.</div></footer>
-{MERMAID_SCRIPT if mermaid_on else ""}</body></html>"""
+{PANZOOM_SCRIPT if panzoom_on else ""}{MERMAID_SCRIPT if mermaid_on else ""}</body></html>"""
 
     none = lambda k: ""
     diagram_toc_tree = '<a class="flat" href="#structure">▤ Structure tree</a>'
     diagram_toc_erd = '<a class="flat" href="#overview">▤ Diagrams</a>'
 
     pages = {
-        "tree": page("tree", tree_section, none, False, diagram_toc_tree),
+        "tree": page("tree", tree_section, none, False, diagram_toc_tree, panzoom_on=False),
         "erd-svg": page("erd-svg", f'<section id="diagram"><div class="sec-head"><h2>Whole-model ER diagram</h2>'
                         f'<p>Every typed association across the modules. Pan / scroll.</p></div>{svg_block("overview")}</section>',
                         lambda k: svg_block(f"mod-{k}"), False, diagram_toc_erd),
