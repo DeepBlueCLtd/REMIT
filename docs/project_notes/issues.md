@@ -38,3 +38,5 @@ evidence (e.g. `specs/<feature>/evidence/`).
 | 2026-06-10 | PR #4 | Reworked the data-model reference into a hierarchical navigator (`build-reference.py`): a sticky module→class sidebar TOC, a "model at a glance" module overview, and class cards grouped under their module (derived from each class's `from_schema`). Mirrors the modular schema. | `site/data-model/` · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |
 
 <!-- Add new rows above as work completes. -->
+
+| 2026-06-11 | PR #4 | Data-model ER diagrams made navigable: a self-contained pan/zoom viewport (drag to pan, wheel to zoom toward cursor, +/-/fit, auto-fit on first display) and **clickable entity boxes** linking to their `#class-<Name>` cards (works by wrapping each Mermaid `g.node` in an SVG anchor at runtime). Then, on the maintainer's pick, collapsed the four-variant comparison build to a **single Mermaid ER page** (`site/data-model/index.html`); dropped the tree/SVG variants + chooser; removed the offline SVG pre-render (`schema/render-mermaid.mjs`) and the `mermaid` npm dep — build no longer needs Node/Chromium. | ADR-0013 · [#4](https://github.com/DeepBlueCLtd/REMIT/pull/4) |

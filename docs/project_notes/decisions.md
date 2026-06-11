@@ -308,3 +308,31 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   and `blog/`, so the landing page's "Blog →" card 404s in-preview (it renders on the
   merged site). This refines, and does not conflict with, ADR-0005: the app is still
   published verbatim with no build step, just under `/<app_path>/` instead of at root.
+
+## ADR-0013 (2026-06-11) — Mermaid is the canonical ER view for the data-model reference
+
+- **Context:** the generated reference (`schema/build-reference.py` → `site/data-model/`)
+  was built as a *comparison* of four structure views — a self-contained HTML
+  containment tree, per-module ER diagrams pre-rendered to inline SVG (offline, via a
+  bundled-Chromium step in `schema/render-mermaid.mjs`), in-browser Mermaid ER diagrams
+  (CDN), and tree+SVG — fronted by a chooser `index.html`, so the maintainer could pick
+  one. The diagrams initially rendered static and small; we then added a self-contained
+  pan/zoom viewport (drag/scroll/fit) and made each entity box a link to its
+  `#class-<Name>` card. The maintainer chose the **Mermaid** ER view.
+- **Decision:** collapse to a single page — the Mermaid ER reference becomes
+  `site/data-model/index.html`. The containment-tree and SVG variants, the chooser, and
+  the variant banner are dropped. Because Mermaid renders in the browser from the CDN,
+  the **offline SVG pre-render is removed**: `schema/render-mermaid.mjs` is deleted and
+  the `mermaid` **npm** devDependency (used only by that pre-render) is removed — the
+  build (`schema/generate.sh`) no longer needs Node or Chromium, only the LinkML venv.
+  The pan/zoom + clickable-box behaviour (`PANZOOM_SCRIPT`) is kept and now targets the
+  single `.erd` viewport.
+- **Options considered:** (a) keep all four variants + chooser — more to maintain, and
+  a "pick one" was the explicit point; (b) keep the offline SVG variant as a no-CDN
+  fallback alongside Mermaid — retains the Chromium build step and a second code path
+  for a fallback the maintainer didn't pick; (c) **single Mermaid page — chosen.**
+- **Consequences:** the reference now depends on the Mermaid CDN at *view* time (blank
+  diagrams if the CDN is blocked); this is an accepted trade for the in-browser,
+  zoomable, source-inlined diagrams. Re-introducing an offline render is a revert of
+  this ADR (the deleted renderer is in git history). The pan/zoom script is
+  renderer-agnostic, so an SVG path could be re-added later without touching it.

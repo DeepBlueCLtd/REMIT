@@ -1,24 +1,18 @@
 #!/usr/bin/env python3
-"""Generate the data-model reference (site/data-model/) from the LinkML schema.
-Derived artefact — do not hand-edit the output; edit the modules under schema/ and
-re-run schema/generate.sh (DEC-57).
+"""Generate the data-model reference (site/data-model/index.html) from the LinkML
+schema. Derived artefact — do not hand-edit the output; edit the modules under
+schema/ and re-run schema/generate.sh (DEC-57).
 
-COMPARISON BUILD: emits four structure-view variants + a chooser index so the
-maintainer can pick one:
-  tree.html         — self-contained HTML containment tree (no CDN)
-  erd-svg.html      — per-module ER diagrams pre-rendered to inline SVG (no CDN)
-  erd-mermaid.html  — per-module Mermaid ER diagrams (rendered in-browser via CDN)
-  tree-erd.html     — the HTML tree + pre-rendered SVG ER diagrams
-Once chosen, the winner becomes index.html and the rest are dropped.
+The reference is a single page: the module overview, a whole-model ER diagram and
+per-module ER diagrams (Mermaid, rendered in-browser), and a hyperlinked card per
+class and enum. The diagrams are pan/zoom viewports whose boxes link to their
+class cards (see schema/build-reference.py's PANZOOM_SCRIPT). The Mermaid renderer
+is the canonical structure view — ADR-0013.
 """
 import html
-import json
-import subprocess
-import sys
 from pathlib import Path
 
 from linkml_runtime import SchemaView
-from linkml.generators.erdiagramgen import ERDiagramGenerator  # noqa: F401 (kept for parity)
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = ROOT / "schema" / "remit.yaml"
@@ -27,13 +21,6 @@ OUTDIR = ROOT / "site" / "data-model"
 MODULE_ORDER = ["common", "requirement", "world", "force", "entities", "plan", "records"]
 MODULE_LABEL = {"common": "Common", "requirement": "Requirement", "world": "World",
                 "force": "Own force", "entities": "Entities", "plan": "Plan", "records": "Records"}
-
-VARIANTS = {
-    "tree": ("Containment tree", "Self-contained nested tree — no external dependencies."),
-    "erd-svg": ("ER diagrams (SVG)", "Per-module ERDs pre-rendered to inline SVG — self-contained."),
-    "erd-mermaid": ("ER diagrams (Mermaid)", "Per-module ERDs drawn in-browser from a CDN."),
-    "tree-erd": ("Tree + ER diagrams", "The containment tree plus pre-rendered SVG ERDs."),
-}
 
 CSS = """
 :root{color-scheme:light dark;--bg:#fff;--bg-soft:#f6f7f9;--card:#fff;--ink:#1b1f24;--ink-soft:#5b6470;
@@ -55,9 +42,6 @@ header.site nav a:hover{color:var(--ink);background:var(--bg-soft)}
 .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:700;color:var(--accent-ink);margin:0 0 .5rem}
 .hero h1{font-size:clamp(1.8rem,5vw,2.8rem);line-height:1.08;margin:0 0 .6rem;letter-spacing:-.02em}
 .hero p.lede{font-size:clamp(1rem,2.2vw,1.18rem);color:var(--ink-soft);max-width:50rem;margin:0}
-.variant-banner{margin-top:1.1rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;font-size:.82rem}
-.variant-banner b{color:var(--ink)}.variant-banner a{text-decoration:none;border:1px solid var(--line);border-radius:2rem;padding:.25rem .7rem;color:var(--ink-soft)}
-.variant-banner a.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .stats{display:flex;gap:1.2rem;margin-top:.9rem;font-size:.84rem;color:var(--ink-soft);flex-wrap:wrap}.stats b{color:var(--ink)}
 .layout{display:grid;grid-template-columns:15rem minmax(0,1fr);gap:2.2rem;align-items:start;padding-top:1.4rem}
 aside.toc{position:sticky;top:4.3rem;max-height:calc(100vh - 5rem);overflow:auto;font-size:.85rem;padding-bottom:2rem}
@@ -103,43 +87,26 @@ td.card{font-family:ui-monospace,monospace;color:var(--ink-soft);white-space:now
 .empty{color:var(--ink-soft);font-size:.84rem;margin:.2rem 0 0}
 .pvs{list-style:none;margin:.2rem 0 0;padding:0;display:grid;gap:.25rem;font-size:.83rem;color:var(--ink-soft)}
 .pvs code{color:var(--enum);background:var(--enum-soft);padding:.03rem .35rem;border-radius:.25rem}
-/* ER (mermaid + svg) — pan/zoom viewport */
-.erd,.erd-svg{position:relative;overflow:hidden;height:clamp(22rem,72vh,58rem);background:#fff;border:1px solid var(--line);border-radius:.7rem;margin-bottom:.4rem;box-shadow:var(--shadow);cursor:grab;touch-action:none}
-.erd.grabbing,.erd-svg.grabbing{cursor:grabbing}
-.erd-svg svg,.erd .mermaid svg{position:absolute;top:0;left:0;max-width:none;transform-origin:0 0;will-change:transform}
+/* ER diagram — pan/zoom viewport with clickable entity boxes */
+.erd{position:relative;overflow:hidden;height:clamp(22rem,72vh,58rem);background:#fff;border:1px solid var(--line);border-radius:.7rem;margin-bottom:.4rem;box-shadow:var(--shadow);cursor:grab;touch-action:none}
+.erd.grabbing{cursor:grabbing}
+.erd .mermaid svg{position:absolute;top:0;left:0;max-width:none;transform-origin:0 0;will-change:transform}
 .erd .mermaid-wrap,.erd .mermaid{position:static;margin:0}
 .pz-ctrl{position:absolute;top:.55rem;right:.55rem;z-index:6;display:flex;gap:.2rem;background:color-mix(in srgb,var(--card) 84%,transparent);border:1px solid var(--line);border-radius:.5rem;padding:.2rem;box-shadow:var(--shadow);backdrop-filter:blur(6px)}
 .pz-ctrl button{width:1.7rem;height:1.7rem;border:0;background:transparent;color:var(--ink);font:600 1rem/1 system-ui,sans-serif;border-radius:.35rem;cursor:pointer;display:grid;place-items:center}
 .pz-ctrl button:hover{background:var(--bg-soft);color:var(--accent)}
 .pz-hint{position:absolute;left:.65rem;bottom:.55rem;z-index:6;font-size:.68rem;color:var(--ink-soft);background:color-mix(in srgb,var(--card) 78%,transparent);border:1px solid var(--line);border-radius:.4rem;padding:.08rem .45rem;pointer-events:none;backdrop-filter:blur(6px)}
-.erd a.erd-node-link,.erd-svg a.erd-node-link{cursor:pointer}
-.erd a.erd-node-link rect,.erd-svg a.erd-node-link rect{transition:stroke .1s,stroke-width .1s,fill .1s}
-.erd a.erd-node-link:hover rect,.erd-svg a.erd-node-link:hover rect{stroke:var(--accent);stroke-width:2px;fill:var(--accent-soft)}
-.erd a.erd-node-link:hover .nodeLabel,.erd-svg a.erd-node-link:hover .nodeLabel{color:var(--accent-ink)}
-.erd-legend,.erd .legend{font-size:.73rem;color:var(--ink-soft);margin:.3rem 0 1.2rem}
-.erd-legend .cf,.erd .legend .cf{font-family:ui-monospace,monospace;background:var(--mono-bg);padding:.02rem .3rem;border-radius:.25rem}
+.erd a.erd-node-link{cursor:pointer}
+.erd a.erd-node-link rect{transition:stroke .1s,stroke-width .1s,fill .1s}
+.erd a.erd-node-link:hover rect{stroke:var(--accent);stroke-width:2px;fill:var(--accent-soft)}
+.erd a.erd-node-link:hover .nodeLabel{color:var(--accent-ink)}
+.erd-legend{font-size:.73rem;color:var(--ink-soft);margin:.3rem 0 1.2rem}
+.erd-legend .cf{font-family:ui-monospace,monospace;background:var(--mono-bg);padding:.02rem .3rem;border-radius:.25rem}
 details.er{border:1px solid var(--line);border-radius:.7rem;background:var(--card);padding:.4rem .9rem}
 details.er summary{cursor:pointer;font-weight:600;padding:.4rem 0}
-/* containment tree */
-.tree{display:grid;grid-template-columns:repeat(auto-fill,minmax(20rem,1fr));gap:.8rem;align-items:start}
-.troot{background:var(--card);border:1px solid var(--line);border-radius:.7rem;padding:.5rem .85rem;box-shadow:var(--shadow)}
-.tree details>summary{cursor:pointer;padding:.18rem 0;list-style:none;display:flex;align-items:center;gap:.4rem}
-.tree summary::-webkit-details-marker{display:none}
-.tree details>summary::before{content:"▸";color:var(--ink-soft);font-size:.68rem;transition:transform .12s}
-.tree details[open]>summary::before{transform:rotate(90deg)}
-.troot>details>summary{font-size:1.02rem}
-.tree ul{list-style:none;margin:.1rem 0 .2rem .55rem;padding-left:.7rem;border-left:1px solid var(--line)}
-.tree li{padding:.1rem 0;font-size:.85rem}
-.tree li.leaf{padding-left:.95rem}
-.tree .tk{font-family:ui-monospace,monospace;color:var(--accent-ink)}
-.tree .tc{font-family:ui-monospace,monospace;font-size:.7rem;color:var(--ink-soft)}
-.tree a{text-decoration:none;font-family:ui-monospace,monospace;color:var(--accent)}
-.tree .reftag{font-size:.58rem;text-transform:uppercase;color:var(--enum);background:var(--enum-soft);border-radius:.25rem;padding:.02rem .3rem}
-.tree .rk{color:var(--ink-soft)}
-.tree .modpill{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);background:var(--chip);border-radius:1rem;padding:.05rem .45rem;margin-left:auto}
 footer.site{border-top:1px solid var(--line);padding:2rem 0 3rem;color:var(--ink-soft);font-size:.85rem}
 footer.site a{font-weight:600}.backlinks{display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:1rem}
-@media (max-width:62rem){.layout{grid-template-columns:1fr}aside.toc{display:none}.tree{grid-template-columns:1fr}}
+@media (max-width:62rem){.layout{grid-template-columns:1fr}aside.toc{display:none}}
 """
 
 MERMAID_SCRIPT = ('<script type="module">import mermaid from '
@@ -149,10 +116,10 @@ MERMAID_SCRIPT = ('<script type="module">import mermaid from '
                   'try{await mermaid.run();}catch(e){console.error(e);}'
                   'window.remitInitPanzoom&&window.remitInitPanzoom();</script>')
 
-# Self-contained pan/zoom for the ER diagram boxes — no CDN, so it works on both
-# the in-browser Mermaid variant and the pre-rendered offline SVG variant.
-# Drag to pan, wheel to zoom toward the cursor, +/-/fit controls. Idempotent and
-# defers the initial fit until a box is actually visible (collapsed <details>).
+# Self-contained pan/zoom for the ER diagram boxes (no CDN of its own). Drag to
+# pan, wheel to zoom toward the cursor, +/-/fit controls; each entity box is
+# wrapped in an anchor to its #class-<Name> card. Idempotent, and defers the
+# initial fit until a box is actually visible (collapsed <details>).
 PANZOOM_SCRIPT = """<script>(function(){
 function size(svg){var vb=svg.viewBox&&svg.viewBox.baseVal;
  if(vb&&vb.width&&vb.height)return{w:vb.width,h:vb.height};
@@ -197,7 +164,7 @@ function setup(box){var svg=box.querySelector('svg');if(!svg||box.__pz)return;bo
  var hint=document.createElement('div');hint.className='pz-hint';hint.textContent='scroll to zoom \\u00b7 drag to pan \\u00b7 click a box to open it';box.appendChild(hint);
  if('ResizeObserver'in window){var ro=new ResizeObserver(function(){if(box.clientWidth&&box.clientHeight&&!box.__fit){box.__fit=1;fit();}});ro.observe(box);}
  if(box.clientWidth&&box.clientHeight){box.__fit=1;fit();}}
-function init(){document.querySelectorAll('.erd-svg,.erd').forEach(setup);}
+function init(){document.querySelectorAll('.erd').forEach(setup);}
 window.remitInitPanzoom=init;
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();</script>"""
@@ -233,7 +200,6 @@ def main():
     classes_by_mod = {k: [] for k in MODULE_ORDER}
     for n, c in classes.items():
         classes_by_mod.setdefault(module_of(c), []).append((n, c))
-    mod_label_of = {n: MODULE_LABEL.get(module_of(c), module_of(c)) for n, c in classes.items()}
 
     def range_cell(rng):
         if rng in class_names:
@@ -295,53 +261,17 @@ def main():
                 lines.append(f'  {n} {er_rel(s.required, s.multivalued, inl)} {s.range} : "{s.name}"')
         return "\n".join(lines)
 
-    # ---------- containment tree ----------
-    inlined_targets = set()
-    for n in classes:
-        for s in cls_slots(n):
-            if bool(s.inlined or s.inlined_as_list):
-                inlined_targets.add(s.range)
-    roots = [n for n in classes if n not in inlined_targets]
+    srcmap = {f"mod-{k}": mermaid_src([n for n, _ in classes_by_mod.get(k, [])])
+              for k in MODULE_ORDER if classes_by_mod.get(k)}
+    srcmap["overview"] = mermaid_src(list(class_names))
 
-    def subtree(name, ancestors, depth):
-        slots = cls_slots(name)
-        if not slots:
-            return ""
-        lis = []
-        for s in slots:
-            tgt = s.range
-            comp = bool(s.inlined or s.inlined_as_list)
-            edge = f'<span class="tk">{esc(s.name)}</span> <span class="tc">{card(s.required, s.multivalued)}</span> '
-            link = f'<a href="#class-{esc(tgt)}">{esc(tgt)}</a>'
-            if not comp:
-                lis.append(f'<li class="leaf">{edge}<span class="rk">→</span> {link} <span class="reftag">ref</span></li>')
-            elif tgt in ancestors or depth >= 7:
-                lis.append(f'<li class="leaf">{edge}{link} <span class="rk" title="recurses">↻</span></li>')
-            else:
-                sub = subtree(tgt, ancestors | {tgt}, depth + 1)
-                if sub:
-                    op = " open" if depth < 1 else ""
-                    lis.append(f"<li><details{op}><summary>{edge}{link}</summary>{sub}</details></li>")
-                else:
-                    lis.append(f'<li class="leaf">{edge}{link}</li>')
-        return "<ul>" + "".join(lis) + "</ul>"
+    ER_LEGEND = ('<p class="erd-legend"><b>—</b> contains (inlined) &nbsp;·&nbsp; <b>┈</b> references (by id) '
+                 '&nbsp;·&nbsp; <span class="cf">o{</span> many &nbsp;<span class="cf">||</span> one '
+                 '&nbsp;<span class="cf">o|</span> optional. Boxes outside the module are classes defined elsewhere.</p>')
 
-    forest = []
-    ordered_roots = [n for k in MODULE_ORDER for n, _ in classes_by_mod.get(k, []) if n in roots]
-    empty_msg = '<p class="empty">no nested objects</p>'
-    for n in ordered_roots:
-        sub = subtree(n, {n}, 0)
-        head = f'<a href="#class-{esc(n)}">{esc(n)}</a> <span class="modpill">{esc(mod_label_of[n])}</span>'
-        forest.append(
-            f'<div class="troot"><details open><summary>{head}</summary>'
-            f'{sub or empty_msg}</details></div>'
-        )
-    tree_section = ('<section id="structure"><div class="sec-head"><h2>Structure '
-                    '<span class="modcount">containment tree</span></h2>'
-                    '<p>Each root object expanded into what it <b>contains</b> (inlined), with '
-                    '<b>references</b> to other objects shown as <span class="reftag">ref</span> links. '
-                    'Field name and cardinality on each edge.</p></div>'
-                    f'<div class="tree">{"".join(forest)}</div></section>')
+    def mermaid_block(key):
+        return (f'<div class="erd"><div class="mermaid-wrap"><pre class="mermaid">{esc(srcmap[key])}</pre></div></div>'
+                f'{ER_LEGEND}')
 
     # ---------- enums ----------
     enum_cards, enum_links = [], []
@@ -376,33 +306,8 @@ def main():
                         f'<p>The serialisable object core, split into {len(MODULE_ORDER)} modules.</p></div>'
                         f'<div class="modgrid">{"".join(overview)}</div></section>')
 
-    # ---------- pre-render SVGs (offline, via the bundled Chromium) ----------
-    srcmap = {f"mod-{k}": mermaid_src([n for n, _ in classes_by_mod.get(k, [])])
-              for k in MODULE_ORDER if classes_by_mod.get(k)}
-    srcmap["overview"] = mermaid_src(list(class_names))
-    svgs = {}
-    try:
-        ip, op = "/tmp/remit-mmd-in.json", "/tmp/remit-mmd-out.json"
-        Path(ip).write_text(json.dumps(srcmap))
-        subprocess.run(["node", str(ROOT / "schema" / "render-mermaid.mjs"), ip, op],
-                       check=True, cwd=str(ROOT))
-        svgs = json.loads(Path(op).read_text())
-    except Exception as e:
-        print(f"warning: SVG pre-render failed ({e}); SVG variants will be empty", file=sys.stderr)
-
-    ER_LEGEND = ('<p class="erd-legend"><b>—</b> contains (inlined) &nbsp;·&nbsp; <b>┈</b> references (by id) '
-                 '&nbsp;·&nbsp; <span class="cf">o{</span> many &nbsp;<span class="cf">||</span> one '
-                 '&nbsp;<span class="cf">o|</span> optional. Boxes outside the module are classes defined elsewhere.</p>')
-
-    def svg_block(key):
-        return f'<div class="erd-svg">{svgs.get(key, "")}</div>{ER_LEGEND}' if svgs.get(key) else ""
-
-    def mermaid_block(key):
-        return (f'<div class="erd"><div class="mermaid-wrap"><pre class="mermaid">{esc(srcmap[key])}</pre></div></div>'
-                f'{ER_LEGEND}')
-
-    # ---------- module sections (structure block depends on variant) ----------
-    def module_sections(struct_fn):
+    # ---------- module sections (overview cards + per-module ER diagram + class cards) ----------
+    def module_sections():
         out = []
         for k in MODULE_ORDER:
             items = classes_by_mod.get(k, [])
@@ -410,17 +315,16 @@ def main():
                 continue
             extra = " · 20 enums" if k == "common" else ""
             cards = "".join(class_card(n, c) for n, c in items)
-            struct = struct_fn(k)
             out.append(
                 f'<section class="module" id="module-{k}"><div class="sec-head"><h2>{esc(MODULE_LABEL[k])} '
                 f'<span class="modcount">{len(items)} classes{extra}</span></h2>'
-                f'<p>{esc(mod_desc.get(k, ""))}</p></div>{struct}<div class="grid">{cards}</div></section>'
+                f'<p>{esc(mod_desc.get(k, ""))}</p></div>{mermaid_block(f"mod-{k}")}<div class="grid">{cards}</div></section>'
             )
         return "".join(out)
 
     # ---------- sidebar ----------
-    def sidebar(top_entry):
-        toc = [top_entry] if top_entry else []
+    def sidebar():
+        toc = ['<a class="flat" href="#overview">▤ Diagrams</a>']
         for k in MODULE_ORDER:
             items = classes_by_mod.get(k, [])
             if not items:
@@ -436,73 +340,34 @@ def main():
     lede = esc((sv.schema.description or "").strip().split("\n\n")[0])
     nclasses, nenums = len(class_names), len(enum_names)
 
-    def variant_banner(active):
-        chips = "".join(
-            f'<a class="{"active" if v == active else ""}" href="{v}.html">{esc(VARIANTS[v][0])}</a>'
-            for v in VARIANTS
-        )
-        return f'<div class="variant-banner"><b>Structure view:</b> {chips} <a href="./">compare ↗</a></div>'
+    diagram_section = (
+        '<section id="diagram"><div class="sec-head"><h2>Whole-model ER diagram</h2>'
+        '<p>Every typed association across the modules, drawn in your browser (Mermaid). '
+        'Scroll to zoom, drag to pan, click a box to jump to its class.</p></div>'
+        f'<details class="er"><summary>Show the {nclasses}-class diagram</summary>'
+        f'{mermaid_block("overview")}</details></section>'
+    )
 
-    def page(variant, top_section, struct_fn, mermaid_on, top_toc, panzoom_on=True):
-        return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>{title} — {esc(VARIANTS[variant][0])}</title>
+    doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title>
 <style>{CSS}</style></head><body>
 <header class="site"><a class="brand" href="../"><span>REMIT</span> · Data Model</a>
-<nav><a href="./">Compare</a><a href="#overview">Overview</a><a href="#enums">Enums</a><a href="../app/">App</a></nav></header>
+<nav><a href="#overview">Overview</a><a href="#diagram">Diagram</a><a href="#enums">Enums</a><a href="../app/">App</a></nav></header>
 <div class="hero"><div class="wrap"><p class="eyebrow">Generated reference · LinkML (DEC-57)</p>
-<h1>{title}</h1><p class="lede">{lede}</p>{variant_banner(variant)}
+<h1>{title}</h1><p class="lede">{lede}</p>
 <div class="stats"><span><b>{len(MODULE_ORDER)}</b> modules</span><span><b>{nclasses}</b> classes</span>
 <span><b>{nenums}</b> enums</span><span>JSON Schema &amp; TypeScript generated alongside</span></div></div></div>
-<div class="wrap layout">{sidebar(top_toc)}<main class="content">
-{overview_section}{top_section}{module_sections(struct_fn)}{enums_section}</main></div>
+<div class="wrap layout">{sidebar()}<main class="content">
+{overview_section}{diagram_section}{module_sections()}{enums_section}</main></div>
 <footer class="site"><div class="wrap"><div class="backlinks"><a href="../">← Home</a><a href="../app/">Walking skeleton</a><a href="../blog/">Blog</a></div>
 Generated from the modular LinkML schema under <code>schema/</code> by <code>schema/build-reference.py</code>.
 Cardinality: <code>1</code> required · <code>0..1</code> optional · <code>0..*/1..*</code> list.</div></footer>
-{PANZOOM_SCRIPT if panzoom_on else ""}{MERMAID_SCRIPT if mermaid_on else ""}</body></html>"""
-
-    none = lambda k: ""
-    diagram_toc_tree = '<a class="flat" href="#structure">▤ Structure tree</a>'
-    diagram_toc_erd = '<a class="flat" href="#overview">▤ Diagrams</a>'
-
-    pages = {
-        "tree": page("tree", tree_section, none, False, diagram_toc_tree, panzoom_on=False),
-        "erd-svg": page("erd-svg", f'<section id="diagram"><div class="sec-head"><h2>Whole-model ER diagram</h2>'
-                        f'<p>Every typed association across the modules. Pan / scroll.</p></div>{svg_block("overview")}</section>',
-                        lambda k: svg_block(f"mod-{k}"), False, diagram_toc_erd),
-        "erd-mermaid": page("erd-mermaid",
-                            '<section id="diagram"><div class="sec-head"><h2>Whole-model ER diagram</h2>'
-                            '<p>Rendered in your browser (Mermaid via CDN).</p></div>'
-                            f'<details class="er"><summary>Show the {nclasses}-class diagram</summary>{mermaid_block("overview")}</details></section>',
-                            lambda k: mermaid_block(f"mod-{k}"), True, diagram_toc_erd),
-        "tree-erd": page("tree-erd", tree_section, lambda k: svg_block(f"mod-{k}"), False, diagram_toc_tree),
-    }
+{PANZOOM_SCRIPT}{MERMAID_SCRIPT}</body></html>"""
 
     OUTDIR.mkdir(parents=True, exist_ok=True)
-    for v, doc in pages.items():
-        (OUTDIR / f"{v}.html").write_text(doc, encoding="utf-8")
+    (OUTDIR / "index.html").write_text(doc, encoding="utf-8")
 
-    # ---------- chooser index ----------
-    cards = "".join(
-        f'<a class="modcard" href="{v}.html"><h3>{esc(VARIANTS[v][0])}</h3><p>{esc(VARIANTS[v][1])}</p>'
-        f'<span class="n">open ↗</span></a>' for v in VARIANTS
-    )
-    index = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>{title} — choose a structure view</title>
-<style>{CSS}</style></head><body>
-<header class="site"><a class="brand" href="../"><span>REMIT</span> · Data Model</a>
-<nav><a href="../app/">App</a></nav></header>
-<div class="hero"><div class="wrap"><p class="eyebrow">Generated reference · LinkML (DEC-57)</p>
-<h1>{title}</h1><p class="lede">Same generated content, four ways to see the <b>structure</b>. Open each and pick one —
-the winner becomes the default and the rest are dropped.</p>
-<div class="stats"><span><b>{len(MODULE_ORDER)}</b> modules</span><span><b>{nclasses}</b> classes</span><span><b>{nenums}</b> enums</span></div></div></div>
-<div class="wrap"><section><div class="modgrid">{cards}</div></section></div>
-<footer class="site"><div class="wrap"><div class="backlinks"><a href="../">← Home</a></div>
-Comparison build — generated by <code>schema/build-reference.py</code>.</div></footer></body></html>"""
-    (OUTDIR / "index.html").write_text(index, encoding="utf-8")
-
-    print(f"wrote {OUTDIR.relative_to(ROOT)}/: index + {', '.join(VARIANTS)} "
-          f"({nclasses} classes, {nenums} enums, {len(roots)} tree roots, "
-          f"{len([k for k in svgs if svgs.get(k)])} SVGs)")
+    print(f"wrote {OUTDIR.relative_to(ROOT)}/index.html ({nclasses} classes, {nenums} enums)")
 
 
 if __name__ == "__main__":
