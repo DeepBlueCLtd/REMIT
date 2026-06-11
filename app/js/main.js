@@ -5,13 +5,14 @@
 
 import { ObjectStore, LogStore } from './stores/stores.js';
 import { createSeamServer, SeamClient } from './seam/seam.js';
-import { buildWorld, bandUnitFor, PLACES, GRID_W, GRID_H, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
+import { buildWorld, bandUnitFor, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
 import { planHandful, stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
 import { mountCapture } from './capture/capture.js';
 import { mountCompare } from './compare/compare.js';
 import { mountWingman } from './wingman/wingman.js';
 import { mountLearn } from './learn/learn.js';
-import { Playhead, makeMap, STRAT_COLORS } from './views/render.js';
+import { Playhead, STRAT_COLORS } from './views/render.js';
+import { makeMap } from './views/map.js';
 import { makeSyncMatrix } from './views/sync-matrix.js';
 import { buildEntities, syncCatalogue, satOverhead, coincidenceRules, coincidenceWindows } from './entities/entities.js';
 import { contentId, shortId } from './shapes/canonical.js';
@@ -63,8 +64,8 @@ const state = {
 /** @type {any} */ (window).__remit = { state, playhead, seam, objects };
 
 // --- projection surface (map + timeline + playhead) ------------------------
-const mapCanvas = /** @type {HTMLCanvasElement} */ (document.getElementById('map'));
-const map = makeMap(mapCanvas, world.baseline, null);
+const mapEl = /** @type {HTMLElement} */ (document.getElementById('map'));
+const map = makeMap(mapEl, world.baseline, world.ao, world.places);
 let mapTarget = null;
 let mapRv = null;
 let mapCandidates = null;   // candidate OPs shown on the map during Capture
@@ -122,7 +123,7 @@ function renderProjection() {
   const ghost = sel ? stateAt(sel, playhead.t) : null;
   if (sel && ghost) {
     readout.innerHTML =
-      `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${Math.round(ghost.x)},${Math.round(ghost.y)}</b>`
+      `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${ghost.h3 ? ghost.h3.slice(-6) : '—'}</b>`
       + ` · phase <b>${ghost.phase}</b> · fuel <b>${ghost.fuel_pct ?? '—'}%</b>`
       + ` <span class="sm-coincide" data-testid="sm-coincide">${coincidence}</span>`;
   } else if (state.handful.length) {
@@ -161,13 +162,9 @@ playhead.on((t) => {
 slider.addEventListener('pointerdown', () => pausePlayback?.());  // grabbing the scrubber pauses live play
 slider.addEventListener('input', () => playhead.set(Number(slider.value)));
 
-// Map clicks → cell coords, dispatched to the active handler (Plan no-go mode).
-mapCanvas.addEventListener('click', (e) => {
-  if (!mapOnCellClick || !worldProvisioned) return;
-  const r = mapCanvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - r.left) / r.width * GRID_W);
-  const y = Math.floor((e.clientY - r.top) / r.height * GRID_H);
-  if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H) mapOnCellClick({ x, y });
+// Map clicks → hex, dispatched to the active handler (Plan no-go mode).
+map.onCellClick((cell) => {
+  if (mapOnCellClick && worldProvisioned) mapOnCellClick(cell);
 });
 
 // --- drawers ---------------------------------------------------------------
@@ -306,7 +303,7 @@ function mountStage(key) {
       bandUnit: state.bandUnit,
       playhead,
       resetLog: () => logs.reset(MISSION_ID),
-      world: { cells: world.baseline.cells, grid: world.baseline.medium.grid, profile: world.profile },
+      world: { cells: world.baseline.cells, ao: world.ao, profile: world.profile },
       onObstructions(list) { mapObstructions = list.slice(); renderProjection(); },
       onBlocked(cells) { mapBlocked = cells; renderProjection(); },
       onComplete(summary) {
@@ -343,13 +340,13 @@ function mountWorld() {
     part of every plan's identity so plans built for different worlds can't be confused
     (DEC-48).</p>
     <ul class="fact-list">
-      <li>Area of operations: <b>${world.baseline.name}</b> · land · ${world.baseline.medium.grid.cell_m} m cells</li>
+      <li>Area of operations: <b>${world.baseline.name}</b> · land · H3 res ${world.baseline.medium.grid.res} hexes (~344 m)</li>
       <li>Conditions: <b>mobility</b> map (how fast each cell is to cross) → margin band unit <b>${state.bandUnit} min</b></li>
       <li data-testid="world-tide">Conditions: <b>tide</b> — semidiurnal, period ${TIDE.period_min} min; the
-          <b>K-7 ford</b> is wadeable only within ±${TIDE.open_half_width_min / 60} h of low tide.
-          At H+0 it is <b>${fordOpenAt(0) ? 'open' : 'closed'}</b>${fordOpenAt(0) ? '' : ` — opens H+${nextFordOpen(0)}`}
+          <b>tidal waths</b> are wadeable only within ±${TIDE.open_half_width_min / 60} h of low tide.
+          At H+0 they are <b>${fordOpenAt(0) ? 'open' : 'closed'}</b>${fordOpenAt(0) ? '' : ` — open H+${nextFordOpen(0)}`}
           (forecast changepoints, not surprises)</li>
-      <li>Own force: <b>${world.profile.name}</b> · ${world.profile.speed_by_medium.land_kph} km/h · start ${PLACES.base.name} (${world.state.position.x},${world.state.position.y})</li>
+      <li>Own force: <b>${world.profile.name}</b> · ${world.profile.speed_by_medium.land_kph} km/h · start ${world.places.base.name}</li>
       <li>Branding/view defaults stay out of the world's identity hash (DEC-48)</li>
     </ul>
     <div class="row">
@@ -369,7 +366,7 @@ function mountWorld() {
     worldProvisioned = true;
     // With the AO on the map, show the candidate OPs so Capture can point at
     // features it can see; the chosen target/RV are set when Capture commits.
-    mapCandidates = PLACES.ops;
+    mapCandidates = world.places.ops;
     renderProjection();
     el.querySelectorAll('button').forEach((n) => (n.disabled = true));
     /** @type {HTMLElement} */ (el.querySelector('#world-result')).innerHTML =
@@ -382,7 +379,7 @@ function mountWorld() {
 /** Capture is mounted on demand (after World), so the AO map is already shown. */
 function mountCaptureStage() {
   mountCapture(panel('capture'), {
-    seam,
+    seam, places: world.places,
     onPick(op) { mapHighlight = op; renderProjection(); },
     onCommitted(requirement, id) {
       state.requirement = requirement;
@@ -428,8 +425,8 @@ function mountPlan() {
   updateCount();
 
   const toggleCell = (cell) => {
-    const i = mapNogo.findIndex((c) => c.x === cell.x && c.y === cell.y);
-    if (i >= 0) mapNogo.splice(i, 1); else mapNogo.push(cell);
+    const i = mapNogo.findIndex((c) => c.h3 === cell.h3);
+    if (i >= 0) mapNogo.splice(i, 1); else mapNogo.push({ h3: cell.h3 });
     updateCount();
     renderProjection();
   };
@@ -443,13 +440,14 @@ function mountPlan() {
   });
 
   el.querySelector('#plan-run')?.addEventListener('click', async () => {
-    state.steering = mapNogo.length ? [{ type: 'no-go', cells: mapNogo.map((c) => ({ x: c.x, y: c.y })) }] : [];
+    state.steering = mapNogo.length ? [{ type: 'no-go', cells: mapNogo.map((c) => ({ h3: c.h3 })) }] : [];
     const body = {
       requirement: state.requirement, requirement_version: state.ids.requirement,
       baseline: world.baseline, baseline_version: state.ids.baseline,
       profile: world.profile, profile_version: state.ids.profile,
       state: world.state, config_core: state.configCoreHash,
       appetites: state.appetites, steering: state.steering, strategy_seed: STRATEGY_SEED,
+      ao: world.ao,
     };
     state.lastPlanRequest = body;
     const res = await seam.planHandful(body);

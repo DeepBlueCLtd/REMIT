@@ -1,0 +1,129 @@
+// @ts-check
+// views/map.js — the map projection (DEC-24, NF1) on the H3 hex grid (ADR-0012): a
+// MapLibre basemap with a deck.gl overlay (H3HexagonLayer terrain + PathLayer routes +
+// markers/ghost). Projects the kernel's materialisation through its evaluator (`stateAt`);
+// never re-derives. Sets data-* attributes on the container for the e2e suite.
+
+import 'maplibre-gl/dist/maplibre-gl.css';
+import maplibregl from 'maplibre-gl';
+import { MapboxOverlay } from '@deck.gl/mapbox';
+import { H3HexagonLayer } from '@deck.gl/geo-layers';
+import { PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
+import { TERRAIN, fordOpenAt, AO_BOUNDS } from '../kernel/world.js';
+import { stateAt } from '../kernel/kernel.js';
+import { latLngToId } from '../kernel/hexgrid.js';
+import { STRAT_COLORS } from './render.js';
+
+const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const STRAT_RGB = Object.fromEntries(Object.entries(STRAT_COLORS).map(([k, v]) => [k, rgb(v)]));
+// A blank dark style keeps the map's transform valid in every environment (external
+// basemap tiles are blocked in cloud sessions, and an unloaded style leaves deck.gl
+// without a viewport). A real Carto/MapLibre basemap can layer on later behind a load
+// guard; the synthetic terrain hexes are the substance.
+const BLANK_STYLE = { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#0b0f14' } }] };
+const shortH3 = (h) => h.slice(-6);
+
+/**
+ * @param {HTMLElement} el  the #map container
+ * @param {any} baseline
+ * @param {any} ao  the hex AO
+ * @param {any} places  resolved named places (base/ops/rv/...)
+ */
+export function makeMap(el, baseline, ao, places) {
+  const cells = baseline.cells;
+  const llById = (id) => [ao.centers[id][1], ao.centers[id][0]];   // [lng,lat]
+  const idOfH3 = (h3) => ao.idOf.get(h3);
+  const hexTerrain = ao.indexes.map((h3, id) => ({ h3, id, terrain: cells[id].terrain }));
+
+  const map = new maplibregl.Map({
+    container: el, style: BLANK_STYLE,
+    bounds: AO_BOUNDS, fitBoundsOptions: { padding: 8 }, attributionControl: false,
+  });
+  map.on('error', () => {});
+  const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
+  map.addControl(overlay);
+
+  let clickFn = null;
+  map.on('click', (e) => {
+    if (!clickFn) return;
+    const id = latLngToId(ao, e.lngLat.lat, e.lngLat.lng);
+    if (id !== undefined) clickFn({ h3: ao.indexes[id], id });
+  });
+
+  const idOf = (o) => (o == null ? undefined : (o.id ?? ao.idOf.get(o.h3)));
+
+  function buildLayers(opts) {
+    const { plans = [], selected = null, t = 0, target = null, rv = null,
+            candidates = null, highlight = null, obstructions = [], nogo = [], blocked = [] } = opts;
+    const fordOpen = fordOpenAt(t);
+    const nogoIds = [...new Set(nogo.map(idOf).filter((x) => x !== undefined))];
+    const blockedIds = [...new Set(blocked.map(idOf).filter((x) => x !== undefined))];
+
+    const terrainColor = (d) => {
+      if (d.terrain === 'ford') { const c = rgb(fordOpen ? TERRAIN.ford.color : TERRAIN.water.color); return [c[0], c[1], c[2], 235]; }
+      const c = rgb(TERRAIN[d.terrain].color); return [c[0], c[1], c[2], d.terrain === 'water' ? 230 : 215];
+    };
+
+    const layers = [
+      new H3HexagonLayer({
+        id: 'terrain', data: hexTerrain, getHexagon: (d) => d.h3, getFillColor: terrainColor,
+        updateTriggers: { getFillColor: [fordOpen] }, highPrecision: true, getLineColor: [255, 255, 255, 18],
+        lineWidthMinPixels: 1, stroked: true, filled: true, extruded: false, pickable: false,
+      }),
+    ];
+    if (nogoIds.length) layers.push(new H3HexagonLayer({ id: 'nogo', data: nogoIds, getHexagon: (id) => ao.indexes[id], highPrecision: true, getFillColor: [255, 123, 114, 90], getLineColor: [255, 123, 114, 210], lineWidthMinPixels: 1, stroked: true, filled: true }));
+    if (blockedIds.length) layers.push(new H3HexagonLayer({ id: 'blocked', data: blockedIds, getHexagon: (id) => ao.indexes[id], highPrecision: true, getFillColor: [255, 123, 114, 150], getLineColor: [255, 123, 114, 255], lineWidthMinPixels: 2, stroked: true, filled: true }));
+
+    // Routes — non-selected faint, selected bold (or all bold in compare mode).
+    const path = (p) => p.materialisation.trajectory.map((q) => [q.lng, q.lat]);
+    for (const p of plans) {
+      if (!p.materialisation) continue;
+      const isSel = selected && p.id === selected.id;
+      const base = STRAT_RGB[p.strategy.key] || [200, 200, 200];
+      layers.push(new PathLayer({
+        id: 'route-' + p.strategy.key, data: [p], getPath: path,
+        getColor: selected && !isSel ? [base[0], base[1], base[2], 110] : base,
+        getWidth: isSel ? 3.6 : (selected ? 2 : 3), widthUnits: 'pixels', capRounded: true, jointRounded: true,
+      }));
+    }
+
+    // Markers.
+    const dot = (o, color, r) => ({ pos: llById(idOf(o)), color, r });
+    const marks = [dot(places.base, [235, 240, 245], 90)];
+    if (candidates) for (const c of candidates) marks.push(dot(c, highlight && highlight.h3 === c.h3 ? [255, 123, 114] : [200, 210, 220], 80));
+    if (target) marks.push(dot(target, [255, 123, 114], 95));
+    if (rv) marks.push(dot(rv, [227, 179, 65], 95));
+    layers.push(new ScatterplotLayer({ id: 'marks', data: marks.filter((m) => m.pos), getPosition: (d) => d.pos, getFillColor: (d) => d.color, getRadius: (d) => d.r, radiusUnits: 'meters', stroked: true, getLineColor: [8, 12, 18], lineWidthMinPixels: 1.5 }));
+    if (candidates) layers.push(new TextLayer({ id: 'cand-labels', data: candidates, getPosition: (c) => llById(idOf(c)), getText: (c) => c.key ?? '', getColor: [235, 240, 245], getSize: 12, getPixelOffset: [0, -15], outlineWidth: 2, outlineColor: [8, 12, 18, 255], fontWeight: 700 }));
+
+    // Vehicle ghost(s).
+    const ghosts = [];
+    if (selected) { const g = stateAt(selected, t); if (g) ghosts.push({ pos: [g.lng, g.lat], color: STRAT_RGB[selected.strategy.key] || [68, 147, 248], r: 150 }); }
+    else for (const p of plans) { if (!p.materialisation) continue; const g = stateAt(p, t); if (g) ghosts.push({ pos: [g.lng, g.lat], color: STRAT_RGB[p.strategy.key] || [230, 237, 243], r: 110 }); }
+    if (ghosts.length) layers.push(new ScatterplotLayer({ id: 'ghost', data: ghosts, getPosition: (d) => d.pos, getFillColor: (d) => d.color, getRadius: (d) => d.r, radiusUnits: 'meters', stroked: true, getLineColor: [13, 17, 23], lineWidthMinPixels: 2 }));
+
+    // Obstruction markers (✕) at lat/lng.
+    if (obstructions.length) layers.push(new TextLayer({ id: 'obstructions', data: obstructions, getPosition: (o) => [o.lng, o.lat], getText: () => '✕', getColor: [255, 123, 114], getSize: 22, fontWeight: 700, outlineWidth: 2, outlineColor: [8, 12, 18, 255] }));
+
+    return layers;
+  }
+
+  function setData(opts) {
+    const { selected = null, t = 0, plans = [], highlight = null, nogo = [], blocked = [], obstructions = [] } = opts;
+    el.dataset.fordState = fordOpenAt(t) ? 'open' : 'closed';
+    if (selected) { const g = stateAt(selected, t); el.dataset.ghost = g ? `${g.lng.toFixed(4)},${g.lat.toFixed(4)},${g.phase}` : ''; }
+    else el.dataset.ghost = plans.filter((p) => p.materialisation).map((p) => { const g = stateAt(p, t); return g ? `${p.strategy.key}:${g.lng.toFixed(4)},${g.lat.toFixed(4)}` : ''; }).filter(Boolean).join('|');
+    el.dataset.highlight = highlight ? shortH3(highlight.h3) : '';
+    el.dataset.nogo = nogo.map((c) => shortH3(c.h3)).join('|');
+    el.dataset.blocked = blocked.map((c) => shortH3(c.h3 ?? ao.indexes[c.id ?? c])).join('|');
+    el.dataset.obstructions = obstructions.map((o) => shortH3(o.h3)).join('|');
+  }
+
+  return {
+    render(opts = {}) {
+      overlay.setProps({ layers: buildLayers(opts) });   // overlaid deck renders without the basemap
+      setData(opts);
+    },
+    onCellClick(fn) { clickFn = fn; },
+  };
+}

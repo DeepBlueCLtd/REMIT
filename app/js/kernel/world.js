@@ -12,6 +12,9 @@
 import { latLngToCell, gridPathCells, gridDisk } from 'h3-js';
 import { buildHexAO, H3_RES } from './hexgrid.js';
 
+/** MapLibre bounds [[west,south],[east,north]] framing the AO (for the map view). */
+export const AO_BOUNDS = [[-3.215, 54.918], [-2.985, 55.000]];
+
 /** Per-terrain attributes: mobility = speed factor (0 = impassable), cover 0..1.
  *  `ford` is tidal: passable at this mobility only inside the low-tide window
  *  (see TIDE below); outside it the kernel treats it as water. */
