@@ -1,0 +1,135 @@
+# records.yaml — GENERATED MODULE of the REMIT data model.
+# Part of schema/remit.yaml (the entry schema). Edit here, then run schema/generate.sh.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit/records
+name: remit-records
+title: REMIT — records
+description: 'The decision and execution record: SelectionRationale and the append-only ExecutionLog (DEC-23/25/26).'
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+- common
+classes:
+  SelectionRationale:
+    description: 'The record of a choice (DEC-23): which plan won, which it beat, on which axis, with the after-mitigation bands, and who decided. Content-addressed.'
+    attributes:
+      id:
+        identifier: true
+        description: content id of the canonical form (DEC-35)
+      chosen:
+        range: Plan
+        inlined: false
+        description: the winning plan
+      beaten:
+        range: Plan
+        multivalued: true
+        inlined: false
+        description: the field it beat
+      deciding_axis:
+        description: '"what tipped it — e.g. time/speed, exposure, robustness, completeness"'
+      note:
+        description: the justification narrative
+      appetites:
+        range: Appetite
+        multivalued: true
+        inlined_as_list: true
+        description: the risk-appetite selections at the time
+      mitigations:
+        multivalued: true
+        description: '"e.g. armed-escort"'
+      chosen_bands:
+        range: ChosenBands
+        inlined: true
+        description: cost/robustness bands after mitigations
+      by: {}
+      role:
+        description: '"e.g. implementer"'
+      at:
+        range: datetime
+  ChosenBands:
+    attributes:
+      cost:
+        range: Band
+      rob:
+        range: Band
+  ExecutionLog:
+    description: 'The append-only live history of a mission (DEC-23/25/26): alerts when a band is crossed, observations that update truth, waivers, and replans — never overwritten. Together with rationales and stamps it gives a complete after-action record with perfect replay (F1).'
+    attributes:
+      entries:
+        range: LogEntry
+        multivalued: true
+        inlined_as_list: true
+  LogEntry:
+    abstract: true
+    description: Base of the append-only execution log; the store stamps each with a `seq`.
+    attributes:
+      kind:
+        range: LogEntryKind
+        required: true
+      seq:
+        range: integer
+        description: 0-indexed sequence, stamped on append
+      at:
+        range: integer
+        description: mission minutes
+  Alert:
+    is_a: LogEntry
+    description: A band crossing or hard-infeasibility raised during execution (E3).
+    attributes:
+      cause:
+        range: AlertCause
+        inlined: true
+  AlertCause:
+    attributes:
+      type:
+        range: AlertCauseType
+        required: true
+      commitment:
+        description: the phased commitment being tracked (e.g. "observe", "exfil")
+      from:
+        description: the prior band state
+      to:
+        description: the new band state
+  Observation:
+    is_a: LogEntry
+    description: A fact delta appended to the baseline's fact layer (E5).
+    attributes:
+      fact_delta:
+        range: FactDelta
+        inlined: true
+      source:
+        description: '"e.g. operator"'
+      confidence:
+        description: '"e.g. reported"'
+  FactDelta:
+    attributes:
+      note: {}
+      tag:
+        description: '"e.g. track-state, sighting, weather"'
+  Waiver:
+    is_a: LogEntry
+    description: A relaxed commitment, attributed (B3). Not yet logged in the v1 skeleton.
+    attributes:
+      commitment_id:
+        range: Commitment
+        inlined: false
+      by: {}
+      authority: {}
+      rationale: {}
+  Replan:
+    is_a: LogEntry
+    description: A move from one committed plan to another, with rationale (DEC-36). Not yet logged in the v1 skeleton.
+    attributes:
+      from:
+        range: Plan
+        inlined: false
+      to:
+        range: Plan
+        inlined: false
+      rationale_ref:
+        range: SelectionRationale
+        inlined: false

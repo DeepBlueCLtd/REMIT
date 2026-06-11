@@ -1,0 +1,51 @@
+# entities.yaml — GENERATED MODULE of the REMIT data model.
+# Part of schema/remit.yaml (the entry schema). Edit here, then run schema/generate.sh.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit/entities
+name: remit-entities
+title: REMIT — entities
+description: 'Located things with identity, projected across views: Entity and its time-varying Aspects (DEC-52/53).'
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+- common
+classes:
+  Entity:
+    description: 'Anything located with an identity — yourself, an actor, a feature, a phenomenon (DEC-52). Where a Channel is a field, an Entity is a thing, projected across synchronised views. To affect the plan it is *cast* to a Channel or Commitment (actor → moving risk channel; window → timing commitment); in v1 entities are display-only. Skeleton note: aspects are keyed by name in an object (phase/fuel/height/pass); modelled here as a list of named Aspects.'
+    attributes:
+      id:
+        identifier: true
+        description: e.g. "ent-self", "ent-tide", "ent-sat"
+      label: {}
+      kind:
+        description: 'conceptual kind (DEC-52) — one of: self, actor, feature, phenomenon. Optional; the skeleton folds this into provenance.kind. A documented string rather than an enum (see the AspectType note).'
+      provenance:
+        range: DataProvenance
+        inlined: true
+      aspects:
+        range: Aspect
+        multivalued: true
+        inlined_as_list: true
+  Aspect:
+    description: One facet of an entity, over time (DEC-52/53) — its position, an altitude, a timing window, an up/down status — rendered onto a shared axis by a view. Its value `f(t)` is behaviour, evaluated across the seam, and is not a data slot; the render-type, unit and bounds *are* data.
+    attributes:
+      name:
+        identifier: true
+        description: e.g. "phase", "fuel", "height", "pass"
+      type:
+        range: AspectType
+        required: true
+      unit:
+        description: unit for scalar aspects (e.g. "%")
+      domain:
+        range: float
+        multivalued: true
+        description: '"[min, max] bounds for scalar aspects"'
+      channel_ref:
+        range: Channel
+        inlined: false
+        description: the source channel, if any

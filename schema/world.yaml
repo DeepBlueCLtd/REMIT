@@ -1,0 +1,220 @@
+# world.yaml — GENERATED MODULE of the REMIT data model.
+# Part of schema/remit.yaml (the entry schema). Edit here, then run schema/generate.sh.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit/world
+name: remit-world
+title: REMIT — world
+description: 'The world the plan moves through: baseline, channels, movement, excursions, effects (DEC-7/19/20/21).'
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+- common
+classes:
+  Baseline:
+    description: 'The world as known truth (DEC-7/20/28): a medium (land/sea/air grid) carrying channels and per-cell attributes, plus a single fact layer that observations append to. Immutable and versioned; the kernel always evaluates baseline ⊕ excursion ⊕ plan-effects-to-date (DEC-19).'
+    attributes:
+      id:
+        identifier: true
+        description: content id of the canonical form (DEC-35)
+      name: {}
+      version:
+        range: integer
+      medium:
+        range: Medium
+        inlined: true
+      cells:
+        range: Cell
+        multivalued: true
+        inlined_as_list: true
+        description: the grid cells (skeleton, row-major)
+      channels:
+        range: Channel
+        multivalued: true
+        inlined_as_list: true
+      facts:
+        range: FactLayer
+        inlined: true
+        description: the one truth; observations append here
+      forecast_changepoints:
+        range: Changepoint
+        multivalued: true
+        inlined_as_list: true
+        description: when the world is expected to shift
+      lineage:
+        range: Lineage
+        inlined: true
+  Changepoint:
+    description: A forecast time at which a channel is expected to shift (e.g. a tidal ford opening) (DEC-21).
+    attributes:
+      at_min:
+        range: integer
+        description: mission minutes
+      channel:
+        range: Channel
+        inlined: false
+        description: the channel that shifts
+      change:
+        description: what changes, in words
+  Medium:
+    description: The domain, grid and cell-attribute schema of a baseline (DEC-20/28).
+    attributes:
+      domain:
+        range: Domain
+        required: true
+      grid:
+        range: Grid2D
+        inlined: true
+      cell_attrs:
+        multivalued: true
+        description: the names of the per-cell attributes carried (e.g. mobility, cover)
+  Grid2D:
+    attributes:
+      w:
+        range: integer
+        required: true
+      h:
+        range: integer
+        required: true
+      cell_m:
+        range: integer
+        description: cell edge length, in metres
+  Cell:
+    description: One grid cell's attributes (skeleton mobility raster).
+    attributes:
+      terrain:
+        range: Terrain
+      mobility:
+        range: float
+        description: 0–1 speed factor (0 = impassable)
+      cover:
+        range: float
+        description: 0–1 concealment
+  Channel:
+    description: A field over space and time — tide, cloud, risk, mobility (DEC-19/21). Its values are conceptually `f(cell, t)`, however realised; that function is resolved across the seam (DEC-49) and is *not* a data slot here. For parametric/periodic channels the realising parameters (`params`) *are* data and are modelled.
+    attributes:
+      id:
+        identifier: true
+        description: e.g. "tide", "mobility"
+      domain_type:
+        description: what the field measures, e.g. "water_level", "speed_factor"
+      realisation:
+        range: Realisation
+      confidence:
+        range: ConfidenceLevel
+      freshness: {}
+      sampling_step_min:
+        range: integer
+        description: sampling cadence (tide coarse, cloud fine) (DEC-21)
+      predictability:
+        range: Predictability
+      params:
+        range: ChannelParams
+        inlined: true
+        description: realising parameters for parametric channels
+  ChannelParams:
+    description: Parameters of a parametric/periodic channel — e.g. the skeleton's tidal ford (ADR-0006).
+    attributes:
+      period_min:
+        range: integer
+      low_tide_min:
+        range: integer
+        description: first low tide, in mission minutes
+      open_half_width_min:
+        range: integer
+        description: ±minutes around low tide the ford is wadeable
+      applies_to:
+        description: the cell/feature the params apply to (e.g. the ford alias)
+  FactLayer:
+    description: The single truth layer; observations append here (E5). Collapses excursions and forecast entities over time.
+    attributes:
+      observations:
+        range: Observation
+        multivalued: true
+        inlined_as_list: true
+  MovementModel:
+    description: 'Per-domain cost of travel, and anisotropic — a property of the edge between cells, not the cell (DEC-49/34): slope-along-direction on land, current/wind vectors at sea and in air. Its cost function `cost_speed = f(cell→cell, t, profile)` is behaviour, resolved across the seam — only `domain` and `realisation` are data here. Not yet implemented in the v1 skeleton.'
+    attributes:
+      domain:
+        range: Domain
+      realisation:
+        range: Realisation
+        description: '"parametric(type, params) | provider"'
+  Excursion:
+    description: A named, versioned set of deltas layered on a baseline — "what if the weather turns?" — without disturbing the underlying truth (DEC-7). Not yet implemented in the v1 skeleton.
+    attributes:
+      id:
+        identifier: true
+      name: {}
+      version:
+        range: integer
+      base:
+        range: Baseline
+        inlined: false
+        description: the baseline version it sits on
+      delta:
+        range: ChannelDelta
+        multivalued: true
+        inlined_as_list: true
+  ChannelDelta:
+    description: 'How the world is edited (DEC-34): a parametric delta (time-shift, scale, mask) from a pluggable registry, or a raw cell patch (the escape hatch). Not yet implemented in the v1 skeleton.'
+    attributes:
+      kind:
+        description: '"parametric | cell_patch"'
+      type:
+        description: the parametric delta type (registry) — when kind = parametric
+      params:
+        description: parameters for the parametric delta
+      patches:
+        range: CellPatch
+        multivalued: true
+        inlined_as_list: true
+        description: raw (cell, t, value) patches — when kind = cell_patch
+  CellPatch:
+    attributes:
+      x:
+        range: integer
+      y:
+        range: integer
+      t:
+        range: integer
+        description: mission minutes
+      value:
+        description: the patched value
+  Effect:
+    description: A delta a plan's activity applies from a point in time (DEC-19/34) — a ChannelDelta or a self-state delta. Referenced from Activity.effects; always empty in the v1 skeleton.
+    attributes:
+      source_plan:
+        range: Plan
+        inlined: false
+      source_activity:
+        description: the activity that applies the effect
+      active_from:
+        range: integer
+        description: mission minutes
+      delta:
+        range: ChannelDelta
+        inlined: true
+  AOPackage:
+    description: Everything provisioned for an Area of Operations, packaged ready to plan against (DEC-11/12/52). Not yet assembled as one object in the v1 skeleton.
+    attributes:
+      baseline_versions:
+        range: Baseline
+        multivalued: true
+        inlined: false
+      excursions:
+        range: Excursion
+        multivalued: true
+        inlined: false
+      profiles:
+        range: Profile
+        multivalued: true
+        inlined: false
+      entities:
+        range: Entity
+        multivalued: true
+        inlined: false
+        description: located things to display

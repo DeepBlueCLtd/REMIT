@@ -27,6 +27,9 @@ need a value.
 | Coincidence rules (H1-lite) | `coincidenceRules()` in `entities.js`: imagery (observe ∧ sat, H+51–69) · dry-crossing (exfil ∧ ford open, H+88–95) · open-ford-pass (sat ∧ ford open, H+146–164, plan-free). Advisory only. |
 | Unit tests | `npm run test:unit` → `node --test "test/**/*.test.mjs"`; golden kernel fixtures in `test/kernel.golden.test.mjs` (pinned plan ids — regenerate deliberately) |
 | e2e CI | `.github/workflows/e2e.yml` — Playwright suite on every PR / push to main |
+| Data model (LinkML) | **Source of truth:** modular LinkML under `schema/` — modules `common`/`requirement`/`world`/`force`/`entities`/`plan`/`records`, stitched by the entry `schema/remit.yaml` (generators run on the entry; modules import only `common`, cross-module refs resolve at the merge). Generated, never hand-edited: `schema/gen/remit.schema.json`, `schema/gen/remit.ts`, `site/data-model/index.html`. No Pydantic yet. |
+| Regenerate data model | `bash schema/generate.sh` — bootstraps a LinkML venv (`LINKML_VENV`, default `/tmp/linkml-venv`) and writes all derived artefacts. LinkML must be in a venv (distro pip fails — see bugs.md). |
+| Data-model reference | `https://deepbluecltd.github.io/REMIT/data-model/` — generated single-page reference (classes/fields/enums + ER diagram); replaces the former hand-authored tour. |
 
 _Pages URLs resolve once GitHub Pages is enabled (served from `gh-pages`). Add
 anything else worth remembering (service URLs, IDs, constants) as it comes up._

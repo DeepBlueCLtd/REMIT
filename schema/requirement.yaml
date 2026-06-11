@@ -1,0 +1,189 @@
+# requirement.yaml — GENERATED MODULE of the REMIT data model.
+# Part of schema/remit.yaml (the entry schema). Edit here, then run schema/generate.sh.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit/requirement
+name: remit-requirement
+title: REMIT — requirement
+description: 'The requirement and the promises in it: Requirement -> Commitment -> Activity (DEC-5/16/17/18).'
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+- common
+classes:
+  CommitmentProvenance:
+    description: A commitment's ownership and waiver authority (B3).
+    attributes:
+      issuing_role: {}
+      authority: {}
+      owner: {}
+      waiver_authority:
+        description: who may waive this commitment
+      expiry:
+        range: datetime
+      rationale: {}
+  Requirement:
+    description: 'The command''s narrative intent, owned as a versioned immutable object (DEC-5/18). Amend it and you get a new version with lineage — the original stands. Content-addressed: its id is the hash of its canonical form.'
+    attributes:
+      id:
+        identifier: true
+        description: content id (sha256:…) of the canonical form (DEC-35)
+      version:
+        range: integer
+        description: amendment → new version (B5)
+      intent:
+        required: true
+        description: the command's narrative, in their words
+      provenance:
+        range: Attribution
+        inlined: true
+        description: issuing role/authority + time
+      commitments:
+        range: Commitment
+        multivalued: true
+        inlined_as_list: true
+        description: the promises it decomposes into
+      lineage:
+        range: Lineage
+        inlined: true
+  Commitment:
+    description: One thing the plan must achieve (DEC-16/17/22). Either hard (must hold) or soft with a priority. Carries the negotiated contract text and any unresolved ambiguities, and walks a lifecycle of states.
+    attributes:
+      id:
+        identifier: true
+        description: e.g. "cmt-1"
+      activity:
+        range: Activity
+        inlined: true
+        required: true
+      criticality:
+        range: Criticality
+        required: true
+      provenance:
+        range: CommitmentProvenance
+        inlined: true
+      capture:
+        range: Capture
+        inlined: true
+        description: the negotiated contract record (DEC-17)
+      state:
+        range: CommitmentState
+  Capture:
+    description: The negotiation record behind a commitment — answers, the canonical contract text, open ambiguities (DEC-17).
+    attributes:
+      answers:
+        range: Answer
+        multivalued: true
+        inlined_as_list: true
+      echo_back:
+        description: the canonical contract text read back to the operator
+      ambiguities:
+        range: Ambiguity
+        multivalued: true
+        inlined_as_list: true
+        description: resolvable-later
+  Answer:
+    attributes:
+      slot:
+        description: which question slot
+      value: {}
+      status:
+        range: AnswerStatus
+      by: {}
+      at:
+        range: datetime
+  Ambiguity:
+    attributes:
+      question: {}
+      status:
+        range: AmbiguityStatus
+      consequence:
+        description: what hinges on resolving it
+  Activity:
+    description: The verb of a commitment — visit, loiter, avoid, transit, maintain (DEC-16/21). `where` is a Waypoint or a boolean predicate over map cells (DEC-33); `when` is a window, before/after, or recurring. Always inlined in its Commitment (no independent identity).
+    attributes:
+      type:
+        range: ActivityType
+        required: true
+      where:
+        range: Waypoint
+        inlined: true
+        description: the location — a map cell (skeleton uses {x, y, alias})
+      where_predicate:
+        range: CellPredicate
+        inlined: true
+        description: alternative to `where` — a boolean predicate tree over cells (DEC-33)
+      when:
+        range: TimingConstraint
+        inlined: true
+      duration:
+        range: DurationBound
+        inlined: true
+      modifiers:
+        range: ActivityModifiers
+        inlined: true
+      effects:
+        range: Effect
+        multivalued: true
+        inlined_as_list: true
+        description: '"v1: self-state delta / persistent marker (always empty in the skeleton)"'
+      outcome_model:
+        description: '"v1: boolean | duration; pluggable (probabilistic = H3)"'
+      relevant_channels:
+        range: Channel
+        multivalued: true
+        inlined: false
+        description: channel ids to sample / trigger on (DEC-21)
+  CellPredicate:
+    description: 'A boolean tree over map cells (DEC-33): an atom, or and/or/not of sub-predicates. Atoms are a pluggable registry (land-cover, elevation, slope, static-LOS, near(feature, dist)). Conceptual — the skeleton uses Waypoints only.'
+    attributes:
+      op:
+        description: '"atom | and | or | not"'
+      atom:
+        description: the atom name when op = atom (e.g. land-cover, slope)
+      params:
+        description: atom parameters
+      children:
+        range: CellPredicate
+        multivalued: true
+        inlined_as_list: true
+        description: sub-predicates for and/or/not
+  TimingConstraint:
+    description: When an activity must happen — exactly one form is used (DEC-16).
+    attributes:
+      window:
+        range: TimeWindow
+        inlined: true
+        description: an absolute or anchored interval
+      before_min:
+        range: integer
+        description: deadline, in mission minutes
+      after_min:
+        range: integer
+        description: earliest start, in mission minutes
+      recurring:
+        description: '"recurring(period, anchor) — conceptual"'
+  TimeWindow:
+    attributes:
+      start_min:
+        range: integer
+      end_min:
+        range: integer
+  DurationBound:
+    attributes:
+      min_min:
+        range: integer
+        description: minimum dwell, in minutes
+      max_min:
+        range: integer
+  ActivityModifiers:
+    attributes:
+      stationary:
+        range: boolean
+      be_at_role:
+        description: '"entry | exit | visit"'
+      after:
+        description: sequencing — id of a commitment this must follow (e.g. "cmt-1")
