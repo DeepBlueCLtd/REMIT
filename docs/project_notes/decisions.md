@@ -204,3 +204,73 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
 - **Trade-offs:** rules are hand-authored demo set-pieces (NF9-honest); the scan is
   1-min resolution (fine for advisory). Both shipped rules need a selected COA
   (self.phase), so windows appear from Views on, not the World step.
+
+## ADR-0010 (2026-06-11) — Dependency policy: minimise, don't prohibit (maintainer-approved)
+
+- **Context:** ADR-0005 shipped the skeleton as no-build ES modules with effectively zero
+  runtime dependencies, and `CLAUDE.md` described the app as having "zero external
+  dependencies". The H3 hex-grid migration (ADR-0012) needs correct H3 maths and a real map
+  renderer; hand-rolling either is large, bug-prone, and off the project's value. The
+  maintainer clarified the intent: dependencies are not forbidden — they should be
+  **minimised**, and each addition is **approval-gated**.
+- **Decision:** runtime dependencies are permitted where they give a clear
+  development/maintenance benefit over hand-rolling, **subject to explicit maintainer
+  approval**. "Zero dependencies" is no longer an invariant; "minimise, justify, approve" is.
+  First approved set (ADR-0011/0012): `h3-js` (indexing/neighbours/hierarchy), `maplibre-gl`
+  + `@deck.gl/*` (map + hex rendering), `vite` (build, dev-only).
+- **Options considered:** (a) keep zero-dependency, hand-roll H3 + a hex renderer — rejected:
+  re-implementing H3 grid maths and a WebGL map is large and error-prone; (b) allow deps
+  freely — rejected: erodes the small, auditable surface; (c) minimise + approval-gate — chosen.
+- **Consequences:** new deps are listed and justified in the PR and recorded here on approval;
+  `package-lock.json` pins exact versions; kernel modules stay dependency-light (only `h3-js`,
+  Node-importable) so the browser-free `node --test` suite still runs. Relaxes ADR-0005's
+  spirit; `CLAUDE.md` updated to match.
+
+## ADR-0011 (2026-06-11) — Adopt a Vite build step (revisits ADR-0005)
+
+- **Context:** ADR-0005 chose no-build ES modules to keep the PR-preview demo decoupled from
+  build machinery, naming DEC-57 (generated TS types) as the natural revisit point. The H3
+  migration (ADR-0012) pulls in `maplibre-gl` and `@deck.gl/*` — large ESM packages with
+  bare-specifier imports and submodules, impractical to serve un-bundled. An earlier-than-
+  expected but warranted revisit.
+- **Decision:** adopt **Vite**. `pages.config.yml` already drives an optional build in both
+  workflows, so the change is config, not workflow code: `build_command: "npm ci && npm run
+  build"`, `dist_dir: "dist"`, `app_path: "app"` (unchanged). Vite is rooted at `app/`, builds
+  to `dist/`, with **`base: './'`** so one bundle resolves under `/REMIT/app/` (deploy) and
+  `/REMIT/pr-preview/pr-<n>/` (preview).
+- **Options considered:** (a) stay no-build, load deck.gl/maplibre via CDN/import-map —
+  rejected: runtime CDN dependency + fragile submodule resolution; (b) vendor pre-built bundles
+  — rejected: heavy committed blobs, manual versioning; (c) Vite — chosen (best DX; workflows
+  already support a build command).
+- **Consequences:** the PR preview now exercises `vite build` (ADR-0001/0005's review surface
+  preserved); `run-playwright.mjs` serves the built `dist/`; Node-importable kernel modules keep
+  `node --test` build-free. `dist/` stays gitignored.
+
+## ADR-0012 (2026-06-11) — H3 hex grid for routing & visualisation (supersedes the square grid and ADR-0006)
+
+- **Context:** the skeleton planned on an abstract 28×18 square grid (8-connected A*, octile)
+  with a hand-rolled Canvas, and modelled one tidal ford via a leg-level wait-vs-detour chooser
+  (ADR-0006), which itself noted "a real kernel would need time-expanded search". We move to a
+  hex grid based on **H3** for isotropic 6-neighbour movement, genuine real-lat/lon-anchored
+  indexes with a **latent hierarchy** (future-proofing + dataset interop), and a real-map
+  renderer — over a fresh scenario with **multiple** tidal fords.
+- **Decision:**
+  - **Grid:** H3 at **res 9** (~300 m cells, ~1.2k over a ~14×9 km AO) anchored to a real
+    lat/lon (Solway Firth head). A canonical **sorted** AO cell-set gives each cell a stable
+    integer id; neighbours are **bearing-sorted** into a frozen adjacency for deterministic A*
+    (NF3). Plan identity keys off H3 index **strings** (canonical-JSON-safe, no floats).
+  - **Routing:** a deterministic **time-dependent (time-expanded) A*** (state = cell × time,
+    1-min steps, waiting allowed) replaces the octile search and **subsumes ADR-0006's chooser**
+    — multiple fords are handled by arrival-time-gated edge feasibility; the wait-vs-detour
+    decision emerges from the search and is read back into `plan.tide_decision`.
+  - **Rendering:** **MapLibre GL JS** (keyless Carto dark-matter basemap) + **deck.gl**
+    `H3HexagonLayer`/`PathLayer`/`IconLayer` via `MapboxOverlay` replace the Canvas renderer.
+  - The H3 **hierarchy is latent** — no active LOD / coarse-to-fine planning / aggregation yet.
+- **Trade-offs:** richer and geographically grounded, but a larger surface (build + WebGL + new
+  coordinate model) and a deliberate identity change (the config-core hash and golden plan ids
+  are regenerated for the new world). WebGL gates only screenshots, not logic (functional e2e is
+  `data-*`/state-based), capping the risk.
+- **Consequences:** `world.js`/`astar.js`/`kernel.js` are rewritten and `render.js` is replaced;
+  `entities.js`, `sync-matrix.js`, `learn.js`, `seam.js`, `stores.js`, `canonical.js` are
+  position-agnostic and unchanged; golden fixtures and e2e map-interaction are regenerated.
+  Supersedes ADR-0006.

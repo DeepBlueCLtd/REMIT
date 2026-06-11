@@ -17,13 +17,17 @@ Pages deployment with per-PR previews, a Jekyll blog generated from specs,
 project memory, cloud-capable Playwright tooling, and an installed-and-customised
 spec-kit workflow.
 
-- **Tech stack:** static HTML/CSS/JS app (no build step); Node.js + Playwright
-  (`@sparticuz/chromium` for cloud screenshots) for e2e tests and evidence;
-  Jekyll for the blog on `gh-pages`; GitHub Actions for deploy/preview; spec-kit
-  (bash scripts + skills) for the spec-driven workflow.
-- **Build / run locally:** no build — serve the app with `npx http-server app`
-  (or open `app/index.html`). Tests: `npm install`, then `npm run test:e2e`
-  (cloud wrapper) or `npm run test:e2e:local`.
+- **Tech stack:** HTML/CSS/JS app built with **Vite**; an **H3 hexagonal grid**
+  (`h3-js`) for routing, rendered on a **MapLibre GL** basemap with a **deck.gl** overlay;
+  Node.js + Playwright (`@sparticuz/chromium` for cloud screenshots) for e2e tests and
+  evidence; Jekyll for the blog on `gh-pages`; GitHub Actions for deploy/preview; spec-kit
+  (bash scripts + skills) for the spec-driven workflow. Runtime deps are **minimised and
+  maintainer-approved** (ADR-0010); kernel modules stay dependency-light (only `h3-js`,
+  Node-importable) so the `node --test` suite runs build-free.
+- **Build / run locally:** `npm install`, then `npm run dev` (Vite dev server),
+  `npm run build` (→ `dist/`), `npm run preview` (serve the build). Tests:
+  `npm run test:unit` (`node --test`), `npm run test:e2e` (cloud wrapper) or
+  `npm run test:e2e:local`.
 - **Key directories:** `app/` (the app), `site/` (landing page + Jekyll/blog
   shell), `specs/` (specs, each with a `blog/` subfolder), `e2e/` (Playwright
   tests), `docs/project_notes/` (project memory), `.specify/` (spec-kit toolchain
