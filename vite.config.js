@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 
-// REMIT builds with Vite (ADR-0011). Root is `app/` so the existing module layout and
+// REMIT builds with Vite (ADR-0015). Root is `app/` so the existing module layout and
 // relative imports are unchanged; output goes to repo-root `dist/` (gitignored).
 // `base: './'` keeps a single build working under both /<repo>/app/ (deploy) and
 // /<repo>/pr-preview/pr-<n>/ (preview) — neither path is known at build time.

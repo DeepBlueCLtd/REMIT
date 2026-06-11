@@ -205,18 +205,150 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   1-min resolution (fine for advisory). Both shipped rules need a selected COA
   (self.phase), so windows appear from Views on, not the World step.
 
-## ADR-0010 (2026-06-11) — Dependency policy: minimise, don't prohibit (maintainer-approved)
+## ADR-0011 (2026-06-10) — LinkML is the data-model source of truth; artefacts are generated (DEC-57)
+
+- **Context:** DEC-57 adopts LinkML as the source of truth for the serialisable
+  object core (one schema → JSON Schema · TypeScript · Pydantic · HTML), with
+  `remit-data-model.md` becoming a generated view. No schema existed yet; the
+  data-model mini-site was hand-authored HTML. The maintainer wants the schema
+  authored and **human-documented for stakeholder review**, and (constitution)
+  wants all non-trivial types to come from this one store, with derived artefacts
+  generated, never hand-written.
+- **Decision:** author the model (60 classes, 20 enums) from the `remit-data-model.md`
+  spine, **reconciled field-by-field against the walking skeleton's real object
+  shapes** (so schema ≡ code). Generate via `schema/generate.sh`: JSON Schema +
+  TypeScript (`schema/gen/`) and a **single self-contained HTML reference**
+  (`schema/build-reference.py` → `site/data-model/`) that replaces the hand-authored
+  tour. **Pydantic is omitted** (no Python consumer yet — one line to add). The
+  reference is published with the whole site, so it is reviewable per-PR (ADR-0010).
+- **Modular schema (version-control hygiene):** the model is **split into discrete
+  LinkML modules** under `schema/` — `common` (shared value objects + all enums),
+  `requirement`, `world`, `force`, `entities`, `plan`, `records` — stitched by a thin
+  entry `schema/remit.yaml` that imports them all; generators run on the entry. To
+  avoid circular imports in a cross-linked domain (e.g. `world.FactLayer → Observation`
+  in records, `plan.Stamp → Requirement` in requirement), modules import **only**
+  `common`; cross-module class references resolve at the merged level (verified —
+  including circular refs and the ER diagram). A 1,200-line monolith was rejected:
+  clumsy diffs, review and merge conflicts.
+- **Options considered (HTML reference):** (a) standard `gen-doc` + MkDocs-Material —
+  canonical, full-featured, but **8.8 MB / 315 files**, churns hundreds of files per
+  edit, and clashes with the lean no-build repo (ADR-0005); (b) build the docs in CI —
+  keeps the repo lean but adds a heavy LinkML+MkDocs step to deploy *and* preview,
+  undoing the preview simplification just made; (c) a single self-contained generated
+  page on-brand with the tour it replaces (~90 KB, one-file diffs, mermaid via CDN) —
+  **chosen**.
+- **Scope boundary (DEC-57):** LinkML models *data, not behaviour*. Function-valued
+  fields (`Channel.values`, `MovementModel.cost_speed`, `Aspect.value`) and service
+  endpoints are documented but not modelled as slots — they live in the seam contract.
+- **Skeleton reconciliation:** the schema follows the *code's* field names
+  (`clock_min`, `margin_band`, `config_core_hash`, the skeleton's `profile_version`/
+  `start` Stamp additions, `Strategy`, `TideDecision`, …), and flags classes the
+  skeleton does not yet build (MovementModel, Excursion, ChannelDelta, Effect,
+  AOPackage, Waiver, Replan). Divergences (entity `aspects` as object-map vs list;
+  `kind`/`provenance` folding) are noted in-schema.
+- **Deviation:** `Entity.kind` and `DataProvenance.kind` are documented **strings,
+  not enums**, because a permissible value literally named `self` crashes the LinkML
+  loader (jsonasobj2 reserves `self`) and the value must equal its key — see bugs.md.
+- **Consequences:** the data model now has one validated source feeding the docs,
+  JSON Schema and TS; the reference is generated and stakeholder-reviewable. Deferred
+  follow-ups (logged): GENERATED banners + a regen-no-diff CI check; a golden-fixtures
+  adherence test (skeleton instances validate against the generated JSON Schema); and
+  migrating the skeleton's inline shapes onto the generated TS types — see ADR-0012.
+
+## ADR-0012 (2026-06-10) — Adopt the LinkML "one source of truth" type rules (constitution)
+
+- **Context:** the maintainer runs a constitution in a sibling project: *LinkML
+  schemas define all data structures; Pydantic/JSON Schema/TypeScript are derived,
+  never hand-written; never hand-author a type the schema could generate; types at a
+  cross-boundary surface that subset a typed source must be expressed structurally
+  (Pick/Omit/Partial/derived validator), never re-listed by hand* — because re-listed
+  fields keep compiling while silently dropping a field the source later grows. Enforced
+  at writing-time and via lint. They asked how this applies to REMIT.
+- **Decision:** adopt the principle here, scoped to this repo's reality:
+  1. `schema/remit.yaml` is the one source; `schema/gen/*` and
+     `site/data-model/` are generated, never hand-edited.
+  2. **UI-only, single-class discrete types are exempt** (the maintainer's carve-out) —
+     e.g. the Sync-Matrix display catalogue, coincidence-window rows, render closures,
+     and `main.js` in-flight UI state stay hand-written; the schema models the
+     serialisable *data* core only.
+  3. **The cross-boundary subset rule has no surface yet** — REMIT v1 is one in-browser
+     JS process (no host↔webview / service wire). It activates when a boundary appears.
+  4. The JS analogue of the "silent field-drop" failure is **drift between the
+     skeleton's inline shapes and the schema** — there is no compiler to catch it, so
+     the faithful port is a **golden-fixtures adherence test** plus **GENERATED banners +
+     a regen-no-diff CI check** (both deferred, ADR-0011), and the writing-time habit in
+     CLAUDE.md: *before declaring a non-trivial shared shape in `app/js`, import the
+     generated type instead of re-listing fields.*
+- **Consequences:** the rules are recorded (CLAUDE.md "Data model" section, the
+  spec-kit constitution, and here). Full realisation — the app importing generated
+  types and the adherence/lint enforcement — is sequenced as follow-up work, not done
+  in this PR.
+
+## ADR-0010 (2026-06-10) — PR previews publish the whole static site, not the app alone
+
+- **Context:** the landing page, `/data-model/`, and the blog are published only on
+  merge (by `deploy.yml`); the PR preview published `dist_dir` (the app) verbatim at
+  the preview root (see ADR-0001, and ADR-0005's "the preview publishes `app/`
+  verbatim"). So a PR that adds or changes a site/docs section (like the Data Model
+  mini-site) had nothing reviewable in its preview — the comment linked only to the app.
+- **Decision:** assemble the preview the same way `deploy.yml` assembles the merged
+  site: copy `site/.` to the preview root (landing page + static sections), then the
+  app under `/<app_path>/`. The preview comment now lands on the welcome page, from
+  which reviewers reach `/app/` and `/data-model/`. `pr-preview.yml` reads `app_path`
+  from `pages.config.yml` (it previously read only `build_command`/`dist_dir`).
+- **Options considered:** (a) leave it app-only, review docs locally — no per-PR
+  coverage for landing/docs changes; (b) copy only `/data-model/` alongside the
+  root app — narrow, and the welcome page itself stays unreviewable; (c) mirror the
+  full static-site assembly — **chosen**.
+- **Consequences:** the app moves from the preview root to `/<app_path>/` (the
+  welcome page's `app/` link resolves; bookmarks to the old root now hit the landing
+  page). The **blog is intentionally excluded** from previews: Jekyll only reads the
+  gh-pages *root* `_config.yml`/`_layouts`, so blog pages can't render from a
+  `pr-preview/pr-N/` subdir — the assemble step drops `_config.yml`, `_layouts/`,
+  and `blog/`, so the landing page's "Blog →" card 404s in-preview (it renders on the
+  merged site). This refines, and does not conflict with, ADR-0005: the app is still
+  published verbatim with no build step, just under `/<app_path>/` instead of at root.
+
+## ADR-0013 (2026-06-11) — Mermaid is the canonical ER view for the data-model reference
+
+- **Context:** the generated reference (`schema/build-reference.py` → `site/data-model/`)
+  was built as a *comparison* of four structure views — a self-contained HTML
+  containment tree, per-module ER diagrams pre-rendered to inline SVG (offline, via a
+  bundled-Chromium step in `schema/render-mermaid.mjs`), in-browser Mermaid ER diagrams
+  (CDN), and tree+SVG — fronted by a chooser `index.html`, so the maintainer could pick
+  one. The diagrams initially rendered static and small; we then added a self-contained
+  pan/zoom viewport (drag/scroll/fit) and made each entity box a link to its
+  `#class-<Name>` card. The maintainer chose the **Mermaid** ER view.
+- **Decision:** collapse to a single page — the Mermaid ER reference becomes
+  `site/data-model/index.html`. The containment-tree and SVG variants, the chooser, and
+  the variant banner are dropped. Because Mermaid renders in the browser from the CDN,
+  the **offline SVG pre-render is removed**: `schema/render-mermaid.mjs` is deleted and
+  the `mermaid` **npm** devDependency (used only by that pre-render) is removed — the
+  build (`schema/generate.sh`) no longer needs Node or Chromium, only the LinkML venv.
+  The pan/zoom + clickable-box behaviour (`PANZOOM_SCRIPT`) is kept and now targets the
+  single `.erd` viewport.
+- **Options considered:** (a) keep all four variants + chooser — more to maintain, and
+  a "pick one" was the explicit point; (b) keep the offline SVG variant as a no-CDN
+  fallback alongside Mermaid — retains the Chromium build step and a second code path
+  for a fallback the maintainer didn't pick; (c) **single Mermaid page — chosen.**
+- **Consequences:** the reference now depends on the Mermaid CDN at *view* time (blank
+  diagrams if the CDN is blocked); this is an accepted trade for the in-browser,
+  zoomable, source-inlined diagrams. Re-introducing an offline render is a revert of
+  this ADR (the deleted renderer is in git history). The pan/zoom script is
+  renderer-agnostic, so an SVG path could be re-added later without touching it.
+
+## ADR-0014 (2026-06-11) — Dependency policy: minimise, don't prohibit (maintainer-approved)
 
 - **Context:** ADR-0005 shipped the skeleton as no-build ES modules with effectively zero
   runtime dependencies, and `CLAUDE.md` described the app as having "zero external
-  dependencies". The H3 hex-grid migration (ADR-0012) needs correct H3 maths and a real map
+  dependencies". The H3 hex-grid migration (ADR-0016) needs correct H3 maths and a real map
   renderer; hand-rolling either is large, bug-prone, and off the project's value. The
   maintainer clarified the intent: dependencies are not forbidden — they should be
   **minimised**, and each addition is **approval-gated**.
 - **Decision:** runtime dependencies are permitted where they give a clear
   development/maintenance benefit over hand-rolling, **subject to explicit maintainer
   approval**. "Zero dependencies" is no longer an invariant; "minimise, justify, approve" is.
-  First approved set (ADR-0011/0012): `h3-js` (indexing/neighbours/hierarchy), `maplibre-gl`
+  First approved set (ADR-0015/0016): `h3-js` (indexing/neighbours/hierarchy), `maplibre-gl`
   + `@deck.gl/*` (map + hex rendering), `vite` (build, dev-only).
 - **Options considered:** (a) keep zero-dependency, hand-roll H3 + a hex renderer — rejected:
   re-implementing H3 grid maths and a WebGL map is large and error-prone; (b) allow deps
@@ -226,11 +358,11 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   Node-importable) so the browser-free `node --test` suite still runs. Relaxes ADR-0005's
   spirit; `CLAUDE.md` updated to match.
 
-## ADR-0011 (2026-06-11) — Adopt a Vite build step (revisits ADR-0005)
+## ADR-0015 (2026-06-11) — Adopt a Vite build step (revisits ADR-0005)
 
 - **Context:** ADR-0005 chose no-build ES modules to keep the PR-preview demo decoupled from
   build machinery, naming DEC-57 (generated TS types) as the natural revisit point. The H3
-  migration (ADR-0012) pulls in `maplibre-gl` and `@deck.gl/*` — large ESM packages with
+  migration (ADR-0016) pulls in `maplibre-gl` and `@deck.gl/*` — large ESM packages with
   bare-specifier imports and submodules, impractical to serve un-bundled. An earlier-than-
   expected but warranted revisit.
 - **Decision:** adopt **Vite**. `pages.config.yml` already drives an optional build in both
@@ -246,7 +378,7 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   preserved); `run-playwright.mjs` serves the built `dist/`; Node-importable kernel modules keep
   `node --test` build-free. `dist/` stays gitignored.
 
-## ADR-0012 (2026-06-11) — H3 hex grid for routing & visualisation (supersedes the square grid and ADR-0006)
+## ADR-0016 (2026-06-11) — H3 hex grid for routing & visualisation (supersedes the square grid and ADR-0006)
 
 - **Context:** the skeleton planned on an abstract 28×18 square grid (8-connected A*, octile)
   with a hand-rolled Canvas, and modelled one tidal ford via a leg-level wait-vs-detour chooser

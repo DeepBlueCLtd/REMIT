@@ -1,5 +1,5 @@
 // @ts-check
-// kernel/hexgrid.js — the H3 hex coordinate core (ADR-0012). Browser-free: imports
+// kernel/hexgrid.js — the H3 hex coordinate core (ADR-0016). Browser-free: imports
 // only h3-js, so `node --test` can exercise it without a bundler. Owns AO enumeration,
 // the stable sorted-id <-> H3-string bijection, a frozen bearing-sorted adjacency (for
 // deterministic A*, NF3), the gridDistance heuristic, and geometry helpers for rendering.

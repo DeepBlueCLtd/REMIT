@@ -1,4 +1,4 @@
-// e2e/skeleton.spec.ts — walks the seven-stage lap on the H3 hex grid (ADR-0012) and
+// e2e/skeleton.spec.ts — walks the seven-stage lap on the H3 hex grid (ADR-0016) and
 // captures the spec-003 evidence screenshots. Kernel set-pieces (tide wait/detour,
 // infeasibility, NF3 ids) are pinned in the browser-free golden tests; here we assert the
 // UI lap works end-to-end on hexes without faults.

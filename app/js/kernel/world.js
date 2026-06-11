@@ -1,5 +1,5 @@
 // @ts-check
-// kernel/world.js — the synthetic world (DEC-44/28) on an H3 hex grid (ADR-0012):
+// kernel/world.js — the synthetic world (DEC-44/28) on an H3 hex grid (ADR-0016):
 // single baseline, two channels (static mobility raster + parametric tide), own-force
 // profile + state, and the config core (DEC-48) whose hash enters the stamp.
 //

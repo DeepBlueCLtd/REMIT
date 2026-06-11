@@ -1,5 +1,5 @@
 // @ts-check
-// views/render.js — shared view primitives kept after the H3 migration (ADR-0012): the
+// views/render.js — shared view primitives kept after the H3 migration (ADR-0016): the
 // playhead (one t, many subscribers) and the strategy colour map. The map renderer now
 // lives in views/map.js (MapLibre + deck.gl); this module no longer draws to a canvas.
 

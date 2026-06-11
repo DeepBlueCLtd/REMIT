@@ -1,5 +1,5 @@
 // @ts-check
-// views/map.js — the map projection (DEC-24, NF1) on the H3 hex grid (ADR-0012): a
+// views/map.js — the map projection (DEC-24, NF1) on the H3 hex grid (ADR-0016): a
 // MapLibre basemap with a deck.gl overlay (H3HexagonLayer terrain + PathLayer routes +
 // markers/ghost). Projects the kernel's materialisation through its evaluator (`stateAt`);
 // never re-derives. Sets data-* attributes on the container for the e2e suite.

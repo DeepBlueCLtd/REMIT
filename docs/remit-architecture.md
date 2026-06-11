@@ -1,14 +1,16 @@
-# REMIT — Architecture (draft 0.2)
+# REMIT — Architecture (draft 0.3)
 
 *The runtime picture the register implies but does not draw. Detail lives elsewhere and is cross-referenced, not copied: semantics in `remit-concept.md`, shapes in `remit-data-model.md` v0.3, the interface in `remit-seam-contract.md` v0.1, rationale in `remit-register.md` (DEC-n). This document is structure only.*
 
 *v0.2: views reframed as **entity projections of the plan-in-its-world** (DEC-52/53) — Sync Matrix added; NF1 restated over evaluated world+plan state. Diagrams restyled for legibility (top-down flowcharts, high-contrast light fills + dark text, shorter labels).*
 
+*v0.3: adds the **command-post layer** (DEC-59/60/61, split-horizon) — §8. The **Operation→Scheme** apex above requirement→plan; the **one-ontology / three-stances** force model; role interfaces as **writes-as-stamped-deltas over a shared store** (the distribution seam, mocked); and the registry/provider extension to **UI render-components + source-provider ingress**. v1 carries shape-scaffolding only; capability is designed-for under the DEC-56 freeze guard.*
+
 ---
 
 ## 1. Mental model (one paragraph)
 
-The **mission requirement** is the primary, durable object; **plans** are candidate responses to it; the schedule, map, task board, Gantt and Sync Matrix are **synchronised projections of the plan-in-its-world** — projecting entities (own force, actors, features, phenomena) and the plan, not objects in their own right (DEC-5, reframed DEC-52/53). The system walks one lifecycle spine — **capture → model-world → plan → compare → execute → learn** — and every artifact on it is immutable, attributed and content-addressed (data-model rules 1–3). For the *why*, read the concept document; this document assumes it.
+The **mission requirement** is the primary, durable object; **plans** are candidate responses to it; the schedule, map, task board, Gantt and Sync Matrix are **synchronised projections of the plan-in-its-world** — projecting entities (own force, actors, features, phenomena) and the plan, not objects in their own right (DEC-5, reframed DEC-52/53). The system walks one lifecycle spine — **capture → model-world → plan → compare → execute → learn** — and every artifact on it is immutable, attributed and content-addressed (data-model rules 1–3). For the *why*, read the concept document; this document assumes it. *(Designed-for, §8: an **Operation** apex sits above the requirement and is planned by a **Scheme of Manoeuvre**; v1 ships the shape-scaffolding only.)*
 
 ---
 
@@ -146,6 +148,9 @@ flowchart TB
 | Views | Timeline + map (skeleton) | + Sync Matrix & entity projection (first slice, DEC-53/54); then task board, state curves, tension view (DEC-24) |
 | Activities | One `visit` type | Five+ richer; expressibility a blocking gate (DEC-16/46) |
 | Comms | n/a (local) | Trickle delta/stamp sync (DEC-25) |
+| Forces / ORBAT | Entity `allegiance` attribute (blue/red/green), authoring stub | ORBAT page; blue capability-assets; red passive→reactive; green ROE (DEC-60) |
+| Echelon | Operation/End-State/Scheme *slots*, unpopulated | Operation→Scheme portfolio planning, two-level banding (DEC-59) |
+| Roles & UI | Role view-presets + write-scopes; writes-as-deltas; single shared store | Registered bespoke surfaces; source-provider ingress; multi-node distribution (DEC-61) |
 
 **First post-skeleton slices (DEC-54).** Two complementary, near-orthogonal slices are taken together after the skeleton: the **tidal-mudflat** slice (world/kernel side — provider tide channel, time-varying passability on (cell,time), hard-vs-soft on one cell) and the **entity/Sync-Matrix** slice (view/sourcing side — A6 projection model, D6 Sync Matrix, self + forecast + provider entity, display-only). Natural lean: mudflat first (proves the provider/computed-channel path the entity slice's provider entity then reuses).
 
@@ -154,3 +159,39 @@ flowchart TB
 ## 7. Where to start
 
 New developer, first day: read `remit-concept.md` for the *why*, then this document for the *shape*, then `remit-seam-contract.md` for the *interface you'll code against*. The first thing built is the **walking skeleton** (DEC-44) — the thinnest end-to-end path through §3 with every component present and trivially populated. The register (`remit-register.md`) is the architecture source of truth and is Doc-owned (DEC-37/47); implementation decisions live in the team tracker with the register upstream.
+
+---
+
+## 8. Command-post layer (designed-for · DEC-59/60/61)
+
+The "grow the app" stretch adds an echelon **above** the requirement and a force/role frame **around** the plan. Structure only; semantics in the concept, shapes in the data-model §1A/§5A/§9, interface in the seam contract §B/§E. **v1 carries the shape-scaffolding; capability is designed-for under the DEC-56 freeze guard.**
+
+**Apex.** An **Operation** owns a set of **Requirements** as means and carries an **End-State** (Objectives / Decisive Conditions). Its plan is a **Scheme of Manoeuvre** — an allocation across those requirements, banded by the **effect profile** it produces against the End-State. This sits *above* requirement→plan, giving **two-level banding**: Schemes by effect profile, Plans by mission cost (NF10). Portfolio search is a **kernel discipline** (DEC-51), so v1 returns canned Schemes behind `/plan/scheme-handful`.
+
+**One ontology, three stances.** Entities gain an **allegiance** (blue/red/green). Any force may carry its own End-State; allegiance selects only the kernel's *stance* — **plan-for** (blue), **avoid-assess** (red, passive in v1; reactive deferred), **respect** (green, ROE as hard constraints + soft objectives). No new evaluation machinery — these reuse channels, entities and commitments.
+
+**Distribution seam (the mock that predicts the real thing).** Roles are config-declared bundles {view-preset + write-scope + mode} over **one shared content-addressed store**; every cross-role write is a **stamped delta**. That write path *is* the one that serialises over `/sync` later (DEC-25), so going multi-node is transport, not re-architecture. Write-scope is enforced and attributed at the delta (DEC-15/NF2); role definitions ride the DEC-48 shell (identity-free).
+
+**Registry extended to UI + ingress.** Bespoke role surfaces are **registered render-components** (a release, conformance-tested) that config selects/parameterises/binds — *custom in form, constrained in contract*: they read via projections (NF1) and write only via scoped stamped deltas. Live data arrives through the **provider seam run as ingress** (DEC-49): a **source provider** streams external feeds as stamped facts. NF3 holds — determinism is over *stamped* inputs. The **release-then-compose** rule (no config-embedded code) keeps the military UI auditable (Q15).
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontSize':'15px','primaryColor':'#eef2ff','primaryTextColor':'#0f172a','primaryBorderColor':'#6366f1','lineColor':'#475569','clusterBkg':'#e2e8f0','clusterBorder':'#94a3b8','secondaryColor':'#e2e8f0','secondaryTextColor':'#0f172a','secondaryBorderColor':'#94a3b8','tertiaryColor':'#e2e8f0','tertiaryTextColor':'#0f172a','tertiaryBorderColor':'#94a3b8','textColor':'#0f172a','edgeLabelBackground':'#ffffff'}}}%%
+flowchart TB
+  op["Operation<br/>End-State = Objectives / Decisive Conditions (DEC-59)"]
+  scheme["Scheme of Manoeuvre<br/>allocation across requirements · banded on effect profile"]
+  reqs["Requirements (means)<br/>each → its own banded Plans (requirement→plan)"]
+  orbat["ORBAT entities · allegiance (DEC-60)<br/>blue=plan-for · red=avoid-assess · green=respect"]
+  roles["Config-declared roles (DEC-61)<br/>view-preset + write-scope + mode"]
+  store["shared content-addressed store<br/>cross-role writes = stamped deltas (= /sync path, DEC-25)"]
+  src["source provider (ingress, DEC-49)<br/>external feed → stamped facts"]
+  op --> scheme --> reqs
+  orbat -.->|blue assets allocated| scheme
+  orbat -.->|red threat · green ROE| reqs
+  roles --> store
+  src --> store
+  store --> op
+  style op fill:#eef2ff,stroke:#6366f1,color:#0f172a
+  style scheme fill:#eef2ff,stroke:#6366f1,color:#0f172a
+```
+
+**Invariants unchanged.** NF1 (surfaces read via projections), NF2 (every delta attributed), NF3 (determinism over stamped inputs), NF9 (red passive — no fabricated adversary), NF10 (two-level banding) all hold; the command-post adds objects and stances, not exceptions.

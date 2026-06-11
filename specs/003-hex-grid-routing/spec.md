@@ -1,7 +1,7 @@
 # 003 — H3 hex grid for routing & visualisation
 
 **Status:** in progress · **Source of truth:** the requirements interview (this session)
-distilled into the approved implementation plan, and **ADR-0010 / ADR-0011 / ADR-0012**
+distilled into the approved implementation plan, and **ADR-0014 / ADR-0015 / ADR-0016**
 (`docs/project_notes/decisions.md`). Supersedes the square-grid assumptions of
 `specs/002-walking-skeleton/`.
 
@@ -27,7 +27,7 @@ the project's determinism guarantee (NF3).
 3. **Real-map visualisation** — render on a real **MapLibre** basemap with a **deck.gl** H3
    overlay, replacing the Canvas renderer.
 
-## Decisions (confirmed) — see ADR-0010/0011/0012
+## Decisions (confirmed) — see ADR-0014/0015/0016
 
 | Topic | Decision |
 |---|---|
@@ -37,7 +37,7 @@ the project's determinism guarantee (NF3).
 | Build | adopt **Vite** (`base: './'`, `root: app`, `outDir: ../dist`); `pages.config.yml` build hooks |
 | Scope | full replacement of the square grid + a **fresh scenario** authored on hexes |
 | Scenario | **river delta with multiple tidal fords** → **time-dependent (time-expanded) A\*** |
-| Dependencies | minimised, maintainer-approved (ADR-0010): `h3-js`, `maplibre-gl`, `@deck.gl/*`, `vite` |
+| Dependencies | minimised, maintainer-approved (ADR-0014): `h3-js`, `maplibre-gl`, `@deck.gl/*`, `vite` |
 | Determinism (NF3) | plan identity keys off H3 index **strings** (no floats); bearing-sorted neighbours + frozen adjacency + the existing heap tie-break |
 
 ## Functional requirements

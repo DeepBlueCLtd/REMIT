@@ -1,8 +1,10 @@
-# REMIT — Build Plan (draft 0.3)
+# REMIT — Build Plan (draft 0.4)
 
 *The build/delivery view the register implies but does not sequence — the order work happens in, and the elements it creates. Detail lives elsewhere and is cross-referenced, not copied: methodology in `remit-register.md` (DEC-43…47/54), shape in `remit-architecture.md` v0.2 §5, interface in `remit-seam-contract.md` v0.2, shapes in `remit-data-model.md` v0.3, rationale in the register (DEC-n). This document is **order + inventory only**.*
 
 *draft 0.3 — propagates DEC-57 (**data model is LinkML-sourced**: one schema → JSON Schema · TypeScript · Pydantic · HTML; `remit-data-model.md` becomes the generated view; a cross-language TS≡Python canonical-serialisation/identity spec is its companion) and DEC-58 (**development in Claude Code; GH repo = canonical home**).*
+
+*draft 0.4 — propagates the **command-post stretch batch** (DEC-59/60/61, split horizon). Only the **shape-scaffolding** enters v1 — Entity `allegiance`; `Operation`/`EndState`/`SchemeOfManoeuvre` + `Role` + cross-role-delta-attribution **slots**; writes-as-stamped-deltas; role view-presets — as **not-preclude** plumbing under the DEC-56 freeze guard. The **capability** (portfolio Scheme search, capability-matched allocation, ORBAT authoring, bespoke surfaces, source-provider ingress, reactive red) is **designed-for, H2/H3** — Annex-A roadmap, not build phasing (DEC-43). Exact v1 build-depth per scaffolding item is a tracker call (DEC-47).*
 
 *draft 0.2 — adds **shape-stabilisation precedes consumer fan-out** (DEC-56): the modules likely to churn the data-model (identity/canonical-form · kernel spike · Activity expressibility · the two DEC-54 slices) run ahead of the low-churn consumer stages (Compare/Views/Execute/Learn), which then fan out in parallel against fixtures — the freeze is earned, not declared.*
 
@@ -32,6 +34,7 @@ The methodology is already decided. This section **cites, never restates** — t
 |Data model is LinkML-sourced (schema → JSON Schema · TS · Pydantic · HTML)|DEC-57                  |register          |
 |Development in Claude Code; GH repo = canonical home               |DEC-58                  |register          |
 |Annex-A maturity layers = capability roadmap, **not** build phasing|DEC-43 + concept Annex A|register / concept|
+|Command-post stretch batch (Operation apex · ORBAT · role-interfaces; split horizon)|DEC-59/60/61|register|
 
 -----
 
@@ -66,6 +69,10 @@ Every element v1 brings into existence, keyed to its **home doc** and tagged wit
 |ChannelDelta (parametric)                     |§4 / DEC-34    |Mudflat      |first real use                                   |
 |Excursion                                     |§4 / DEC-7     |—            |designed-for (H2); single-baseline in v1         |
 |Entity · Aspect                               |§5A / DEC-52/53|Entity       |display-only, no cast-to-channel                 |
+|Entity.allegiance (blue/red/green)            |§5A / DEC-60   |H2 (slot in v1)|attribute present; ORBAT authoring + stances designed-for|
+|Operation · EndState · SchemeOfManoeuvre       |§1A / DEC-59   |H2 (slot in v1)|designed-for; portfolio search is kernel-released (DEC-51)|
+|Role · cross-role Delta (attributed)          |§9 / DEC-61    |H2 (slot in v1)|writes-as-deltas path + role view-presets ride v1 scaffolding|
+|Asset facet (capability · availability)       |§5A / DEC-60   |H2             |blue allocatable assets for Scheme allocation|
 
 ### 3C. Modules (`remit-architecture.md` §5)
 
@@ -91,6 +98,9 @@ Every element v1 brings into existence, keyed to its **home doc** and tagged wit
 |`/provider/entity/{id}/track`                    |§D   |Entity           |mock ephemeris                                            |
 |`/provider/movement/{id}/traverse`               |§D   |H2               |parametric movement in v1; networked traverse warned (NF6)|
 |`/sync/push` · `/sync/pull`                      |§C   |H2               |skeleton is local; trickle comms later                    |
+|`/plan/scheme-handful`                           |§B   |H2               |Operation -> banded Schemes; v1 mock canned (DEC-59)|
+|`/provider/source/{id}/stream`                   |§E   |H2               |source-provider ingress; live/mock feed (DEC-61)|
+|`/role/{id}/delta`                               |§E   |H2 (scaffold v1) |attributed cross-role write; the /sync path (DEC-61/25)|
 
 ### 3E. Providers & configuration (DEC-48…51, §G)
 
@@ -199,6 +209,8 @@ A throwaway track sharing only the data-shapes. Success criteria (DEC-45): a sen
 - **Entity / Sync-Matrix** (view/sourcing side). The A6 projection model and D6 Sync Matrix; self-entity + one hand-authored forecast entity + one mock-provider ephemeris entity; all three provenances exercised; display-only (no cast-to-channel in v1). Brings Entity/Aspect, `projection/`, and the `track` provider into use.
 - *Natural lean (DEC-54):* mudflat first — it proves the provider/computed-channel path the entity slice’s provider entity then reuses. Fine ordering (parallel vs mudflat-then-entity) is a team-tracker call (DEC-47).
 
+**Command-post layer (DEC-59/60/61) — split horizon.** *Into v1 as not-preclude scaffolding:* Entity `allegiance`; `Operation`/`EndState`/`SchemeOfManoeuvre` and `Role`/cross-role-`Delta` **slots**; writes-as-stamped-deltas over the single shared store; role view-presets + write-scopes. *Designed-for (H2/H3):* Operation→Scheme portfolio search (a kernel discipline, DEC-51), capability-matched force allocation, the ORBAT authoring page, bespoke **registered** role surfaces (release-then-compose), source-provider ingress, and a reactive/adversarial red force. **DEC-56 guard:** the new slots are designed-for additions and must ride the same shape-hardening discipline — they do **not** trigger a premature core-shape freeze, and the exact v1 build-depth per scaffolding item is a tracker call (DEC-47).
+
 **Then** depth proceeds per the Annex-A maturity layers (H2/H3) — a **capability roadmap, not build phasing** (DEC-43). Each later capability follows the same discipline: thicken one seam at a time, behind the stable contract.
 
 -----
@@ -227,3 +239,4 @@ A throwaway track sharing only the data-shapes. Success criteria (DEC-45): a sen
 - The element inventory (§3) will accrete H2+ rows as depth work is scoped; the v1 rows are firm.
 - Whether the spike’s outputs (real-kernel language/architecture) feed back a build-plan revision after the spike gate (DEC-45/41).
 - Two-repo CI wiring for the alternate-config demonstrator (DEC-48 / G4 / K3) — not a v1 lap concern; noted for completeness.
+- Command-post (DEC-59/60/61): which scaffolding slots are scaffolded *during the lap* vs *at the first depth slice* — a tracker call (DEC-47); `SchemeStamp` / canonical-serialisation impact on the DEC-56 stressor set.

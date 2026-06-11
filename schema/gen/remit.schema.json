@@ -1,0 +1,2541 @@
+{
+    "$defs": {
+        "AOPackage": {
+            "additionalProperties": false,
+            "description": "Everything provisioned for an Area of Operations, packaged ready to plan against (DEC-11/12/52). Not yet assembled as one object in the v1 skeleton.",
+            "properties": {
+                "baseline_versions": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "entities": {
+                    "description": "located things to display",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "excursions": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "profiles": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "AOPackage",
+            "type": "object"
+        },
+        "Activity": {
+            "additionalProperties": false,
+            "description": "The verb of a commitment \u2014 visit, loiter, avoid, transit, maintain (DEC-16/21). `where` is a Waypoint or a boolean predicate over map cells (DEC-33); `when` is a window, before/after, or recurring. Always inlined in its Commitment (no independent identity).",
+            "properties": {
+                "duration": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/DurationBound"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "effects": {
+                    "description": "\"v1: self-state delta / persistent marker (always empty in the skeleton)\"",
+                    "items": {
+                        "$ref": "#/$defs/Effect"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "modifiers": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/ActivityModifiers"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "outcome_model": {
+                    "description": "\"v1: boolean | duration; pluggable (probabilistic = H3)\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "relevant_channels": {
+                    "description": "channel ids to sample / trigger on (DEC-21)",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "type": {
+                    "$ref": "#/$defs/ActivityType"
+                },
+                "when": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/TimingConstraint"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "where": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Waypoint"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "the location \u2014 a map cell (skeleton uses {x, y, alias})"
+                },
+                "where_predicate": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CellPredicate"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "alternative to `where` \u2014 a boolean predicate tree over cells (DEC-33)"
+                }
+            },
+            "required": [
+                "type"
+            ],
+            "title": "Activity",
+            "type": "object"
+        },
+        "ActivityModifiers": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "after": {
+                    "description": "sequencing \u2014 id of a commitment this must follow (e.g. \"cmt-1\")",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "be_at_role": {
+                    "description": "\"entry | exit | visit\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "stationary": {
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                }
+            },
+            "title": "ActivityModifiers",
+            "type": "object"
+        },
+        "ActivityType": {
+            "description": "The verb of an activity (DEC-16); v1 set, pluggable registry (NF7).",
+            "enum": [
+                "visit",
+                "loiter",
+                "avoid",
+                "transit",
+                "maintain"
+            ],
+            "title": "ActivityType",
+            "type": "string"
+        },
+        "Alert": {
+            "additionalProperties": false,
+            "description": "A band crossing or hard-infeasibility raised during execution (E3).",
+            "properties": {
+                "at": {
+                    "description": "mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "cause": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/AlertCause"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "kind": {
+                    "$ref": "#/$defs/LogEntryKind"
+                },
+                "seq": {
+                    "description": "0-indexed sequence, stamped on append",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "kind"
+            ],
+            "title": "Alert",
+            "type": "object"
+        },
+        "AlertCause": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "commitment": {
+                    "description": "the phased commitment being tracked (e.g. \"observe\", \"exfil\")",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "from": {
+                    "description": "the prior band state",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "to": {
+                    "description": "the new band state",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "type": {
+                    "$ref": "#/$defs/AlertCauseType"
+                }
+            },
+            "required": [
+                "type"
+            ],
+            "title": "AlertCause",
+            "type": "object"
+        },
+        "AlertCauseType": {
+            "description": "Why the wingman raised an execution alert (E3).",
+            "enum": [
+                "hard_infeasible",
+                "band_crossing",
+                "tide_reassessment"
+            ],
+            "title": "AlertCauseType",
+            "type": "string"
+        },
+        "Ambiguity": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "consequence": {
+                    "description": "what hinges on resolving it",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "question": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "status": {
+                    "$ref": "#/$defs/AmbiguityStatus"
+                }
+            },
+            "title": "Ambiguity",
+            "type": "object"
+        },
+        "AmbiguityStatus": {
+            "description": "",
+            "enum": [
+                "open",
+                "resolved"
+            ],
+            "title": "AmbiguityStatus",
+            "type": "string"
+        },
+        "Answer": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "by": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "slot": {
+                    "description": "which question slot",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "status": {
+                    "$ref": "#/$defs/AnswerStatus"
+                },
+                "value": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Answer",
+            "type": "object"
+        },
+        "AnswerStatus": {
+            "description": "",
+            "enum": [
+                "confirmed",
+                "defaulted"
+            ],
+            "title": "AnswerStatus",
+            "type": "string"
+        },
+        "Appetite": {
+            "additionalProperties": false,
+            "description": "One risk-appetite dial setting (DEC-6) \u2014 e.g. tempo = rapid, exposure = cautious.",
+            "properties": {
+                "axis": {
+                    "description": "\"e.g. tempo, exposure\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "setting": {
+                    "description": "\"e.g. deliberate/balanced/rapid, bold/balanced/cautious\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Appetite",
+            "type": "object"
+        },
+        "Aspect": {
+            "additionalProperties": false,
+            "description": "One facet of an entity, over time (DEC-52/53) \u2014 its position, an altitude, a timing window, an up/down status \u2014 rendered onto a shared axis by a view. Its value `f(t)` is behaviour, evaluated across the seam, and is not a data slot; the render-type, unit and bounds *are* data.",
+            "properties": {
+                "channel_ref": {
+                    "description": "the source channel, if any",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "domain": {
+                    "description": "\"[min, max] bounds for scalar aspects\"",
+                    "items": {
+                        "type": "number"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "description": "e.g. \"phase\", \"fuel\", \"height\", \"pass\"",
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/AspectType"
+                },
+                "unit": {
+                    "description": "unit for scalar aspects (e.g. \"%\")",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "name",
+                "type"
+            ],
+            "title": "Aspect",
+            "type": "object"
+        },
+        "AspectType": {
+            "description": "The render-class of one time-varying facet of an entity (DEC-52/53).",
+            "enum": [
+                "cell",
+                "scalar",
+                "window",
+                "status"
+            ],
+            "title": "AspectType",
+            "type": "string"
+        },
+        "Attribution": {
+            "additionalProperties": false,
+            "description": "Who decided, under what authority, when. Stamped on every committing act \u2014 this is universal rule 2 (DEC-15, NF2).",
+            "properties": {
+                "at": {
+                    "description": "ISO timestamp of the act",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "authority": {
+                    "description": "the authority the act was taken under",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "by": {
+                    "description": "the author",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "issuing_role": {
+                    "description": "the role-hat the author wore",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Attribution",
+            "type": "object"
+        },
+        "Band": {
+            "description": "A coarse three-level qualitative band for cost / robustness (C2/C6, NF10).",
+            "enum": [
+                "robust",
+                "marginal",
+                "fragile"
+            ],
+            "title": "Band",
+            "type": "string"
+        },
+        "Baseline": {
+            "additionalProperties": false,
+            "description": "The world as known truth (DEC-7/20/28): a medium (land/sea/air grid) carrying channels and per-cell attributes, plus a single fact layer that observations append to. Immutable and versioned; the kernel always evaluates baseline \u2295 excursion \u2295 plan-effects-to-date (DEC-19).",
+            "properties": {
+                "cells": {
+                    "description": "the grid cells (skeleton, row-major)",
+                    "items": {
+                        "$ref": "#/$defs/Cell"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "channels": {
+                    "items": {
+                        "$ref": "#/$defs/Channel"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "facts": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/FactLayer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "the one truth; observations append here"
+                },
+                "forecast_changepoints": {
+                    "description": "when the world is expected to shift",
+                    "items": {
+                        "$ref": "#/$defs/Changepoint"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "content id of the canonical form (DEC-35)",
+                    "type": "string"
+                },
+                "lineage": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Lineage"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "medium": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Medium"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "version": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Baseline",
+            "type": "object"
+        },
+        "Capture": {
+            "additionalProperties": false,
+            "description": "The negotiation record behind a commitment \u2014 answers, the canonical contract text, open ambiguities (DEC-17).",
+            "properties": {
+                "ambiguities": {
+                    "description": "resolvable-later",
+                    "items": {
+                        "$ref": "#/$defs/Ambiguity"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "answers": {
+                    "items": {
+                        "$ref": "#/$defs/Answer"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "echo_back": {
+                    "description": "the canonical contract text read back to the operator",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Capture",
+            "type": "object"
+        },
+        "Cell": {
+            "additionalProperties": false,
+            "description": "One grid cell's attributes (skeleton mobility raster).",
+            "properties": {
+                "cover": {
+                    "description": "0\u20131 concealment",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "mobility": {
+                    "description": "0\u20131 speed factor (0 = impassable)",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "terrain": {
+                    "$ref": "#/$defs/Terrain"
+                }
+            },
+            "title": "Cell",
+            "type": "object"
+        },
+        "CellPatch": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "t": {
+                    "description": "mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "value": {
+                    "description": "the patched value",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "x": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "y": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "CellPatch",
+            "type": "object"
+        },
+        "CellPredicate": {
+            "additionalProperties": false,
+            "description": "A boolean tree over map cells (DEC-33): an atom, or and/or/not of sub-predicates. Atoms are a pluggable registry (land-cover, elevation, slope, static-LOS, near(feature, dist)). Conceptual \u2014 the skeleton uses Waypoints only.",
+            "properties": {
+                "atom": {
+                    "description": "the atom name when op = atom (e.g. land-cover, slope)",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "children": {
+                    "description": "sub-predicates for and/or/not",
+                    "items": {
+                        "$ref": "#/$defs/CellPredicate"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "op": {
+                    "description": "\"atom | and | or | not\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "params": {
+                    "description": "atom parameters",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "CellPredicate",
+            "type": "object"
+        },
+        "Changepoint": {
+            "additionalProperties": false,
+            "description": "A forecast time at which a channel is expected to shift (e.g. a tidal ford opening) (DEC-21).",
+            "properties": {
+                "at_min": {
+                    "description": "mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "change": {
+                    "description": "what changes, in words",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "channel": {
+                    "description": "the channel that shifts",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Changepoint",
+            "type": "object"
+        },
+        "Channel": {
+            "additionalProperties": false,
+            "description": "A field over space and time \u2014 tide, cloud, risk, mobility (DEC-19/21). Its values are conceptually `f(cell, t)`, however realised; that function is resolved across the seam (DEC-49) and is *not* a data slot here. For parametric/periodic channels the realising parameters (`params`) *are* data and are modelled.",
+            "properties": {
+                "confidence": {
+                    "$ref": "#/$defs/ConfidenceLevel"
+                },
+                "domain_type": {
+                    "description": "what the field measures, e.g. \"water_level\", \"speed_factor\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "freshness": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "e.g. \"tide\", \"mobility\"",
+                    "type": "string"
+                },
+                "params": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/ChannelParams"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "realising parameters for parametric channels"
+                },
+                "predictability": {
+                    "$ref": "#/$defs/Predictability"
+                },
+                "realisation": {
+                    "$ref": "#/$defs/Realisation"
+                },
+                "sampling_step_min": {
+                    "description": "sampling cadence (tide coarse, cloud fine) (DEC-21)",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Channel",
+            "type": "object"
+        },
+        "ChannelDelta": {
+            "additionalProperties": false,
+            "description": "How the world is edited (DEC-34): a parametric delta (time-shift, scale, mask) from a pluggable registry, or a raw cell patch (the escape hatch). Not yet implemented in the v1 skeleton.",
+            "properties": {
+                "kind": {
+                    "description": "\"parametric | cell_patch\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "params": {
+                    "description": "parameters for the parametric delta",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "patches": {
+                    "description": "raw (cell, t, value) patches \u2014 when kind = cell_patch",
+                    "items": {
+                        "$ref": "#/$defs/CellPatch"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "type": {
+                    "description": "the parametric delta type (registry) \u2014 when kind = parametric",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "ChannelDelta",
+            "type": "object"
+        },
+        "ChannelParams": {
+            "additionalProperties": false,
+            "description": "Parameters of a parametric/periodic channel \u2014 e.g. the skeleton's tidal ford (ADR-0006).",
+            "properties": {
+                "applies_to": {
+                    "description": "the cell/feature the params apply to (e.g. the ford alias)",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "low_tide_min": {
+                    "description": "first low tide, in mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "open_half_width_min": {
+                    "description": "\u00b1minutes around low tide the ford is wadeable",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "period_min": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "ChannelParams",
+            "type": "object"
+        },
+        "ChosenBands": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "cost": {
+                    "$ref": "#/$defs/Band"
+                },
+                "rob": {
+                    "$ref": "#/$defs/Band"
+                }
+            },
+            "title": "ChosenBands",
+            "type": "object"
+        },
+        "Commitment": {
+            "additionalProperties": false,
+            "description": "One thing the plan must achieve (DEC-16/17/22). Either hard (must hold) or soft with a priority. Carries the negotiated contract text and any unresolved ambiguities, and walks a lifecycle of states.",
+            "properties": {
+                "activity": {
+                    "$ref": "#/$defs/Activity"
+                },
+                "capture": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Capture"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "the negotiated contract record (DEC-17)"
+                },
+                "criticality": {
+                    "$ref": "#/$defs/Criticality"
+                },
+                "id": {
+                    "description": "e.g. \"cmt-1\"",
+                    "type": "string"
+                },
+                "provenance": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommitmentProvenance"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "state": {
+                    "$ref": "#/$defs/CommitmentState"
+                }
+            },
+            "required": [
+                "id",
+                "activity",
+                "criticality"
+            ],
+            "title": "Commitment",
+            "type": "object"
+        },
+        "CommitmentProvenance": {
+            "additionalProperties": false,
+            "description": "A commitment's ownership and waiver authority (B3).",
+            "properties": {
+                "authority": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "expiry": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "issuing_role": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "owner": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "rationale": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "waiver_authority": {
+                    "description": "who may waive this commitment",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "CommitmentProvenance",
+            "type": "object"
+        },
+        "CommitmentState": {
+            "description": "The lifecycle state of a commitment (B4). `at-risk` is live-only (E2) and not stored.",
+            "enum": [
+                "proposed",
+                "negotiated",
+                "committed",
+                "satisfied",
+                "violated",
+                "waived",
+                "superseded"
+            ],
+            "title": "CommitmentState",
+            "type": "string"
+        },
+        "ConfidenceLevel": {
+            "description": "",
+            "enum": [
+                "high",
+                "medium",
+                "low"
+            ],
+            "title": "ConfidenceLevel",
+            "type": "string"
+        },
+        "Conflict": {
+            "additionalProperties": false,
+            "description": "A first-class, named clash when commitments cannot all be kept (C1) \u2014 not a silent failure.",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/$defs/ConflictKind"
+                },
+                "narrative": {
+                    "description": "what the clash is, in words",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "parties": {
+                    "description": "the commitments in tension",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id",
+                "kind"
+            ],
+            "title": "Conflict",
+            "type": "object"
+        },
+        "ConflictKind": {
+            "description": "Whether a clash is built into the request or emerges from the schedule (C1).",
+            "enum": [
+                "structural",
+                "emergent"
+            ],
+            "title": "ConflictKind",
+            "type": "string"
+        },
+        "Constraint": {
+            "additionalProperties": false,
+            "description": "One interpreted operator steering gesture (DEC-24) \u2014 e.g. a no-go region.",
+            "properties": {
+                "cells": {
+                    "items": {
+                        "$ref": "#/$defs/Waypoint"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "type": {
+                    "description": "\"e.g. no-go\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Constraint",
+            "type": "object"
+        },
+        "Criticality": {
+            "description": "Whether a commitment must hold or is best-effort (DEC-22).",
+            "enum": [
+                "hard",
+                "soft"
+            ],
+            "title": "Criticality",
+            "type": "string"
+        },
+        "DataProvenance": {
+            "additionalProperties": false,
+            "description": "The source and trust of a datum or entity (DEC-19). Trivial defaults in v1.",
+            "properties": {
+                "confidence": {
+                    "$ref": "#/$defs/ConfidenceLevel"
+                },
+                "freshness": {
+                    "description": "how recent \u2014 e.g. \"provisioned\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "kind": {
+                    "description": "source-class \u2014 one of: self, planned, forecast, observed, provider. The prose model separates entity kind (self/actor/feature/phenomenon) from data provenance (planned/forecast/observed); the skeleton folds them, using self/forecast/provider. A documented string rather than an enum (see the AspectType note).",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "kind"
+            ],
+            "title": "DataProvenance",
+            "type": "object"
+        },
+        "Domain": {
+            "description": "The medium a baseline / profile / movement model operates in (DEC-20).",
+            "enum": [
+                "land",
+                "sea",
+                "air"
+            ],
+            "title": "Domain",
+            "type": "string"
+        },
+        "DurationBound": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "max_min": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "min_min": {
+                    "description": "minimum dwell, in minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "DurationBound",
+            "type": "object"
+        },
+        "Effect": {
+            "additionalProperties": false,
+            "description": "A delta a plan's activity applies from a point in time (DEC-19/34) \u2014 a ChannelDelta or a self-state delta. Referenced from Activity.effects; always empty in the v1 skeleton.",
+            "properties": {
+                "active_from": {
+                    "description": "mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "delta": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/ChannelDelta"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "source_activity": {
+                    "description": "the activity that applies the effect",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "source_plan": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Effect",
+            "type": "object"
+        },
+        "Endurance": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "fuel_pct": {
+                    "description": "starting fuel, 0\u2013100",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "hours": {
+                    "description": "how long it can keep going",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Endurance",
+            "type": "object"
+        },
+        "Entity": {
+            "additionalProperties": false,
+            "description": "Anything located with an identity \u2014 yourself, an actor, a feature, a phenomenon (DEC-52). Where a Channel is a field, an Entity is a thing, projected across synchronised views. To affect the plan it is *cast* to a Channel or Commitment (actor \u2192 moving risk channel; window \u2192 timing commitment); in v1 entities are display-only. Skeleton note: aspects are keyed by name in an object (phase/fuel/height/pass); modelled here as a list of named Aspects.",
+            "properties": {
+                "aspects": {
+                    "items": {
+                        "$ref": "#/$defs/Aspect"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "e.g. \"ent-self\", \"ent-tide\", \"ent-sat\"",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "conceptual kind (DEC-52) \u2014 one of: self, actor, feature, phenomenon. Optional; the skeleton folds this into provenance.kind. A documented string rather than an enum (see the AspectType note).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "label": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "provenance": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/DataProvenance"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Entity",
+            "type": "object"
+        },
+        "Excursion": {
+            "additionalProperties": false,
+            "description": "A named, versioned set of deltas layered on a baseline \u2014 \"what if the weather turns?\" \u2014 without disturbing the underlying truth (DEC-7). Not yet implemented in the v1 skeleton.",
+            "properties": {
+                "base": {
+                    "description": "the baseline version it sits on",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "delta": {
+                    "items": {
+                        "$ref": "#/$defs/ChannelDelta"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "version": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Excursion",
+            "type": "object"
+        },
+        "ExecutionLog": {
+            "additionalProperties": false,
+            "description": "The append-only live history of a mission (DEC-23/25/26): alerts when a band is crossed, observations that update truth, waivers, and replans \u2014 never overwritten. Together with rationales and stamps it gives a complete after-action record with perfect replay (F1).",
+            "properties": {
+                "entries": {
+                    "items": {
+                        "$ref": "#/$defs/LogEntry"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "ExecutionLog",
+            "type": "object"
+        },
+        "FactDelta": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "note": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "tag": {
+                    "description": "\"e.g. track-state, sighting, weather\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "FactDelta",
+            "type": "object"
+        },
+        "FactLayer": {
+            "additionalProperties": false,
+            "description": "The single truth layer; observations append here (E5). Collapses excursions and forecast entities over time.",
+            "properties": {
+                "observations": {
+                    "items": {
+                        "$ref": "#/$defs/Observation"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "FactLayer",
+            "type": "object"
+        },
+        "Grid2D": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "cell_m": {
+                    "description": "cell edge length, in metres",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "h": {
+                    "type": "integer"
+                },
+                "w": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "w",
+                "h"
+            ],
+            "title": "Grid2D",
+            "type": "object"
+        },
+        "Lineage": {
+            "additionalProperties": false,
+            "description": "Hash-link back to the version this one supersedes (universal rule 1).",
+            "properties": {
+                "amending_order_ref": {
+                    "description": "reference to the amending order, if any",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "previous_version": {
+                    "description": "id of the prior Requirement version",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Lineage",
+            "type": "object"
+        },
+        "LogEntry": {
+            "additionalProperties": false,
+            "description": "Base of the append-only execution log; the store stamps each with a `seq`.",
+            "properties": {
+                "at": {
+                    "description": "mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "kind": {
+                    "$ref": "#/$defs/LogEntryKind"
+                },
+                "seq": {
+                    "description": "0-indexed sequence, stamped on append",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "kind"
+            ],
+            "title": "LogEntry",
+            "type": "object"
+        },
+        "LogEntryKind": {
+            "description": "",
+            "enum": [
+                "Alert",
+                "Observation",
+                "Waiver",
+                "Replan"
+            ],
+            "title": "LogEntryKind",
+            "type": "string"
+        },
+        "MarginBand": {
+            "description": "The slack band on a single commitment's satisfaction (A2, NF10). `crossed` = violated.",
+            "enum": [
+                "robust",
+                "marginal",
+                "tight",
+                "crossed"
+            ],
+            "title": "MarginBand",
+            "type": "string"
+        },
+        "Materialisation": {
+            "additionalProperties": false,
+            "description": "The cached, regenerable working-out of a plan; absent when the plan is infeasible.",
+            "properties": {
+                "kernel_version_verified": {
+                    "description": "the kernel version that verified the materialisation",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "schedule": {
+                    "items": {
+                        "$ref": "#/$defs/ScheduleLeg"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "state_curves": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/StateCurves"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "tide": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/TideDecision"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "the tide decision at plan time"
+                },
+                "trajectory": {
+                    "items": {
+                        "$ref": "#/$defs/TrajectoryPoint"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "verified": {
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Materialisation",
+            "type": "object"
+        },
+        "Medium": {
+            "additionalProperties": false,
+            "description": "The domain, grid and cell-attribute schema of a baseline (DEC-20/28).",
+            "properties": {
+                "cell_attrs": {
+                    "description": "the names of the per-cell attributes carried (e.g. mobility, cover)",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "domain": {
+                    "$ref": "#/$defs/Domain"
+                },
+                "grid": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Grid2D"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "domain"
+            ],
+            "title": "Medium",
+            "type": "object"
+        },
+        "MovementModel": {
+            "additionalProperties": false,
+            "description": "Per-domain cost of travel, and anisotropic \u2014 a property of the edge between cells, not the cell (DEC-49/34): slope-along-direction on land, current/wind vectors at sea and in air. Its cost function `cost_speed = f(cell\u2192cell, t, profile)` is behaviour, resolved across the seam \u2014 only `domain` and `realisation` are data here. Not yet implemented in the v1 skeleton.",
+            "properties": {
+                "domain": {
+                    "$ref": "#/$defs/Domain"
+                },
+                "realisation": {
+                    "$ref": "#/$defs/Realisation",
+                    "description": "\"parametric(type, params) | provider\""
+                }
+            },
+            "title": "MovementModel",
+            "type": "object"
+        },
+        "Observation": {
+            "additionalProperties": false,
+            "description": "A fact delta appended to the baseline's fact layer (E5).",
+            "properties": {
+                "at": {
+                    "description": "mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "confidence": {
+                    "description": "\"e.g. reported\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "fact_delta": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/FactDelta"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "kind": {
+                    "$ref": "#/$defs/LogEntryKind"
+                },
+                "seq": {
+                    "description": "0-indexed sequence, stamped on append",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "source": {
+                    "description": "\"e.g. operator\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "kind"
+            ],
+            "title": "Observation",
+            "type": "object"
+        },
+        "Plan": {
+            "additionalProperties": false,
+            "description": "A candidate solution whose id IS the hash of its Stamp (DEC-5/22/29). Its materialisation (schedule, trajectory, state curves) is cached and regenerable; its scores and first-class conflicts make it comparable. The skeleton also carries the chosen `strategy` and the `tide_decision` weighing.",
+            "properties": {
+                "conflicts": {
+                    "description": "first-class, named clashes (C1)",
+                    "items": {
+                        "$ref": "#/$defs/Conflict"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "\"= hash(Stamp, strategy)\"",
+                    "type": "string"
+                },
+                "materialisation": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Materialisation"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "cached, regenerable; null when infeasible"
+                },
+                "scores": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Scores"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "stamp": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Stamp"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "authoritative \u2014 the plan's identity basis"
+                },
+                "strategy": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Strategy"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "tide_decision": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/TideDecision"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "the exfil wait-vs-detour weighing (ADR-0006); null when no ford"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Plan",
+            "type": "object"
+        },
+        "Predictability": {
+            "description": "How predictable a channel is over time (DEC-21) \u2014 drives sampling.",
+            "enum": [
+                "static",
+                "periodic",
+                "dynamic"
+            ],
+            "title": "Predictability",
+            "type": "string"
+        },
+        "Profile": {
+            "additionalProperties": false,
+            "description": "What a platform can do \u2014 the fixed capabilities a sensitivity sweep varies (DEC-19/20, F5). Immutable and versioned, content-addressed.",
+            "properties": {
+                "domain": {
+                    "$ref": "#/$defs/Domain"
+                },
+                "dynamics": {
+                    "description": "how it manoeuvres (e.g. \"wheeled\")",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "endurance": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Endurance"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "id": {
+                    "description": "content id of the canonical form (DEC-35)",
+                    "type": "string"
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "sensors": {
+                    "description": "what it can perceive",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "speed_by_medium": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/SpeedByMedium"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "how fast, where"
+                },
+                "version": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Profile",
+            "type": "object"
+        },
+        "Realisation": {
+            "description": "How a channel or movement model is realised (DEC-49). `provider` = a computed service behind the seam.",
+            "enum": [
+                "raster",
+                "analytic",
+                "parametric",
+                "provider"
+            ],
+            "title": "Realisation",
+            "type": "string"
+        },
+        "Replan": {
+            "additionalProperties": false,
+            "description": "A move from one committed plan to another, with rationale (DEC-36). Not yet logged in the v1 skeleton.",
+            "properties": {
+                "at": {
+                    "description": "mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "from": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "kind": {
+                    "$ref": "#/$defs/LogEntryKind"
+                },
+                "rationale_ref": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "seq": {
+                    "description": "0-indexed sequence, stamped on append",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "to": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "kind"
+            ],
+            "title": "Replan",
+            "type": "object"
+        },
+        "Requirement": {
+            "additionalProperties": false,
+            "description": "The command's narrative intent, owned as a versioned immutable object (DEC-5/18). Amend it and you get a new version with lineage \u2014 the original stands. Content-addressed: its id is the hash of its canonical form.",
+            "properties": {
+                "commitments": {
+                    "description": "the promises it decomposes into",
+                    "items": {
+                        "$ref": "#/$defs/Commitment"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "content id (sha256:\u2026) of the canonical form (DEC-35)",
+                    "type": "string"
+                },
+                "intent": {
+                    "description": "the command's narrative, in their words",
+                    "type": "string"
+                },
+                "lineage": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Lineage"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "provenance": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Attribution"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "issuing role/authority + time"
+                },
+                "version": {
+                    "description": "amendment \u2192 new version (B5)",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id",
+                "intent"
+            ],
+            "title": "Requirement",
+            "type": "object"
+        },
+        "Satisfaction": {
+            "additionalProperties": false,
+            "description": "One commitment's verdict and slack within a plan.",
+            "properties": {
+                "commitment_id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "label": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "margin_band": {
+                    "$ref": "#/$defs/MarginBand"
+                },
+                "margin_min": {
+                    "description": "slack in minutes; may be negative",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "verdict": {
+                    "$ref": "#/$defs/Verdict"
+                }
+            },
+            "title": "Satisfaction",
+            "type": "object"
+        },
+        "ScheduleLeg": {
+            "additionalProperties": false,
+            "description": "One leg of a plan's schedule. Exfil legs may carry a tide hold (ADR-0006).",
+            "properties": {
+                "commitment_id": {
+                    "description": "the commitment this leg serves (visit/exfil legs)",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "end_min": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "kind": {
+                    "$ref": "#/$defs/ScheduleLegKind"
+                },
+                "label": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "start_min": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "kind"
+            ],
+            "title": "ScheduleLeg",
+            "type": "object"
+        },
+        "ScheduleLegKind": {
+            "description": "The kind of one leg in a plan's schedule.",
+            "enum": [
+                "transit",
+                "hold",
+                "visit",
+                "exfil"
+            ],
+            "title": "ScheduleLegKind",
+            "type": "string"
+        },
+        "Scores": {
+            "additionalProperties": false,
+            "description": "A plan's comparable scores, read under the comparability guard (A2/C2/C6, NF10).",
+            "properties": {
+                "cost_band": {
+                    "$ref": "#/$defs/Band"
+                },
+                "robustness_band": {
+                    "$ref": "#/$defs/Band"
+                },
+                "satisfaction": {
+                    "items": {
+                        "$ref": "#/$defs/Satisfaction"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Scores",
+            "type": "object"
+        },
+        "SelectionRationale": {
+            "additionalProperties": false,
+            "description": "The record of a choice (DEC-23): which plan won, which it beat, on which axis, with the after-mitigation bands, and who decided. Content-addressed.",
+            "properties": {
+                "appetites": {
+                    "description": "the risk-appetite selections at the time",
+                    "items": {
+                        "$ref": "#/$defs/Appetite"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "beaten": {
+                    "description": "the field it beat",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "by": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "chosen": {
+                    "description": "the winning plan",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "chosen_bands": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/ChosenBands"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "cost/robustness bands after mitigations"
+                },
+                "deciding_axis": {
+                    "description": "\"what tipped it \u2014 e.g. time/speed, exposure, robustness, completeness\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "content id of the canonical form (DEC-35)",
+                    "type": "string"
+                },
+                "mitigations": {
+                    "description": "\"e.g. armed-escort\"",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "note": {
+                    "description": "the justification narrative",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "role": {
+                    "description": "\"e.g. implementer\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "SelectionRationale",
+            "type": "object"
+        },
+        "SpeedByMedium": {
+            "additionalProperties": false,
+            "description": "Speed per medium (skeleton: land only).",
+            "properties": {
+                "air_kph": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "land_kph": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "sea_kph": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "title": "SpeedByMedium",
+            "type": "object"
+        },
+        "Stamp": {
+            "additionalProperties": false,
+            "description": "Every input that determines a plan, bundled into one identity (DEC-23/24/29): which requirement, which world, which config core, what appetites and steering, which kernel and seed. A plan's id IS the hash of its Stamp, so two plans are comparable only when their stamps share a basis (the comparability guard). Skeleton additions (DEC-47): `profile_version` and `start` are part of identity because the plan depends on the platform and the starting state.",
+            "properties": {
+                "appetites": {
+                    "description": "the implementer's risk dials (DEC-6)",
+                    "items": {
+                        "$ref": "#/$defs/Appetite"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "baseline_version": {
+                    "description": "id of the baseline version",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "config_core_hash": {
+                    "description": "hash of the world-defining config core \u2014 medium/channels/movement-model/providers/vocabulary; the instance shell is excluded (DEC-48)",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "excursions": {
+                    "description": "ids of the excursion versions (empty in v1)",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "kernel_version": {
+                    "description": "e.g. \"mock-0.1\" \u2014 part of identity (DEC-29)",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "profile_version": {
+                    "description": "id of the profile version (skeleton addition, DEC-47)",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "requirement_version": {
+                    "description": "id of the requirement version",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "start": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/StartState"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "the starting state (skeleton addition, DEC-47)"
+                },
+                "steering": {
+                    "description": "interpreted operator gestures / no-go constraints (DEC-24)",
+                    "items": {
+                        "$ref": "#/$defs/Constraint"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "strategy_seed": {
+                    "description": "RNG seed for strategy ordering \u2014 part of identity (DEC-29)",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "Stamp",
+            "type": "object"
+        },
+        "StartState": {
+            "additionalProperties": false,
+            "description": "The starting position and clock baked into a Stamp (skeleton, DEC-47).",
+            "properties": {
+                "clock_min": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "x": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "y": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "StartState",
+            "type": "object"
+        },
+        "State": {
+            "additionalProperties": false,
+            "description": "The platform right now \u2014 the live condition the kernel re-anchors to during execution (DEC-19). It is the privileged self-entity (DEC-52): its fields are the dynamic aspects of the `self` Entity (position \u2192 map/distance; endurance/availability \u2192 state curves).",
+            "properties": {
+                "availability": {
+                    "description": "\"available | down\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "clock_min": {
+                    "description": "the current mission time, in minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "endurance_fuel_pct": {
+                    "description": "how much fuel is left, 0\u2013100",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "position": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Waypoint"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "which cell"
+                }
+            },
+            "title": "State",
+            "type": "object"
+        },
+        "StateCurves": {
+            "additionalProperties": false,
+            "description": "The end-state of the platform's curves over the plan (v1 carries fuel only).",
+            "properties": {
+                "fuel_end_pct": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "title": "StateCurves",
+            "type": "object"
+        },
+        "Strategy": {
+            "additionalProperties": false,
+            "description": "One candidate strategy in the plan handful (skeleton).",
+            "properties": {
+                "axis": {
+                    "description": "the axis it optimises, e.g. \"time/speed\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "blurb": {
+                    "description": "a one-line description",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "key": {
+                    "$ref": "#/$defs/StrategyKey"
+                },
+                "label": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "key"
+            ],
+            "title": "Strategy",
+            "type": "object"
+        },
+        "StrategyKey": {
+            "description": "The skeleton's three candidate strategies (the \"handful\" of plans).",
+            "enum": [
+                "direct",
+                "tracked",
+                "covered"
+            ],
+            "title": "StrategyKey",
+            "type": "string"
+        },
+        "Terrain": {
+            "description": "Per-cell land-cover class used by the skeleton's mobility raster.",
+            "enum": [
+                "road",
+                "track",
+                "open",
+                "rough",
+                "forest",
+                "marsh",
+                "ford",
+                "water"
+            ],
+            "title": "Terrain",
+            "type": "string"
+        },
+        "TideDecision": {
+            "additionalProperties": false,
+            "description": "The result of the tidal-ford wait-vs-detour weighing (ADR-0006): the kernel materialises the exfil both ways \u2014 wait at the bank vs a ford-free detour \u2014 and commits to the earlier RV arrival, publishing the choice here.",
+            "properties": {
+                "detour_rv": {
+                    "description": "mission minutes the detour route reaches the RV; null when no detour exists",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "ford_rv": {
+                    "description": "mission minutes the ford route reaches the RV",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "mode": {
+                    "$ref": "#/$defs/TideMode"
+                },
+                "narrative": {
+                    "description": "the choice, in words",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "wait_min": {
+                    "description": "minutes held at the bank before crossing",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "mode"
+            ],
+            "title": "TideDecision",
+            "type": "object"
+        },
+        "TideMode": {
+            "description": "The outcome of the tidal-ford wait-vs-detour weighing (ADR-0006).",
+            "enum": [
+                "no-ford",
+                "open",
+                "wait",
+                "detour"
+            ],
+            "title": "TideMode",
+            "type": "string"
+        },
+        "TimeWindow": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "end_min": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "start_min": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "TimeWindow",
+            "type": "object"
+        },
+        "TimingConstraint": {
+            "additionalProperties": false,
+            "description": "When an activity must happen \u2014 exactly one form is used (DEC-16).",
+            "properties": {
+                "after_min": {
+                    "description": "earliest start, in mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "before_min": {
+                    "description": "deadline, in mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "recurring": {
+                    "description": "\"recurring(period, anchor) \u2014 conceptual\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "window": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/TimeWindow"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "an absolute or anchored interval"
+                }
+            },
+            "title": "TimingConstraint",
+            "type": "object"
+        },
+        "TrajectoryPoint": {
+            "additionalProperties": false,
+            "description": "One sampled point on the platform's path; coordinates may be fractional, time/fuel rounded to 1 dp for IEEE stability.",
+            "properties": {
+                "fuel_pct": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "t": {
+                    "description": "mission minutes",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "x": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "y": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "title": "TrajectoryPoint",
+            "type": "object"
+        },
+        "Verdict": {
+            "description": "A commitment's verdict in a plan's scores.",
+            "enum": [
+                "satisfied",
+                "violated",
+                "waived"
+            ],
+            "title": "Verdict",
+            "type": "string"
+        },
+        "Waiver": {
+            "additionalProperties": false,
+            "description": "A relaxed commitment, attributed (B3). Not yet logged in the v1 skeleton.",
+            "properties": {
+                "at": {
+                    "description": "mission minutes",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "authority": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "by": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "commitment_id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "kind": {
+                    "$ref": "#/$defs/LogEntryKind"
+                },
+                "rationale": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "seq": {
+                    "description": "0-indexed sequence, stamped on append",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "kind"
+            ],
+            "title": "Waiver",
+            "type": "object"
+        },
+        "Waypoint": {
+            "additionalProperties": false,
+            "description": "A single grid location.",
+            "properties": {
+                "alias": {
+                    "description": "a human-friendly name, e.g. \"OP-21,3\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "x": {
+                    "type": "integer"
+                },
+                "y": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "x",
+                "y"
+            ],
+            "title": "Waypoint",
+            "type": "object"
+        }
+    },
+    "$id": "https://deepbluecltd.github.io/REMIT/schema/remit",
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "additionalProperties": true,
+    "metamodel_version": "1.11.0",
+    "title": "remit",
+    "type": "object",
+    "version": null
+}
+

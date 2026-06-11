@@ -146,4 +146,34 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
 - **Prevention:** for node's built-in runner, discover tests with a quoted glob (or run
   bare `node --test` from the repo root); never pass a bare directory path.
 
+## 2026-06-10 — LinkML install fails under distro pip (`install_layout`); needs a venv
+
+- **Symptom:** `pip3 install linkml` aborts building wheels for legacy sdists
+  (`antlr4-python3-runtime`, `cfgraph`, `pytest-logging`) with
+  `AttributeError: install_layout` — no LinkML toolchain.
+- **Root cause:** Debian's system `pip`/`setuptools` carries the `install_layout`
+  patch, which breaks `setup.py`-based builds of those old transitive deps. PyPI is
+  reachable; the failure is the distro setuptools, not the network.
+- **Fix:** install into a clean virtualenv (`python3 -m venv` → upgrade
+  pip/setuptools/wheel → `pip install linkml`). `schema/generate.sh` bootstraps this
+  automatically (`LINKML_VENV`, default `/tmp/linkml-venv`).
+- **Prevention:** never use the distro `pip` for LinkML here; always go through the
+  venv the generate script creates.
+
+## 2026-06-10 — LinkML generators crash on a permissible value named `self`
+
+- **Symptom:** every generator (`gen-json-schema`/`gen-typescript`/`gen-erdiagram`)
+  aborts at schema *load* with
+  `TypeError: ExtendedNamespace.__init__() got multiple values for argument 'self'`.
+- **Root cause:** `jsonasobj2` builds objects via `__init__(self, … **d)`; any mapping
+  key literally named `self` (here an enum permissible value `self`, for own force)
+  collides with the positional `self`. LinkML also forbids a permissible value whose
+  `text` differs from its key, so you can't keep value `self` under a safe key either.
+- **Fix:** don't model the two value sets that contain `self` (entity kind /
+  data provenance) as LinkML enums — model `Entity.kind` and `DataProvenance.kind` as
+  documented strings that list the allowed values (preserving the real wire value
+  `self`). All other enums stay real LinkML enums. Documented in the schema.
+- **Prevention:** never use `self` (or other Python-reserved/`__init__` kwarg names)
+  as a permissible-value or mapping key in a LinkML schema.
+
 <!-- Add new entries above this line. -->

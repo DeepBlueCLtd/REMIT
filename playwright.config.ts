@@ -19,7 +19,7 @@ export default defineConfig({
     baseURL,
     screenshot: 'on',
     trace: 'on-first-retry',
-    // WebGL (deck.gl / MapLibre) headless needs software GL via SwiftShader (ADR-0012).
+    // WebGL (deck.gl / MapLibre) headless needs software GL via SwiftShader (ADR-0016).
     launchOptions: {
       args: [
         ...(isCloud ? ['--no-sandbox'] : []),

@@ -1,5 +1,5 @@
 // Golden-fixture tests for the mock kernel (kernel/kernel.js) on the H3 "Solway crossing"
-// scenario (ADR-0012).
+// scenario (ADR-0016).
 //
 // A fast, browser-free guard on the deterministic planner that the e2e suite only
 // exercises through the UI. The requirement geometry is the app's capture defaults

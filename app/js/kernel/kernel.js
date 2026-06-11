@@ -1,6 +1,6 @@
 // @ts-check
 // kernel/kernel.js — the mock kernel (DEC-44, NF9): an honest non-planner, on the H3
-// hex grid (ADR-0012).
+// hex grid (ADR-0016).
 //
 // Real but trivial: each strategy bias runs a deterministic A* over the hex AO (DEC-22
 // fan-out), the movement model is trivially parametric (uniform hex steps, no diagonal),
@@ -69,7 +69,7 @@ export function bandFor(slackMin, unit) {
 }
 
 // ---------------------------------------------------------------------------
-// Tidal exfil (ADR-0012): the river is crossed by several waths (tidal fords, open only
+// Tidal exfil (ADR-0016): the river is crossed by several waths (tidal fords, open only
 // within the low-tide window) and one all-tide road bridge. A time-dependent A* over
 // (cell, minute) states finds the earliest/cheapest crossing — waiting at a dry bank for
 // a window, or detouring via the bridge — in a single search. We then read back the

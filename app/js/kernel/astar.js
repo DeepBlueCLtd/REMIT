@@ -1,5 +1,5 @@
 // @ts-check
-// kernel/astar.js — deterministic search over the H3 hex AO (ADR-0012). Operates on
+// kernel/astar.js — deterministic search over the H3 hex AO (ADR-0016). Operates on
 // stable integer ids with the frozen, bearing-sorted adjacency, so the same inputs
 // always yield the same path (NF3). Two searches:
 //   findPath      — spatial A* (strategy-weighted cost), for tide-free legs.

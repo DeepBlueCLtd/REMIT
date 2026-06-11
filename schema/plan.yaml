@@ -1,0 +1,233 @@
+# plan.yaml — GENERATED MODULE of the REMIT data model.
+# Part of schema/remit.yaml (the entry schema). Edit here, then run schema/generate.sh.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit/plan
+name: remit-plan
+title: REMIT — plan
+description: 'Plan identity and plans: Stamp, Plan and its materialisation, scores and conflicts (DEC-23/29).'
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+- common
+classes:
+  Stamp:
+    description: 'Every input that determines a plan, bundled into one identity (DEC-23/24/29): which requirement, which world, which config core, what appetites and steering, which kernel and seed. A plan''s id IS the hash of its Stamp, so two plans are comparable only when their stamps share a basis (the comparability guard). Skeleton additions (DEC-47): `profile_version` and `start` are part of identity because the plan depends on the platform and the starting state.'
+    attributes:
+      requirement_version:
+        range: Requirement
+        inlined: false
+        description: id of the requirement version
+      baseline_version:
+        range: Baseline
+        inlined: false
+        description: id of the baseline version
+      excursions:
+        range: Excursion
+        multivalued: true
+        inlined: false
+        description: ids of the excursion versions (empty in v1)
+      config_core_hash:
+        description: hash of the world-defining config core — medium/channels/movement-model/providers/vocabulary; the instance shell is excluded (DEC-48)
+      profile_version:
+        range: Profile
+        inlined: false
+        description: id of the profile version (skeleton addition, DEC-47)
+      start:
+        range: StartState
+        inlined: true
+        description: the starting state (skeleton addition, DEC-47)
+      appetites:
+        range: Appetite
+        multivalued: true
+        inlined_as_list: true
+        description: the implementer's risk dials (DEC-6)
+      steering:
+        range: Constraint
+        multivalued: true
+        inlined_as_list: true
+        description: interpreted operator gestures / no-go constraints (DEC-24)
+      kernel_version:
+        description: e.g. "mock-0.1" — part of identity (DEC-29)
+      strategy_seed:
+        range: integer
+        description: RNG seed for strategy ordering — part of identity (DEC-29)
+  StartState:
+    description: The starting position and clock baked into a Stamp (skeleton, DEC-47).
+    attributes:
+      x:
+        range: integer
+      y:
+        range: integer
+      clock_min:
+        range: integer
+  Appetite:
+    description: One risk-appetite dial setting (DEC-6) — e.g. tempo = rapid, exposure = cautious.
+    attributes:
+      axis:
+        description: '"e.g. tempo, exposure"'
+      setting:
+        description: '"e.g. deliberate/balanced/rapid, bold/balanced/cautious"'
+  Constraint:
+    description: One interpreted operator steering gesture (DEC-24) — e.g. a no-go region.
+    attributes:
+      type:
+        description: '"e.g. no-go"'
+      cells:
+        range: Waypoint
+        multivalued: true
+        inlined_as_list: true
+  Strategy:
+    description: One candidate strategy in the plan handful (skeleton).
+    attributes:
+      key:
+        range: StrategyKey
+        required: true
+      label: {}
+      axis:
+        description: the axis it optimises, e.g. "time/speed"
+      blurb:
+        description: a one-line description
+  Plan:
+    description: A candidate solution whose id IS the hash of its Stamp (DEC-5/22/29). Its materialisation (schedule, trajectory, state curves) is cached and regenerable; its scores and first-class conflicts make it comparable. The skeleton also carries the chosen `strategy` and the `tide_decision` weighing.
+    attributes:
+      id:
+        identifier: true
+        description: '"= hash(Stamp, strategy)"'
+      strategy:
+        range: Strategy
+        inlined: true
+      stamp:
+        range: Stamp
+        inlined: true
+        description: authoritative — the plan's identity basis
+      materialisation:
+        range: Materialisation
+        inlined: true
+        description: cached, regenerable; null when infeasible
+      scores:
+        range: Scores
+        inlined: true
+      tide_decision:
+        range: TideDecision
+        inlined: true
+        description: the exfil wait-vs-detour weighing (ADR-0006); null when no ford
+      conflicts:
+        range: Conflict
+        multivalued: true
+        inlined_as_list: true
+        description: first-class, named clashes (C1)
+  Materialisation:
+    description: The cached, regenerable working-out of a plan; absent when the plan is infeasible.
+    attributes:
+      schedule:
+        range: ScheduleLeg
+        multivalued: true
+        inlined_as_list: true
+      trajectory:
+        range: TrajectoryPoint
+        multivalued: true
+        inlined_as_list: true
+      state_curves:
+        range: StateCurves
+        inlined: true
+      tide:
+        range: TideDecision
+        inlined: true
+        description: the tide decision at plan time
+      verified:
+        range: boolean
+      kernel_version_verified:
+        description: the kernel version that verified the materialisation
+  ScheduleLeg:
+    description: One leg of a plan's schedule. Exfil legs may carry a tide hold (ADR-0006).
+    attributes:
+      kind:
+        range: ScheduleLegKind
+        required: true
+      label: {}
+      start_min:
+        range: float
+      end_min:
+        range: float
+      commitment_id:
+        range: Commitment
+        inlined: false
+        description: the commitment this leg serves (visit/exfil legs)
+  TrajectoryPoint:
+    description: One sampled point on the platform's path; coordinates may be fractional, time/fuel rounded to 1 dp for IEEE stability.
+    attributes:
+      x:
+        range: float
+      y:
+        range: float
+      t:
+        range: float
+        description: mission minutes
+      fuel_pct:
+        range: float
+  StateCurves:
+    description: The end-state of the platform's curves over the plan (v1 carries fuel only).
+    attributes:
+      fuel_end_pct:
+        range: float
+  Scores:
+    description: A plan's comparable scores, read under the comparability guard (A2/C2/C6, NF10).
+    attributes:
+      satisfaction:
+        range: Satisfaction
+        multivalued: true
+        inlined_as_list: true
+      cost_band:
+        range: Band
+      robustness_band:
+        range: Band
+  Satisfaction:
+    description: One commitment's verdict and slack within a plan.
+    attributes:
+      commitment_id:
+        range: Commitment
+        inlined: false
+      label: {}
+      margin_min:
+        range: float
+        description: slack in minutes; may be negative
+      margin_band:
+        range: MarginBand
+      verdict:
+        range: Verdict
+  TideDecision:
+    description: 'The result of the tidal-ford wait-vs-detour weighing (ADR-0006): the kernel materialises the exfil both ways — wait at the bank vs a ford-free detour — and commits to the earlier RV arrival, publishing the choice here.'
+    attributes:
+      mode:
+        range: TideMode
+        required: true
+      wait_min:
+        range: float
+        description: minutes held at the bank before crossing
+      ford_rv:
+        range: float
+        description: mission minutes the ford route reaches the RV
+      detour_rv:
+        range: float
+        description: mission minutes the detour route reaches the RV; null when no detour exists
+      narrative:
+        description: the choice, in words
+  Conflict:
+    description: A first-class, named clash when commitments cannot all be kept (C1) — not a silent failure.
+    attributes:
+      id:
+        identifier: true
+      kind:
+        range: ConflictKind
+        required: true
+      parties:
+        range: Commitment
+        multivalued: true
+        inlined: false
+        description: the commitments in tension
+      narrative:
+        description: what the clash is, in words
