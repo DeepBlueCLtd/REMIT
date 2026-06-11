@@ -1,8 +1,10 @@
-# REMIT — Seam Contract (draft 0.2)
+# REMIT — Seam Contract (draft 0.3)
 
 *The interface that must stay stable (DEC-41) across implementations. v1 ships in-browser mock implementations behind it (DEC-39); the future real services swap in without client change. Shapes reference `remit-data-model.md` v0.3. JSON-ish, conceptual.*
 
 *v0.2: adds **§D Providers** (computed channels, movement model, entity tracks — DEC-49/52); `Entity` as an object type (A); `config_core` in the planning call and stamp (DEC-48).*
+
+*v0.3: adds the **command-post seam** (DEC-59/60/61, designed-for): §B `/plan/scheme-handful` (Operation -> banded Schemes); §E **source-provider ingress** (DEC-49 run inward), the **role write-scope/delta** rules, and the **registered UI-component** contract. v1 ships mocks (canned Schemes, mock feed) so the contract matures; capability is H2/H3 (DEC-56 guard). Stances/roles ride the instance shell (DEC-48), identity-free.*
 
 ## Scope
 
@@ -32,7 +34,7 @@ GET  /objects/{id}/lineage                                → { chain: [id] }   
 POST /logs/{mission_id}/append   body: <ExecutionLog entry>  → { ok }         // append-only (DEC-25/26)
 GET  /logs/{mission_id}          ?after=t                    → [ entry ]
 ```
-Object types: Requirement, Baseline, Excursion, Profile, Plan, SelectionRationale, **Entity** (DEC-52; forecast/observed entities are immutable versioned objects — computed entities come from §D providers, not the store).
+Object types: Requirement, Baseline, Excursion, Profile, Plan, SelectionRationale, **Entity**, and (designed-for, DEC-59/61) **Operation** / **EndState** / **SchemeOfManoeuvre** and **Role** (Role rides the DEC-48 shell, identity-free) (DEC-52; forecast/observed entities are immutable versioned objects — computed entities come from §D providers, not the store).
 
 ## B. Planning service (the kernel call)
 
@@ -59,6 +61,19 @@ POST /plan/rescore                          // amendment / new world version (B5
 POST /surface/suitability                   // C10 advisory, v1 best-d-window (DEC-32)
   body: { activity, window, baseline_version:id, excursions:[id] }
   → { grid: BandedSurface }                 // good|marginal|poor per cell (advisory only)
+
+POST /plan/scheme-handful                   // DEC-59 (designed-for): Operation -> banded handful of Schemes of Manoeuvre
+  body: {
+    operation_version: id,                  // owns requirements + End-State
+    requirement_versions: [id],
+    baseline_version: id, excursions: [id], config_core: hash,
+    asset_pool: [entity_id],                // blue allocatable assets (DEC-60); capability matched to Activity needs
+    appetites: { axis -> setting },         // CO's cross-objective priority (DEC-6, this echelon)
+    strategy_seed
+  }
+  → { schemes: [SchemeOfManoeuvre], kernel_version } | { job_id }
+// Scheme scored by effect profile vs End-State (two-level banding, NF10). Portfolio search is a KERNEL
+// discipline (DEC-51): v1 mock returns canned schemes.
 ```
 
 ## C. Sync (trickle link, when connected — DEC-25)
@@ -95,6 +110,28 @@ POST /provider/entity/{entity_id}/track              // computed entity, e.g. ep
 
 ---
 
+## E. Command-post: ingress, surfaces & roles — DEC-60/61 (designed-for)
+
+```
+// INGRESS — the DEC-49 provider seam run INWARD (live field / mock bench, swapped with no client change):
+POST /provider/source/{source_id}/stream     // external feed -> STAMPED observation/entity deltas (NF3 over stamped inputs)
+  body: { since?: cursor }                    // pull / stream; a live source emits as facts arrive
+  → { deltas: [ Observation | EntityDelta ], cursor }   // collapse excursions; update confidence/freshness (DEC-19/25)
+
+// WRITES — every cross-role authoring act is a stamped Delta over the SHARED store
+//          (the same path that serialises on /sync later, DEC-25):
+POST /role/{role_id}/delta   body: <Delta>    → { id }   // enforced + attributed by write_scope (DEC-15/NF2)
+// out-of-scope delta ⇒ error code `write_scope_denied`.
+
+// SURFACES — bespoke role UIs are REGISTERED render-components bound by config; they read via projections
+//   (NF1) and write only via /role/{}/delta. A new surface is a RELEASE (conformance-tested, DEC-46);
+//   config then selects/parameterises/binds it (release-then-compose; NO config-embedded code — Q15/DEC-50/51).
+```
+- A source provider is DETERMINISTIC within a version like any §D provider; it differs only in direction (push/stream of facts vs pull of fields). Reuses `provider_nondeterministic` (DEC-50).
+- Roles, write-scopes and registered surfaces are **instance-shell** config (DEC-48) — identity-free, never part of the stamp.
+
+---
+
 ## v1 mock notes
 
 - All of the above implemented **in-browser**, synchronously, behaviour **illustrative only** — does not validate the real planner's quality (DEC-41 / NF9).
@@ -109,3 +146,5 @@ POST /provider/entity/{entity_id}/track              // computed entity, e.g. ep
 - Pagination/cursor semantics for `/logs` and `/sync/pull`.
 - Provider **cache invalidation** + how `config_core` change versions provider results; `track` provenance when a forecast entity is later observed (collapse over `/sync`).
 - Whether the entity **cast-to-channel/commitment** (DEC-52) is a client step or a seam-side helper.
+- **Classification (Q15) sharpened by §E:** bespoke registered surfaces + live source-provider feeds are the system's largest classification surface; marking/enforcement on ingress deltas and per-role surfaces is designed-for, not resolved (DEC-31/61).
+- Whether `/plan/scheme-handful` (§B) shares the `/plan/handful` async/job shape verbatim or specialises it.
