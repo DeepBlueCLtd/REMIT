@@ -77,6 +77,10 @@ td.card{font-family:ui-monospace,monospace;color:var(--ink-soft);white-space:now
 .pz-ctrl button{width:1.7rem;height:1.7rem;border:0;background:transparent;color:var(--ink);font:600 1rem/1 system-ui,sans-serif;border-radius:.35rem;cursor:pointer;display:grid;place-items:center}
 .pz-ctrl button:hover{background:var(--bg-soft);color:var(--accent)}
 .pz-hint{position:absolute;left:.65rem;bottom:.55rem;z-index:6;font-size:.68rem;color:var(--ink-soft);background:color-mix(in srgb,var(--card) 78%,transparent);border:1px solid var(--line);border-radius:.4rem;padding:.08rem .45rem;pointer-events:none;backdrop-filter:blur(6px)}
+.erd a.erd-node-link,.erd-svg a.erd-node-link{cursor:pointer}
+.erd a.erd-node-link rect,.erd-svg a.erd-node-link rect{transition:stroke .1s,stroke-width .1s,fill .1s}
+.erd a.erd-node-link:hover rect,.erd-svg a.erd-node-link:hover rect{stroke:var(--accent);stroke-width:2px;fill:var(--accent-soft)}
+.erd a.erd-node-link:hover .nodeLabel,.erd-svg a.erd-node-link:hover .nodeLabel{color:var(--accent-ink)}
 .erd-legend,.erd .legend{font-size:.73rem;color:var(--ink-soft);margin:.3rem 0 1.2rem}
 .erd-legend .cf,.erd .legend .cf{font-family:ui-monospace,monospace;background:var(--mono-bg);padding:.02rem .3rem;border-radius:.25rem}
 details.er{border:1px solid var(--line);border-radius:.7rem;background:var(--card);padding:.4rem .9rem}

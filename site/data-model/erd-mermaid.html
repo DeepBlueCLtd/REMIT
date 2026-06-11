@@ -77,6 +77,10 @@ td.card{font-family:ui-monospace,monospace;color:var(--ink-soft);white-space:now
 .pz-ctrl button{width:1.7rem;height:1.7rem;border:0;background:transparent;color:var(--ink);font:600 1rem/1 system-ui,sans-serif;border-radius:.35rem;cursor:pointer;display:grid;place-items:center}
 .pz-ctrl button:hover{background:var(--bg-soft);color:var(--accent)}
 .pz-hint{position:absolute;left:.65rem;bottom:.55rem;z-index:6;font-size:.68rem;color:var(--ink-soft);background:color-mix(in srgb,var(--card) 78%,transparent);border:1px solid var(--line);border-radius:.4rem;padding:.08rem .45rem;pointer-events:none;backdrop-filter:blur(6px)}
+.erd a.erd-node-link,.erd-svg a.erd-node-link{cursor:pointer}
+.erd a.erd-node-link rect,.erd-svg a.erd-node-link rect{transition:stroke .1s,stroke-width .1s,fill .1s}
+.erd a.erd-node-link:hover rect,.erd-svg a.erd-node-link:hover rect{stroke:var(--accent);stroke-width:2px;fill:var(--accent-soft)}
+.erd a.erd-node-link:hover .nodeLabel,.erd-svg a.erd-node-link:hover .nodeLabel{color:var(--accent-ink)}
 .erd-legend,.erd .legend{font-size:.73rem;color:var(--ink-soft);margin:.3rem 0 1.2rem}
 .erd-legend .cf,.erd .legend .cf{font-family:ui-monospace,monospace;background:var(--mono-bg);padding:.02rem .3rem;border-radius:.25rem}
 details.er{border:1px solid var(--line);border-radius:.7rem;background:var(--card);padding:.4rem .9rem}
@@ -110,159 +114,155 @@ footer.site a{font-weight:600}.backlinks{display:flex;gap:1.25rem;flex-wrap:wrap
 <span><b>20</b> enums</span><span>JSON Schema &amp; TypeScript generated alongside</span></div></div></div>
 <div class="wrap layout"><aside class="toc"><div class="toc-title">Navigate</div><nav><a class="flat" href="#overview">▤ Diagrams</a><details open><summary><a href="#module-common">Common</a><span class="c">4</span></summary><ul><li><a href="#class-Attribution">Attribution</a></li><li><a href="#class-DataProvenance">DataProvenance</a></li><li><a href="#class-Lineage">Lineage</a></li><li><a href="#class-Waypoint">Waypoint</a></li></ul></details><details open><summary><a href="#module-requirement">Requirement</a><span class="c">12</span></summary><ul><li><a href="#class-CommitmentProvenance">CommitmentProvenance</a></li><li><a href="#class-Requirement">Requirement</a></li><li><a href="#class-Commitment">Commitment</a></li><li><a href="#class-Capture">Capture</a></li><li><a href="#class-Answer">Answer</a></li><li><a href="#class-Ambiguity">Ambiguity</a></li><li><a href="#class-Activity">Activity</a></li><li><a href="#class-CellPredicate">CellPredicate</a></li><li><a href="#class-TimingConstraint">TimingConstraint</a></li><li><a href="#class-TimeWindow">TimeWindow</a></li><li><a href="#class-DurationBound">DurationBound</a></li><li><a href="#class-ActivityModifiers">ActivityModifiers</a></li></ul></details><details open><summary><a href="#module-world">World</a><span class="c">14</span></summary><ul><li><a href="#class-Baseline">Baseline</a></li><li><a href="#class-Changepoint">Changepoint</a></li><li><a href="#class-Medium">Medium</a></li><li><a href="#class-Grid2D">Grid2D</a></li><li><a href="#class-Cell">Cell</a></li><li><a href="#class-Channel">Channel</a></li><li><a href="#class-ChannelParams">ChannelParams</a></li><li><a href="#class-FactLayer">FactLayer</a></li><li><a href="#class-MovementModel">MovementModel</a></li><li><a href="#class-Excursion">Excursion</a></li><li><a href="#class-ChannelDelta">ChannelDelta</a></li><li><a href="#class-CellPatch">CellPatch</a></li><li><a href="#class-Effect">Effect</a></li><li><a href="#class-AOPackage">AOPackage</a></li></ul></details><details open><summary><a href="#module-force">Own force</a><span class="c">4</span></summary><ul><li><a href="#class-Profile">Profile</a></li><li><a href="#class-SpeedByMedium">SpeedByMedium</a></li><li><a href="#class-Endurance">Endurance</a></li><li><a href="#class-State">State</a></li></ul></details><details open><summary><a href="#module-entities">Entities</a><span class="c">2</span></summary><ul><li><a href="#class-Entity">Entity</a></li><li><a href="#class-Aspect">Aspect</a></li></ul></details><details open><summary><a href="#module-plan">Plan</a><span class="c">14</span></summary><ul><li><a href="#class-Stamp">Stamp</a></li><li><a href="#class-StartState">StartState</a></li><li><a href="#class-Appetite">Appetite</a></li><li><a href="#class-Constraint">Constraint</a></li><li><a href="#class-Strategy">Strategy</a></li><li><a href="#class-Plan">Plan</a></li><li><a href="#class-Materialisation">Materialisation</a></li><li><a href="#class-ScheduleLeg">ScheduleLeg</a></li><li><a href="#class-TrajectoryPoint">TrajectoryPoint</a></li><li><a href="#class-StateCurves">StateCurves</a></li><li><a href="#class-Scores">Scores</a></li><li><a href="#class-Satisfaction">Satisfaction</a></li><li><a href="#class-TideDecision">TideDecision</a></li><li><a href="#class-Conflict">Conflict</a></li></ul></details><details open><summary><a href="#module-records">Records</a><span class="c">10</span></summary><ul><li><a href="#class-SelectionRationale">SelectionRationale</a></li><li><a href="#class-ChosenBands">ChosenBands</a></li><li><a href="#class-ExecutionLog">ExecutionLog</a></li><li><a href="#class-LogEntry">LogEntry</a></li><li><a href="#class-Alert">Alert</a></li><li><a href="#class-AlertCause">AlertCause</a></li><li><a href="#class-Observation">Observation</a></li><li><a href="#class-FactDelta">FactDelta</a></li><li><a href="#class-Waiver">Waiver</a></li><li><a href="#class-Replan">Replan</a></li></ul></details><details><summary><a href="#enums">Enums</a><span class="c">20</span></summary><ul><li><a href="#enum-Criticality">Criticality</a></li><li><a href="#enum-ActivityType">ActivityType</a></li><li><a href="#enum-CommitmentState">CommitmentState</a></li><li><a href="#enum-AnswerStatus">AnswerStatus</a></li><li><a href="#enum-AmbiguityStatus">AmbiguityStatus</a></li><li><a href="#enum-Domain">Domain</a></li><li><a href="#enum-Terrain">Terrain</a></li><li><a href="#enum-Realisation">Realisation</a></li><li><a href="#enum-Predictability">Predictability</a></li><li><a href="#enum-ConfidenceLevel">ConfidenceLevel</a></li><li><a href="#enum-AspectType">AspectType</a></li><li><a href="#enum-StrategyKey">StrategyKey</a></li><li><a href="#enum-Band">Band</a></li><li><a href="#enum-MarginBand">MarginBand</a></li><li><a href="#enum-Verdict">Verdict</a></li><li><a href="#enum-ScheduleLegKind">ScheduleLegKind</a></li><li><a href="#enum-TideMode">TideMode</a></li><li><a href="#enum-ConflictKind">ConflictKind</a></li><li><a href="#enum-AlertCauseType">AlertCauseType</a></li><li><a href="#enum-LogEntryKind">LogEntryKind</a></li></ul></details></nav></aside><main class="content">
 <section id="overview"><div class="sec-head"><h2>The model at a glance</h2><p>The serialisable object core, split into 7 modules.</p></div><div class="modgrid"><a class="modcard" href="#module-common"><h3>Common</h3><p>Shared value objects and the enum vocabulary used across the REMIT data model. Imported by every other module.</p><span class="n">4 classes · 20 enums</span></a><a class="modcard" href="#module-requirement"><h3>Requirement</h3><p>The requirement and the promises in it: Requirement -&gt; Commitment -&gt; Activity (DEC-5/16/17/18).</p><span class="n">12 classes</span></a><a class="modcard" href="#module-world"><h3>World</h3><p>The world the plan moves through: baseline, channels, movement, excursions, effects (DEC-7/19/20/21).</p><span class="n">14 classes</span></a><a class="modcard" href="#module-force"><h3>Own force</h3><p>Own force: the platform fixed capabilities (Profile) and live condition (State) (DEC-19/20/52).</p><span class="n">4 classes</span></a><a class="modcard" href="#module-entities"><h3>Entities</h3><p>Located things with identity, projected across views: Entity and its time-varying Aspects (DEC-52/53).</p><span class="n">2 classes</span></a><a class="modcard" href="#module-plan"><h3>Plan</h3><p>Plan identity and plans: Stamp, Plan and its materialisation, scores and conflicts (DEC-23/29).</p><span class="n">14 classes</span></a><a class="modcard" href="#module-records"><h3>Records</h3><p>The decision and execution record: SelectionRationale and the append-only ExecutionLog (DEC-23/25/26).</p><span class="n">10 classes</span></a></div></section><section id="diagram"><div class="sec-head"><h2>Whole-model ER diagram</h2><p>Rendered in your browser (Mermaid via CDN).</p></div><details class="er"><summary>Show the 60-class diagram</summary><div class="erd"><div class="mermaid-wrap"><pre class="mermaid">erDiagram
-  Ambiguity {
-  }
-  ChannelDelta {
-  }
-  MovementModel {
-  }
-  Materialisation {
-  }
-  Endurance {
-  }
-  FactDelta {
-  }
-  ActivityModifiers {
-  }
-  Entity {
-  }
-  ChannelParams {
-  }
-  Appetite {
-  }
-  Conflict {
-  }
-  ExecutionLog {
-  }
-  Waiver {
-  }
-  CellPredicate {
-  }
-  FactLayer {
-  }
-  Requirement {
-  }
-  Effect {
-  }
-  Cell {
+  AOPackage {
   }
   TideDecision {
   }
   Scores {
   }
-  Changepoint {
+  ScheduleLeg {
   }
-  StateCurves {
-  }
-  Activity {
-  }
-  AOPackage {
-  }
-  Commitment {
-  }
-  TimeWindow {
-  }
-  AlertCause {
-  }
-  LogEntry {
-  }
-  SpeedByMedium {
-  }
-  CellPatch {
-  }
-  Stamp {
-  }
-  DurationBound {
-  }
-  Satisfaction {
-  }
-  ChosenBands {
-  }
-  StartState {
-  }
-  Alert {
-  }
-  Answer {
-  }
-  State {
-  }
-  Plan {
+  Attribution {
   }
   Medium {
   }
-  Waypoint {
+  Strategy {
   }
   SelectionRationale {
   }
-  Constraint {
+  CellPredicate {
   }
-  Strategy {
+  Waypoint {
   }
-  Profile {
+  AlertCause {
   }
-  Capture {
+  Grid2D {
   }
-  CommitmentProvenance {
+  StartState {
+  }
+  Observation {
+  }
+  ActivityModifiers {
+  }
+  Excursion {
+  }
+  Cell {
   }
   Channel {
   }
+  MovementModel {
+  }
+  CellPatch {
+  }
+  Entity {
+  }
+  TrajectoryPoint {
+  }
+  Satisfaction {
+  }
+  Capture {
+  }
+  Effect {
+  }
+  Constraint {
+  }
+  DurationBound {
+  }
+  State {
+  }
+  ChannelParams {
+  }
+  Endurance {
+  }
+  Profile {
+  }
   Lineage {
   }
-  ScheduleLeg {
+  ChannelDelta {
+  }
+  Waiver {
+  }
+  DataProvenance {
+  }
+  Stamp {
+  }
+  Requirement {
+  }
+  Ambiguity {
+  }
+  Plan {
+  }
+  ExecutionLog {
+  }
+  Commitment {
+  }
+  TimingConstraint {
+  }
+  TimeWindow {
+  }
+  CommitmentProvenance {
+  }
+  Activity {
+  }
+  ChosenBands {
+  }
+  Appetite {
+  }
+  Materialisation {
+  }
+  SpeedByMedium {
+  }
+  Conflict {
+  }
+  FactDelta {
+  }
+  Answer {
+  }
+  Changepoint {
   }
   Replan {
+  }
+  LogEntry {
+  }
+  StateCurves {
+  }
+  Alert {
+  }
+  FactLayer {
   }
   Baseline {
   }
   Aspect {
   }
-  TimingConstraint {
-  }
-  Observation {
-  }
-  Excursion {
-  }
-  Grid2D {
-  }
-  Attribution {
-  }
-  DataProvenance {
-  }
-  TrajectoryPoint {
-  }
-  ChannelDelta ||--o{ CellPatch : &quot;patches&quot;
-  Materialisation ||--o{ ScheduleLeg : &quot;schedule&quot;
-  Materialisation ||--o{ TrajectoryPoint : &quot;trajectory&quot;
-  Materialisation ||--o| StateCurves : &quot;state_curves&quot;
-  Materialisation ||--o| TideDecision : &quot;tide&quot;
-  Entity ||--o| DataProvenance : &quot;provenance&quot;
-  Entity ||--o{ Aspect : &quot;aspects&quot;
-  Conflict ||..o{ Commitment : &quot;parties&quot;
-  ExecutionLog ||--o{ LogEntry : &quot;entries&quot;
-  Waiver ||..o| Commitment : &quot;commitment_id&quot;
-  CellPredicate ||--o{ CellPredicate : &quot;children&quot;
-  FactLayer ||--o{ Observation : &quot;observations&quot;
-  Requirement ||--o| Attribution : &quot;provenance&quot;
-  Requirement ||--o{ Commitment : &quot;commitments&quot;
-  Requirement ||--o| Lineage : &quot;lineage&quot;
-  Effect ||..o| Plan : &quot;source_plan&quot;
-  Effect ||--o| ChannelDelta : &quot;delta&quot;
-  Scores ||--o{ Satisfaction : &quot;satisfaction&quot;
-  Changepoint ||..o| Channel : &quot;channel&quot;
-  Activity ||--o| Waypoint : &quot;where&quot;
-  Activity ||--o| CellPredicate : &quot;where_predicate&quot;
-  Activity ||--o| TimingConstraint : &quot;when&quot;
-  Activity ||--o| DurationBound : &quot;duration&quot;
-  Activity ||--o| ActivityModifiers : &quot;modifiers&quot;
-  Activity ||--o{ Effect : &quot;effects&quot;
-  Activity ||..o{ Channel : &quot;relevant_channels&quot;
   AOPackage ||..o{ Baseline : &quot;baseline_versions&quot;
   AOPackage ||..o{ Excursion : &quot;excursions&quot;
   AOPackage ||..o{ Profile : &quot;profiles&quot;
   AOPackage ||..o{ Entity : &quot;entities&quot;
-  Commitment ||--|| Activity : &quot;activity&quot;
-  Commitment ||--o| CommitmentProvenance : &quot;provenance&quot;
-  Commitment ||--o| Capture : &quot;capture&quot;
+  Scores ||--o{ Satisfaction : &quot;satisfaction&quot;
+  ScheduleLeg ||..o| Commitment : &quot;commitment_id&quot;
+  Medium ||--o| Grid2D : &quot;grid&quot;
+  SelectionRationale ||..o| Plan : &quot;chosen&quot;
+  SelectionRationale ||..o{ Plan : &quot;beaten&quot;
+  SelectionRationale ||--o{ Appetite : &quot;appetites&quot;
+  SelectionRationale ||--o| ChosenBands : &quot;chosen_bands&quot;
+  CellPredicate ||--o{ CellPredicate : &quot;children&quot;
+  Observation ||--o| FactDelta : &quot;fact_delta&quot;
+  Excursion ||..o| Baseline : &quot;base&quot;
+  Excursion ||--o{ ChannelDelta : &quot;delta&quot;
+  Channel ||--o| ChannelParams : &quot;params&quot;
+  Entity ||--o| DataProvenance : &quot;provenance&quot;
+  Entity ||--o{ Aspect : &quot;aspects&quot;
+  Satisfaction ||..o| Commitment : &quot;commitment_id&quot;
+  Capture ||--o{ Answer : &quot;answers&quot;
+  Capture ||--o{ Ambiguity : &quot;ambiguities&quot;
+  Effect ||..o| Plan : &quot;source_plan&quot;
+  Effect ||--o| ChannelDelta : &quot;delta&quot;
+  Constraint ||--o{ Waypoint : &quot;cells&quot;
+  State ||--o| Waypoint : &quot;position&quot;
+  Profile ||--o| SpeedByMedium : &quot;speed_by_medium&quot;
+  Profile ||--o| Endurance : &quot;endurance&quot;
+  ChannelDelta ||--o{ CellPatch : &quot;patches&quot;
+  Waiver ||..o| Commitment : &quot;commitment_id&quot;
   Stamp ||..o| Requirement : &quot;requirement_version&quot;
   Stamp ||..o| Baseline : &quot;baseline_version&quot;
   Stamp ||..o{ Excursion : &quot;excursions&quot;
@@ -270,41 +270,45 @@ footer.site a{font-weight:600}.backlinks{display:flex;gap:1.25rem;flex-wrap:wrap
   Stamp ||--o| StartState : &quot;start&quot;
   Stamp ||--o{ Appetite : &quot;appetites&quot;
   Stamp ||--o{ Constraint : &quot;steering&quot;
-  Satisfaction ||..o| Commitment : &quot;commitment_id&quot;
-  Alert ||--o| AlertCause : &quot;cause&quot;
-  State ||--o| Waypoint : &quot;position&quot;
+  Requirement ||--o| Attribution : &quot;provenance&quot;
+  Requirement ||--o{ Commitment : &quot;commitments&quot;
+  Requirement ||--o| Lineage : &quot;lineage&quot;
   Plan ||--o| Strategy : &quot;strategy&quot;
   Plan ||--o| Stamp : &quot;stamp&quot;
   Plan ||--o| Materialisation : &quot;materialisation&quot;
   Plan ||--o| Scores : &quot;scores&quot;
   Plan ||--o| TideDecision : &quot;tide_decision&quot;
   Plan ||--o{ Conflict : &quot;conflicts&quot;
-  Medium ||--o| Grid2D : &quot;grid&quot;
-  SelectionRationale ||..o| Plan : &quot;chosen&quot;
-  SelectionRationale ||..o{ Plan : &quot;beaten&quot;
-  SelectionRationale ||--o{ Appetite : &quot;appetites&quot;
-  SelectionRationale ||--o| ChosenBands : &quot;chosen_bands&quot;
-  Constraint ||--o{ Waypoint : &quot;cells&quot;
-  Profile ||--o| SpeedByMedium : &quot;speed_by_medium&quot;
-  Profile ||--o| Endurance : &quot;endurance&quot;
-  Capture ||--o{ Answer : &quot;answers&quot;
-  Capture ||--o{ Ambiguity : &quot;ambiguities&quot;
-  Channel ||--o| ChannelParams : &quot;params&quot;
-  ScheduleLeg ||..o| Commitment : &quot;commitment_id&quot;
+  ExecutionLog ||--o{ LogEntry : &quot;entries&quot;
+  Commitment ||--|| Activity : &quot;activity&quot;
+  Commitment ||--o| CommitmentProvenance : &quot;provenance&quot;
+  Commitment ||--o| Capture : &quot;capture&quot;
+  TimingConstraint ||--o| TimeWindow : &quot;window&quot;
+  Activity ||--o| Waypoint : &quot;where&quot;
+  Activity ||--o| CellPredicate : &quot;where_predicate&quot;
+  Activity ||--o| TimingConstraint : &quot;when&quot;
+  Activity ||--o| DurationBound : &quot;duration&quot;
+  Activity ||--o| ActivityModifiers : &quot;modifiers&quot;
+  Activity ||--o{ Effect : &quot;effects&quot;
+  Activity ||..o{ Channel : &quot;relevant_channels&quot;
+  Materialisation ||--o{ ScheduleLeg : &quot;schedule&quot;
+  Materialisation ||--o{ TrajectoryPoint : &quot;trajectory&quot;
+  Materialisation ||--o| StateCurves : &quot;state_curves&quot;
+  Materialisation ||--o| TideDecision : &quot;tide&quot;
+  Conflict ||..o{ Commitment : &quot;parties&quot;
+  Changepoint ||..o| Channel : &quot;channel&quot;
   Replan ||..o| Plan : &quot;from&quot;
   Replan ||..o| Plan : &quot;to&quot;
   Replan ||..o| SelectionRationale : &quot;rationale_ref&quot;
+  Alert ||--o| AlertCause : &quot;cause&quot;
+  FactLayer ||--o{ Observation : &quot;observations&quot;
   Baseline ||--o| Medium : &quot;medium&quot;
   Baseline ||--o{ Cell : &quot;cells&quot;
   Baseline ||--o{ Channel : &quot;channels&quot;
   Baseline ||--o| FactLayer : &quot;facts&quot;
   Baseline ||--o{ Changepoint : &quot;forecast_changepoints&quot;
   Baseline ||--o| Lineage : &quot;lineage&quot;
-  Aspect ||..o| Channel : &quot;channel_ref&quot;
-  TimingConstraint ||--o| TimeWindow : &quot;window&quot;
-  Observation ||--o| FactDelta : &quot;fact_delta&quot;
-  Excursion ||..o| Baseline : &quot;base&quot;
-  Excursion ||--o{ ChannelDelta : &quot;delta&quot;</pre></div></div><p class="erd-legend"><b>—</b> contains (inlined) &nbsp;·&nbsp; <b>┈</b> references (by id) &nbsp;·&nbsp; <span class="cf">o{</span> many &nbsp;<span class="cf">||</span> one &nbsp;<span class="cf">o|</span> optional. Boxes outside the module are classes defined elsewhere.</p></details></section><section class="module" id="module-common"><div class="sec-head"><h2>Common <span class="modcount">4 classes · 20 enums</span></h2><p>Shared value objects and the enum vocabulary used across the REMIT data model. Imported by every other module.</p></div><div class="erd"><div class="mermaid-wrap"><pre class="mermaid">erDiagram
+  Aspect ||..o| Channel : &quot;channel_ref&quot;</pre></div></div><p class="erd-legend"><b>—</b> contains (inlined) &nbsp;·&nbsp; <b>┈</b> references (by id) &nbsp;·&nbsp; <span class="cf">o{</span> many &nbsp;<span class="cf">||</span> one &nbsp;<span class="cf">o|</span> optional. Boxes outside the module are classes defined elsewhere.</p></details></section><section class="module" id="module-common"><div class="sec-head"><h2>Common <span class="modcount">4 classes · 20 enums</span></h2><p>Shared value objects and the enum vocabulary used across the REMIT data model. Imported by every other module.</p></div><div class="erd"><div class="mermaid-wrap"><pre class="mermaid">erDiagram
   Attribution {
   }
   DataProvenance {
@@ -508,7 +512,19 @@ function size(svg){var vb=svg.viewBox&&svg.viewBox.baseVal;
  if(vb&&vb.width&&vb.height)return{w:vb.width,h:vb.height};
  try{var b=svg.getBBox();if(b.width&&b.height)return{w:b.width,h:b.height};}catch(e){}
  var r=svg.getBoundingClientRect();return{w:r.width||320,h:r.height||220};}
+function linkify(svg){
+ // Each entity box is <g class="node" id="...-entity-<Name>-<n>">; the page has a
+ // matching #class-<Name> card, so wrap the box in an SVG anchor to it.
+ svg.querySelectorAll('g.node[id*="-entity-"]').forEach(function(g){
+  if(g.parentNode&&g.parentNode.classList&&g.parentNode.classList.contains('erd-node-link'))return;
+  var m=g.id.match(/-entity-(.+)-\d+$/);if(!m)return;var name=m[1];
+  if(!document.getElementById('class-'+name))return;
+  var a=document.createElementNS('http://www.w3.org/2000/svg','a');
+  a.setAttribute('href','#class-'+name);a.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href','#class-'+name);
+  a.setAttribute('class','erd-node-link');a.setAttribute('aria-label',name);
+  g.parentNode.insertBefore(a,g);a.appendChild(g);});}
 function setup(box){var svg=box.querySelector('svg');if(!svg||box.__pz)return;box.__pz=1;
+ linkify(svg);
  svg.style.maxWidth='none';svg.style.transformOrigin='0 0';svg.style.position='absolute';svg.style.top='0';svg.style.left='0';
  var s=1,tx=0,ty=0,n=null;
  function apply(){svg.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';}
@@ -519,11 +535,12 @@ function setup(box){var svg=box.querySelector('svg');if(!svg||box.__pz)return;bo
  function zoomAt(cx,cy,f){var ns=clamp(s*f);var wx=(cx-tx)/s,wy=(cy-ty)/s;s=ns;tx=cx-wx*s;ty=cy-wy*s;apply();}
  box.addEventListener('wheel',function(e){e.preventDefault();var r=box.getBoundingClientRect();
   zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*0.0015));},{passive:false});
- var drag=false,lx=0,ly=0;
- box.addEventListener('pointerdown',function(e){if(e.button!==0)return;drag=true;lx=e.clientX;ly=e.clientY;
-  box.classList.add('grabbing');box.setPointerCapture(e.pointerId);});
- box.addEventListener('pointermove',function(e){if(!drag)return;tx+=e.clientX-lx;ty+=e.clientY-ly;lx=e.clientX;ly=e.clientY;apply();});
- function up(){drag=false;box.classList.remove('grabbing');}
+ var drag=false,moved=false,lx=0,ly=0,pid=null;
+ box.addEventListener('pointerdown',function(e){if(e.button!==0)return;drag=true;moved=false;lx=e.clientX;ly=e.clientY;pid=e.pointerId;});
+ box.addEventListener('pointermove',function(e){if(!drag)return;var dx=e.clientX-lx,dy=e.clientY-ly;
+  if(!moved){if(Math.abs(dx)+Math.abs(dy)<=3)return;moved=true;box.classList.add('grabbing');try{box.setPointerCapture(pid);}catch(_){}}
+  tx+=dx;ty+=dy;lx=e.clientX;ly=e.clientY;apply();});
+ function up(){drag=false;if(moved)box.classList.remove('grabbing');moved=false;}
  box.addEventListener('pointerup',up);box.addEventListener('pointercancel',up);
  var ctrl=document.createElement('div');ctrl.className='pz-ctrl';
  function btn(t,lbl,fn){var b=document.createElement('button');b.type='button';b.textContent=t;b.title=lbl;b.setAttribute('aria-label',lbl);b.addEventListener('click',fn);ctrl.appendChild(b);}
@@ -531,7 +548,7 @@ function setup(box){var svg=box.querySelector('svg');if(!svg||box.__pz)return;bo
  btn('\u2212','Zoom out',function(){zoomAt(box.clientWidth/2,box.clientHeight/2,1/1.3);});
  btn('\u2922','Fit',fit);
  box.appendChild(ctrl);
- var hint=document.createElement('div');hint.className='pz-hint';hint.textContent='scroll to zoom \u00b7 drag to pan';box.appendChild(hint);
+ var hint=document.createElement('div');hint.className='pz-hint';hint.textContent='scroll to zoom \u00b7 drag to pan \u00b7 click a box to open it';box.appendChild(hint);
  if('ResizeObserver'in window){var ro=new ResizeObserver(function(){if(box.clientWidth&&box.clientHeight&&!box.__fit){box.__fit=1;fit();}});ro.observe(box);}
  if(box.clientWidth&&box.clientHeight){box.__fit=1;fit();}}
 function init(){document.querySelectorAll('.erd-svg,.erd').forEach(setup);}
