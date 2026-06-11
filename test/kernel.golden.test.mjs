@@ -48,37 +48,39 @@ const byKey = (plans, k) => plans.find((p) => p.strategy.key === k);
 const kinds = (p) => p.materialisation.schedule.map((s) => s.kind);
 const sat = (p, label) => p.scores.satisfaction.find((s) => s.label === label);
 
-test('A — 45-min dwell: fast plans detour via the bridge; the slow covered plan waits out the tide', async () => {
+test('A — 45-min dwell: direct & covered wait out the tide and ford; tracked detours via the causeway', async () => {
   const plans = await planFixture(45);
   assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked', 'covered']);
-  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'detour', 'wait']);
+  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['wait', 'detour', 'wait']);
 
   const direct = byKey(plans, 'direct');
-  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil']);
-  assert.equal(direct.materialisation.schedule.at(-1).end_min, 98.9);         // RV East
-  assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 141.1, margin_band: 'robust', verdict: 'satisfied' });
+  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
+  assert.equal(direct.materialisation.schedule.at(-1).end_min, 97.3);         // RV East
+  assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 142.7, margin_band: 'robust', verdict: 'satisfied' });
 
-  // Covered is slow enough to reach the bank near the window → it waits and fords.
+  // Covered is slow too → it also waits and fords.
   const covered = byKey(plans, 'covered');
   assert.deepEqual(kinds(covered), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
   assert.equal(covered.tide_decision.via_ford, undefined);                    // decision carries mode/wait/rv
-  assert.equal(covered.materialisation.schedule.at(-1).end_min, 102.8);
+  assert.equal(covered.materialisation.schedule.at(-1).end_min, 99.8);
 
   // Golden ids (NF3 — content-addressed plan identity).
   assert.deepEqual(plans.map((p) => p.id), [
-    'sha256:92e93b01946f3f8ad140e9e122e74fef5529264e84a6d3369ceef39b000af6f9',
-    'sha256:a48c530ed51185a1fd844af5cdfe583e881a42aab619aff52b452308e0f1feb7',
-    'sha256:52b38aa71cb9d1d8e5c95c126d2113477c3efa0234e5fc9b7d1082a48a1842fe',
+    'sha256:adb1449a8dfa17ef5d53ddeff91a0aba73324d509e32363801e699e7fa888113',
+    'sha256:26344a2287ffb7919fdf6688392e80eec17badb04a296083584bd888c7751eb8',
+    'sha256:968f640ae12f553d1636259ef12d8f93e40cbdabd2b5ff6189eab23154bd60e6',
   ]);
 });
 
-test('B — 15-min dwell: every plan reaches the bank early and detours via the bridge', async () => {
+test('B — 15-min dwell: a short visit lets both plans detour via the causeway (no tide wait)', async () => {
   const plans = await planFixture(15);
-  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'detour', 'detour']);
+  // Short dwell → direct and tracked converge to one route (content-deduped) → two COAs.
+  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'covered']);
+  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'detour']);
   const direct = byKey(plans, 'direct');
   assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil']);
-  assert.equal(direct.materialisation.schedule.at(-1).end_min, 68.9);
-  assert.equal(direct.id, 'sha256:054a0eeae80161d463af1e7e4eba8b00c9c37470a2c4a2d8d7a707fe1e5524b4');
+  assert.equal(direct.materialisation.schedule.at(-1).end_min, 67.5);
+  assert.equal(direct.id, 'sha256:c12feb67a33a9166da9c1dffa1db8c045e3a9443784cf40867908df1d46588ba');
 });
 
 test('C — a no-go cordon across the river makes exfil structurally infeasible', async () => {

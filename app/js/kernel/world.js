@@ -4,13 +4,15 @@
 // profile + state, and the config core (DEC-48) whose hash enters the stamp.
 //
 // AO "Solway crossing" — the Esk–Eden delta at the head of the Solway Firth, a real
-// lat/lon anchor tiled with res-9 H3 (~344 m cells). Terrain is synthetic, authored in
-// hex space (h3 paths/disks) so the river, the all-tide road bridge, and several tidal
-// fords (the historic "waths": Peatwath, Sandywath, Bowness Wath) are connected and
-// crossable. Authored so the kernel's strategy biases find genuinely different routes.
+// lat/lon anchor tiled with res-9 H3 (~344 m cells). Terrain is SAMPLED from the Carto
+// basemap beneath the AO (tools/sample-terrain.mjs → terrain-sampled.json, baked for
+// determinism, ADR-0017) so the water hexes trace the real estuary; designed set-pieces —
+// bank roads, an all-tide causeway, and the tidal "waths" (Peatwath, Sandywath, Bowness
+// Wath) — are then painted over land/water so the kernel's strategies find different routes.
 
 import { latLngToCell, gridPathCells, gridDisk } from 'h3-js';
 import { buildHexAO, H3_RES } from './hexgrid.js';
+import sampledTerrain from './terrain-sampled.json' with { type: 'json' };
 
 /** MapLibre bounds [[west,south],[east,north]] framing the AO (for the map view). */
 export const AO_BOUNDS = [[-3.215, 54.918], [-2.985, 55.000]];
@@ -35,21 +37,26 @@ export const TERRAIN = {
 export const PLACES = {
   base:   { lat: 54.958, lng: -3.185, name: 'Patrol base SPARROW' },
   rvEast: { lat: 54.958, lng: -3.022, name: 'RV EAST (east bank)' },
-  bridge: { lat: 54.924, lng: -3.106, name: 'Solway road bridge (all-tide)' },
+  bridge: { lat: 54.928, lng: -3.103, name: 'Solway road causeway (all-tide)' },
   fords: [
-    { key: 'Peatwath',     lat: 54.940, lng: -3.1015, name: 'Peatwath (tidal ford)' },
-    { key: 'Sandywath',    lat: 54.962, lng: -3.1040, name: 'Sandywath (tidal ford)' },
-    { key: 'Bowness Wath', lat: 54.982, lng: -3.1025, name: 'Bowness Wath (tidal ford)' },
+    { key: 'Peatwath',     lat: 54.945, lng: -3.103, name: 'Peatwath (tidal ford)' },
+    { key: 'Sandywath',    lat: 54.962, lng: -3.103, name: 'Sandywath (tidal ford)' },
+    { key: 'Bowness Wath', lat: 54.978, lng: -3.103, name: 'Bowness Wath (tidal ford)' },
   ],
   ops: [
-    { key: 'OP-A', lat: 54.962, lng: -3.130, name: 'OP-A — overlook above Sandywath' },
-    { key: 'OP-B', lat: 54.940, lng: -3.128, name: 'OP-B — south overlook above Peatwath' },
-    { key: 'OP-C', lat: 54.984, lng: -3.128, name: 'OP-C — north overlook above Bowness Wath' },
+    { key: 'OP-A', lat: 54.965, lng: -3.140, name: 'OP-A — overlook above Sandywath' },
+    { key: 'OP-B', lat: 54.946, lng: -3.150, name: 'OP-B — south overlook above Peatwath' },
+    { key: 'OP-C', lat: 54.980, lng: -3.145, name: 'OP-C — north overlook above Bowness Wath' },
   ],
 };
 
 /** River centreline longitude — the east/west split (replaces the old `x > 24` test). */
 const RIVER_LNG = -3.103;
+
+/** Estuary crossing latitudes — E–W bands carved over the sampled water: one all-tide
+ *  road causeway (south) and three tidal fords (the waths). Tuned to the sampled shape. */
+const BRIDGE_LAT = 54.928;
+const FORD_LATS = [54.945, 54.962, 54.978];
 
 /** Is hex `id` on the east (RV) bank of the river? */
 export function isEastOfRiver(ao, id) {
@@ -87,45 +94,56 @@ function paintDisk(cells, ao, c, k, kind, onlyOver) {
  * so later strokes intentionally override earlier ones (e.g. fords carve over water).
  * @returns {string[]} terrain kind per cell id (length ao.N)
  */
+/** A passable band carved across the estuary at a latitude (over water cells only),
+ *  spanning the AO width so it connects the west and east banks. */
+function paintBand(cells, ao, lat, kind, widen = 1) {
+  paintPath(cells, ao, [lat, -3.210], [lat, -2.990], kind, widen, 'water');
+}
+
+/** BFS from the cell at (lat,lng) to the nearest non-water cell — anchors land places. */
+function nearestLand(ao, terr, lat, lng) {
+  const start = ao.idOf.get(cellOf(lat, lng));
+  if (start === undefined || terr[start] !== 'water') return start;
+  const seen = new Set([start]);
+  let frontier = [start];
+  while (frontier.length) {
+    const next = [];
+    for (const id of frontier) for (const nb of ao.adj[id]) {
+      if (seen.has(nb)) continue;
+      seen.add(nb);
+      if (terr[nb] !== 'water') return nb;
+      next.push(nb);
+    }
+    frontier = next;
+  }
+  return start;
+}
+
 function buildTerrain(ao) {
-  const cells = new Array(ao.N).fill('open');
+  // Base terrain sampled offline from the Carto Positron basemap (tools/sample-terrain.mjs),
+  // baked to terrain-sampled.json so the hex shading matches the real Solway estuary while
+  // the kernel stays deterministic (NF3 — no live fetch). The sampled classes are
+  // water / open / forest / rough; a few designed set-pieces are then painted *over* land
+  // or *over* water as marked, so they refine but never fight the sampled coastline.
+  const cells = ao.indexes.map((h3) => sampledTerrain[h3] ?? 'open');
 
-  // Cover & broken ground on the west (start) bank — gives the "covered" strategy a wood.
-  paintDisk(cells, ao, [54.952, -3.150], 3, 'forest');
-  paintDisk(cells, ao, [54.935, -3.158], 2, 'rough');
-  paintDisk(cells, ao, [54.978, -3.150], 2, 'forest');
+  // Cover & broken ground on the banks (Positron landuse is sparse) — gives the "covered"
+  // strategy somewhere to hide. Painted over open land only.
+  paintDisk(cells, ao, [54.955, -3.170], 3, 'forest', 'open');
+  paintDisk(cells, ao, [54.936, -3.176], 2, 'rough', 'open');
+  paintDisk(cells, ao, [54.982, -3.050], 2, 'forest', 'open');
+  paintDisk(cells, ao, [54.946, -3.038], 2, 'rough', 'open');
 
-  // The river Esk/Eden — a connected, ~3-wide water corridor down the AO.
-  const riverPts = [[54.919, -3.108], [54.945, -3.100], [54.968, -3.107], [54.993, -3.099]];
-  for (let i = 1; i < riverPts.length; i++) {
-    paintPath(cells, ao, riverPts[i - 1], riverPts[i], 'water', 1);
-  }
-  // Estuary marsh fringing the channel (slow, low cover) — only over open ground.
-  for (let i = 1; i < riverPts.length; i++) {
-    paintPath(cells, ao, riverPts[i - 1], riverPts[i], 'marsh', 2, 'open');
-  }
+  // Bank roads (Positron road pixels don't classify reliably) — a designed net on land.
+  paintPath(cells, ao, [54.922, -3.190], [54.994, -3.184], 'road', 0, 'open');   // west bank
+  paintPath(cells, ao, [54.922, -3.030], [54.994, -3.026], 'road', 0, 'open');   // east bank
 
-  // Roads: a west coast road past the base, an east road to the RV, and the southern
-  // approach to the all-tide bridge.
-  paintPath(cells, ao, [54.920, -3.190], [54.992, -3.182], 'road', 0);   // west road
-  paintPath(cells, ao, [54.958, -3.185], [54.940, -3.140], 'road', 0);   // base spur east
-  paintPath(cells, ao, [54.922, -3.030], [54.992, -3.028], 'road', 0);   // east road
-  paintPath(cells, ao, [54.958, -3.022], [54.940, -3.060], 'road', 0);   // RV spur west
-  paintPath(cells, ao, [54.924, -3.150], [54.924, -3.060], 'road', 0);   // southern approach
+  // The all-tide road causeway across the estuary (the ford-free detour).
+  paintBand(cells, ao, BRIDGE_LAT, 'road');
 
-  // The all-tide road bridge: carve a road crossing over the water (the ford-free detour).
-  paintPath(cells, ao, [PLACES.bridge.lat, -3.150], [PLACES.bridge.lat, -3.060], 'road', 1, 'water');
-
-  // The tidal fords (waths): carve passable ford bands across the water at each crossing.
-  for (const f of PLACES.fords) {
-    paintPath(cells, ao, [f.lat, -3.128], [f.lat, -3.082], 'ford', 1, 'water');
-  }
-
-  // Pin named places to sensible dry terrain (never water).
-  const dry = (p, kind) => { const id = ao.idOf.get(cellOf(p.lat, p.lng)); if (id !== undefined && cells[id] === 'water') cells[id] = kind; };
-  dry(PLACES.base, 'road');
-  dry(PLACES.rvEast, 'road');
-  for (const op of PLACES.ops) dry(op, 'open');
+  // Tidal fords (the historic "waths"): bands wadeable across the estuary only within the
+  // low-tide window (TIDE below); outside it the kernel treats them as water.
+  for (const lat of FORD_LATS) paintBand(cells, ao, lat, 'ford');
 
   return cells;
 }
@@ -186,12 +204,19 @@ export function buildWorld() {
     cover: TERRAIN[kind].cover,
   }));
 
+  // Land places (base / RV / OPs) snap to the nearest dry cell of the sampled terrain, so
+  // they never land in the real estuary; fords and the bridge keep their carved-crossing cell.
+  const landPlace = (p) => {
+    const id = nearestLand(ao, terrain, p.lat, p.lng);
+    const [lat, lng] = ao.centers[id];
+    return { ...p, h3: ao.indexes[id], id, lat, lng };
+  };
   const places = {
-    base: resolvePlace(ao, PLACES.base),
-    rvEast: resolvePlace(ao, PLACES.rvEast),
+    base: landPlace(PLACES.base),
+    rvEast: landPlace(PLACES.rvEast),
     bridge: resolvePlace(ao, PLACES.bridge),
     fords: PLACES.fords.map((f) => resolvePlace(ao, f)),
-    ops: PLACES.ops.map((op) => resolvePlace(ao, op)),
+    ops: PLACES.ops.map(landPlace),
   };
 
   /** Baseline — data-model §4: single synthetic baseline, two channels. */

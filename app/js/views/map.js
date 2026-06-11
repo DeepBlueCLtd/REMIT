@@ -48,11 +48,16 @@ export function makeMap(el, baseline, ao, places) {
   const idOfH3 = (h3) => ao.idOf.get(h3);
   const hexTerrain = ao.indexes.map((h3, id) => ({ h3, id, terrain: cells[id].terrain }));
 
+  // Author-time terrain sampling (tools/sample-terrain.mjs) sets window.__REMIT_SAMPLE
+  // before load: keep the basemap framebuffer readable and expose the map. Inert otherwise.
+  const sampling = typeof window !== 'undefined' && window.__REMIT_SAMPLE;
   const map = new maplibregl.Map({
     container: el, style: BASEMAP_STYLE,
     bounds: AO_BOUNDS, fitBoundsOptions: { padding: 8 }, attributionControl: { compact: true },
+    preserveDrawingBuffer: sampling,
   });
   map.on('error', () => {});
+  if (sampling) window.__map = map;
   const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
   map.addControl(overlay);
 

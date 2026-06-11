@@ -157,3 +157,6 @@ vite.config.ts.timestamp-*
 /_site_publish/
 /_preview/
 /_blog_publish/
+
+# Terrain sampler colour cache — debug only; the baked terrain-sampled.json IS committed
+/tools/.terrain-colors.json

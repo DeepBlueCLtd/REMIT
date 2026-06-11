@@ -409,3 +409,34 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   `entities.js`, `sync-matrix.js`, `learn.js`, `seam.js`, `stores.js`, `canonical.js` are
   position-agnostic and unchanged; golden fixtures and e2e map-interaction are regenerated.
   Supersedes ADR-0006.
+
+## ADR-0017 (2026-06-11) — Hex terrain sampled from the basemap, baked (refines ADR-0016)
+
+- **Context:** ADR-0016 shipped *synthetic* terrain (a procedural N–S river, fords, woods)
+  over the real lat/lon anchor — "abstract-now / geo-later". Once the real Carto basemap
+  rendered beneath the hexes (switched to the legible Positron *light* style), the synthetic
+  terrain visibly **did not line up** with the map: the painted river ran N–S while the real
+  Solway estuary runs ~E–W. The maintainer asked for the hex characteristics to come from the
+  map.
+- **Decision:** **sample the basemap and bake the result.** `tools/sample-terrain.mjs` renders
+  the Positron basemap fit to the AO in a headless browser, reads the basemap framebuffer
+  (`gl.readPixels` after a forced redraw), and classifies each of the ~1,445 H3 cells by colour
+  (water / open / forest / rough) into a committed `app/js/kernel/terrain-sampled.json`.
+  `world.js` loads that baked file as its base terrain, then paints a few **designed set-pieces
+  over it** — bank roads, an all-tide causeway, and three tidal fords (the "waths") carved
+  across the real water — and snaps the named places (base / RV / OPs) to the nearest dry cell.
+- **Determinism (NF3):** the sample is taken **once, offline, and committed**; nothing is
+  fetched at runtime, so the browser app and the browser-free `node --test` golden suite read
+  identical terrain and plan ids stay reproducible. Re-run the sampler deliberately (basemap or
+  AO change) and regenerate the goldens.
+- **Options considered:** (a) full OSM/Overpass classification — most accurate, heavier data
+  pipeline; (b) **sample the basemap, bake — chosen** (quick; auto-matches whatever basemap is
+  shown; classification is approximate — water and green are reliable on Positron, roads/landuse
+  are not, hence the designed road/ford overlay); (c) classify at runtime — rejected
+  (non-deterministic; the Node golden suite has no browser).
+- **Consequences:** the scenario was **re-anchored onto the real estuary** and the golden
+  fixtures regenerated (new plan ids, schedules, tide decisions); a short 15-min dwell now
+  yields two COAs (direct and tracked converge and content-dedupe) where the 45-min demo still
+  yields three. A small author-time hook in `views/map.js` (`window.__REMIT_SAMPLE` →
+  `preserveDrawingBuffer` + `window.__map`) keeps the framebuffer readable; it is inert in
+  production.

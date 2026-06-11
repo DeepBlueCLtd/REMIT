@@ -32,7 +32,7 @@ the project's determinism guarantee (NF3).
 | Topic | Decision |
 |---|---|
 | Index / maths | `h3-js`; base resolution **res 9** (~300 m cells, ~1.2k over a ~14×9 km AO) |
-| Geography | abstract-now / geo-later: synthetic terrain over a **real lat/lon anchor** (Solway Firth head ≈ 54.96°N, 3.10°W) |
+| Geography | **real lat/lon anchor** (Solway Firth head ≈ 54.96°N, 3.10°W); terrain initially synthetic, later **sampled from the basemap** so the hexes match the map (ADR-0017) |
 | Rendering | MapLibre GL + deck.gl `H3HexagonLayer`/`PathLayer`/`IconLayer` via `MapboxOverlay`; keyless **Carto dark-matter** basemap (OSM-raster / demotiles fallback) |
 | Build | adopt **Vite** (`base: './'`, `root: app`, `outDir: ../dist`); `pages.config.yml` build hooks |
 | Scope | full replacement of the square grid + a **fresh scenario** authored on hexes |
