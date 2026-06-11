@@ -16,18 +16,19 @@ import { STRAT_COLORS } from './render.js';
 
 const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const STRAT_RGB = Object.fromEntries(Object.entries(STRAT_COLORS).map(([k, v]) => [k, rgb(v)]));
-// Keyless Carto dark-matter basemap, with a dark background layer *underneath* it as a
-// graceful fallback: where the tiles are blocked (cloud sessions, offline, a strict CSP)
-// the map degrades to the same flat dark field used before — the style still loads, so
+// Keyless Carto **Positron** (light) raster basemap — chosen over dark-matter for legible
+// detail (roads, water, place labels) beneath the hex overlay. A background layer sits
+// *underneath* it as a graceful fallback: where the tiles are blocked (cloud sessions,
+// offline, a strict CSP) the map degrades to a flat field — the style still loads, so
 // deck.gl keeps a valid viewport — while in a normal browser the real basemap shows
 // through wherever the hex grid is toggled off. The synthetic terrain hexes remain the
 // substance; the basemap is geographic context (the AO is anchored to a real lat/lon).
-const CARTO_DARK_TILES = ['a', 'b', 'c', 'd'].map((s) => `https://${s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png`);
+const CARTO_TILES = ['a', 'b', 'c', 'd'].map((s) => `https://${s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`);
 const BASEMAP_STYLE = {
   version: 8,
-  sources: { carto: { type: 'raster', tiles: CARTO_DARK_TILES, tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } },
+  sources: { carto: { type: 'raster', tiles: CARTO_TILES, tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } },
   layers: [
-    { id: 'bg', type: 'background', paint: { 'background-color': '#0b0f14' } },
+    { id: 'bg', type: 'background', paint: { 'background-color': '#1b2430' } },
     { id: 'carto', type: 'raster', source: 'carto' },
   ],
 };
