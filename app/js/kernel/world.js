@@ -1,16 +1,16 @@
 // @ts-check
-// kernel/world.js — the synthetic world (DEC-44/28): single baseline, one
-// channel, small static grid; own-force profile + state; the sample config
-// core (DEC-48) whose hash enters the stamp.
+// kernel/world.js — the synthetic world (DEC-44/28) on an H3 hex grid (ADR-0012):
+// single baseline, two channels (static mobility raster + parametric tide), own-force
+// profile + state, and the config core (DEC-48) whose hash enters the stamp.
 //
-// AO "Kara Crossing" — a hand-authored 28×18 land grid (500 m cells, ~14×9 km):
-// a southern highway, a north spur road, a large wood, a marsh belt, and the
-// river Kara with the K-7 bridge. Authored so the kernel's strategy biases
-// find genuinely different routes (fast roads / direct cut / covered wood).
+// AO "Solway crossing" — the Esk–Eden delta at the head of the Solway Firth, a real
+// lat/lon anchor tiled with res-9 H3 (~344 m cells). Terrain is synthetic, authored in
+// hex space (h3 paths/disks) so the river, the all-tide road bridge, and several tidal
+// fords (the historic "waths": Peatwath, Sandywath, Bowness Wath) are connected and
+// crossable. Authored so the kernel's strategy biases find genuinely different routes.
 
-export const GRID_W = 28;
-export const GRID_H = 18;
-export const CELL_M = 500;
+import { latLngToCell, gridPathCells, gridDisk } from 'h3-js';
+import { buildHexAO, H3_RES } from './hexgrid.js';
 
 /** Per-terrain attributes: mobility = speed factor (0 = impassable), cover 0..1.
  *  `ford` is tidal: passable at this mobility only inside the low-tide window
@@ -26,68 +26,126 @@ export const TERRAIN = {
   water:  { mobility: 0,    cover: 0,    color: '#173550' },
 };
 
-/** Named cells the demo uses. */
+/** Named places, as real lat/lng anchors; resolved to H3 cells/ids in buildWorld.
+ *  The river runs ~N-S near lng -3.103, splitting the AO into a west (start) bank and
+ *  an east (RV) bank, crossed by the bridge and the tidal waths. */
 export const PLACES = {
-  base:    { x: 2,  y: 15, name: 'Patrol base SPARROW' },
-  bridge:  { x: 23, y: 5,  name: 'K-7 ford (tidal)' },
-  k9:      { x: 23, y: 15, name: 'K-9 bridge (southern highway)' },
-  rvEast:  { x: 27, y: 8,  name: 'RV EAST (east bank, beyond K-7)' },
+  base:   { lat: 54.958, lng: -3.185, name: 'Patrol base SPARROW' },
+  rvEast: { lat: 54.958, lng: -3.022, name: 'RV EAST (east bank)' },
+  bridge: { lat: 54.924, lng: -3.106, name: 'Solway road bridge (all-tide)' },
+  fords: [
+    { key: 'Peatwath',     lat: 54.940, lng: -3.1015, name: 'Peatwath (tidal ford)' },
+    { key: 'Sandywath',    lat: 54.962, lng: -3.1040, name: 'Sandywath (tidal ford)' },
+    { key: 'Bowness Wath', lat: 54.982, lng: -3.1025, name: 'Bowness Wath (tidal ford)' },
+  ],
   ops: [
-    { key: 'OP-A', x: 21, y: 3, name: 'OP-A — treeline overlooking K-7 bridge' },
-    { key: 'OP-B', x: 21, y: 11, name: 'OP-B — south-reach overlook' },
-    { key: 'OP-C', x: 12, y: 1, name: 'OP-C — wood north edge' },
+    { key: 'OP-A', lat: 54.962, lng: -3.130, name: 'OP-A — overlook above Sandywath' },
+    { key: 'OP-B', lat: 54.940, lng: -3.128, name: 'OP-B — south overlook above Peatwath' },
+    { key: 'OP-C', lat: 54.984, lng: -3.128, name: 'OP-C — north overlook above Bowness Wath' },
   ],
 };
 
-/**
- * Build the synthetic terrain. Deterministic by construction (no RNG):
- * the baseline object's identity is its content (DEC-35).
- *
- * Authored so the three strategy optima diverge: a riverside track loop in
- * the south-east (road-philic), an open centre corridor (pure time), and the
- * big wood (cover).
- * @returns {string[]} terrain kind per cell, row-major [y*GRID_W + x]
- */
-function buildTerrain() {
-  const cells = new Array(GRID_W * GRID_H).fill('open');
-  const set = (x, y, kind) => {
-    if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H) cells[y * GRID_W + x] = kind;
-  };
-  const rect = (x0, y0, x1, y1, kind) => {
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, kind);
-  };
+/** River centreline longitude — the east/west split (replaces the old `x > 24` test). */
+const RIVER_LNG = -3.103;
 
-  rect(4, 9, 12, 14, 'rough');          // broken ground south of the wood
-  rect(4, 1, 12, 8, 'forest');          // the big wood
-  rect(13, 1, 21, 3, 'forest');         // treeline finger running east
-  rect(15, 6, 22, 9, 'marsh');          // marsh belt south of the finger
-  rect(16, 10, 22, 12, 'rough');        // broken approaches to the south reach
-  rect(23, 0, 24, 17, 'water');         // river Kara
-  for (let x = 0; x <= 27; x++) set(x, 15, 'road');   // southern highway (+ K-9 bridge)
-  for (let y = 5; y <= 14; y++) set(22, y, 'track');  // riverside track north
-  set(23, 5, 'ford'); set(24, 5, 'ford');             // K-7 tidal ford
+/** Is hex `id` on the east (RV) bank of the river? */
+export function isEastOfRiver(ao, id) {
+  return ao.centers[id][1] > RIVER_LNG;
+}
+
+// --- terrain painters (hex space) ------------------------------------------------
+const cellOf = (lat, lng) => latLngToCell(lat, lng, H3_RES);
+
+function paintPath(cells, ao, a, b, kind, widen, onlyOver) {
+  let path;
+  try { path = gridPathCells(cellOf(a[0], a[1]), cellOf(b[0], b[1])); }
+  catch { path = [cellOf(a[0], a[1]), cellOf(b[0], b[1])]; }
+  for (const h of path) {
+    for (const hh of (widen ? gridDisk(h, widen) : [h])) {
+      const id = ao.idOf.get(hh);
+      if (id === undefined) continue;
+      if (onlyOver && cells[id] !== onlyOver) continue;
+      cells[id] = kind;
+    }
+  }
+}
+
+function paintDisk(cells, ao, c, k, kind, onlyOver) {
+  for (const hh of gridDisk(cellOf(c[0], c[1]), k)) {
+    const id = ao.idOf.get(hh);
+    if (id === undefined) continue;
+    if (onlyOver && cells[id] !== onlyOver) continue;
+    cells[id] = kind;
+  }
+}
+
+/**
+ * Build synthetic terrain over the hex AO. Deterministic (no RNG): ordering matters,
+ * so later strokes intentionally override earlier ones (e.g. fords carve over water).
+ * @returns {string[]} terrain kind per cell id (length ao.N)
+ */
+function buildTerrain(ao) {
+  const cells = new Array(ao.N).fill('open');
+
+  // Cover & broken ground on the west (start) bank — gives the "covered" strategy a wood.
+  paintDisk(cells, ao, [54.952, -3.150], 3, 'forest');
+  paintDisk(cells, ao, [54.935, -3.158], 2, 'rough');
+  paintDisk(cells, ao, [54.978, -3.150], 2, 'forest');
+
+  // The river Esk/Eden — a connected, ~3-wide water corridor down the AO.
+  const riverPts = [[54.919, -3.108], [54.945, -3.100], [54.968, -3.107], [54.993, -3.099]];
+  for (let i = 1; i < riverPts.length; i++) {
+    paintPath(cells, ao, riverPts[i - 1], riverPts[i], 'water', 1);
+  }
+  // Estuary marsh fringing the channel (slow, low cover) — only over open ground.
+  for (let i = 1; i < riverPts.length; i++) {
+    paintPath(cells, ao, riverPts[i - 1], riverPts[i], 'marsh', 2, 'open');
+  }
+
+  // Roads: a west coast road past the base, an east road to the RV, and the southern
+  // approach to the all-tide bridge.
+  paintPath(cells, ao, [54.920, -3.190], [54.992, -3.182], 'road', 0);   // west road
+  paintPath(cells, ao, [54.958, -3.185], [54.940, -3.140], 'road', 0);   // base spur east
+  paintPath(cells, ao, [54.922, -3.030], [54.992, -3.028], 'road', 0);   // east road
+  paintPath(cells, ao, [54.958, -3.022], [54.940, -3.060], 'road', 0);   // RV spur west
+  paintPath(cells, ao, [54.924, -3.150], [54.924, -3.060], 'road', 0);   // southern approach
+
+  // The all-tide road bridge: carve a road crossing over the water (the ford-free detour).
+  paintPath(cells, ao, [PLACES.bridge.lat, -3.150], [PLACES.bridge.lat, -3.060], 'road', 1, 'water');
+
+  // The tidal fords (waths): carve passable ford bands across the water at each crossing.
+  for (const f of PLACES.fords) {
+    paintPath(cells, ao, [f.lat, -3.128], [f.lat, -3.082], 'ford', 1, 'water');
+  }
+
+  // Pin named places to sensible dry terrain (never water).
+  const dry = (p, kind) => { const id = ao.idOf.get(cellOf(p.lat, p.lng)); if (id !== undefined && cells[id] === 'water') cells[id] = kind; };
+  dry(PLACES.base, 'road');
+  dry(PLACES.rvEast, 'road');
+  for (const op of PLACES.ops) dry(op, 'open');
+
   return cells;
 }
 
 // ---------------------------------------------------------------------------
-// Tide (increment A): the K-7 crossing is a ford, wadeable only within ±3 h of
-// low tide. Deterministic semidiurnal model — a parametric channel, so the
-// open/close times are forecastable changepoints, not surprises.
+// Tide: the waths are wadeable only within ±3 h of low tide. Deterministic semidiurnal
+// model — a parametric channel, so open/close times are forecastable changepoints. One
+// tide gates all fords (it is one estuary).
 
 /** Tide channel parameters (minutes on the mission clock). */
 export const TIDE = {
   period_min: 745,            // semidiurnal: 12 h 25 min between low tides
   low_tide_min: 268,          // first low tide after H-hour
-  open_half_width_min: 180,   // ford passable within ±3 h of low tide
+  open_half_width_min: 180,   // fords passable within ±3 h of low tide
 };
 
-/** Is the ford wadeable at mission-minute t? */
+/** Are the fords wadeable at mission-minute t? */
 export function fordOpenAt(t, tide = TIDE) {
   const ph = ((t - tide.low_tide_min) % tide.period_min + tide.period_min) % tide.period_min;
   return ph <= tide.open_half_width_min || ph >= tide.period_min - tide.open_half_width_min;
 }
 
-/** Earliest minute ≥ t at which the ford is wadeable (t itself if open now). */
+/** Earliest minute ≥ t at which the fords are wadeable (t itself if open now). */
 export function nextFordOpen(t, tide = TIDE) {
   if (fordOpenAt(t, tide)) return t;
   const ph = ((t - tide.low_tide_min) % tide.period_min + tide.period_min) % tide.period_min;
@@ -97,36 +155,49 @@ export function nextFordOpen(t, tide = TIDE) {
 /** Ford open/close transitions in [t0, t1] — the baseline's forecast changepoints. */
 export function fordTransitions(t0, t1, tide = TIDE) {
   const out = [];
-  // Walk low tides around the interval; each contributes an open and a close edge.
   const k0 = Math.floor((t0 - tide.low_tide_min) / tide.period_min) - 1;
   for (let k = k0; ; k++) {
     const low = tide.low_tide_min + k * tide.period_min;
     const open = low - tide.open_half_width_min;
     const close = low + tide.open_half_width_min;
     if (open > t1) break;
-    if (open >= t0) out.push({ at_min: open, channel: 'tide', change: 'K-7 ford opens (low-tide window)' });
-    if (close >= t0 && close <= t1) out.push({ at_min: close, channel: 'tide', change: 'K-7 ford closes (tide making)' });
+    if (open >= t0) out.push({ at_min: open, channel: 'tide', change: 'waths open (low-tide window)' });
+    if (close >= t0 && close <= t1) out.push({ at_min: close, channel: 'tide', change: 'waths close (tide making)' });
   }
   return out;
 }
 
-/** One world build, shared by the app. */
+/** Resolve a {lat,lng,...} place to {...place, h3, id}. */
+function resolvePlace(ao, p) {
+  const h3 = cellOf(p.lat, p.lng);
+  return { ...p, h3, id: ao.idOf.get(h3) };
+}
+
+/** One world build, shared by the app. Builds the hex AO once and carries it. */
 export function buildWorld() {
-  const terrain = buildTerrain();
+  const ao = buildHexAO();
+  const terrain = buildTerrain(ao);
   const cells = terrain.map((kind) => ({
     terrain: kind,
     mobility: TERRAIN[kind].mobility,
     cover: TERRAIN[kind].cover,
   }));
 
-  /** Baseline — data-model §4: single synthetic baseline, two channels
-   *  (static mobility raster + parametric periodic tide). */
+  const places = {
+    base: resolvePlace(ao, PLACES.base),
+    rvEast: resolvePlace(ao, PLACES.rvEast),
+    bridge: resolvePlace(ao, PLACES.bridge),
+    fords: PLACES.fords.map((f) => resolvePlace(ao, f)),
+    ops: PLACES.ops.map((op) => resolvePlace(ao, op)),
+  };
+
+  /** Baseline — data-model §4: single synthetic baseline, two channels. */
   const baseline = {
-    name: 'SYNTH-AO-1 “Kara Crossing”',
-    version: 2,
+    name: 'SYNTH-AO-2 “Solway crossing”',
+    version: 1,
     medium: {
       domain: 'land',
-      grid: { w: GRID_W, h: GRID_H, cell_m: CELL_M },
+      grid: { kind: 'h3', res: H3_RES, origin: { lat: 54.96, lng: -3.10 }, cell_count: ao.N },
       cell_attrs: ['terrain', 'cover'],
     },
     cells,
@@ -164,21 +235,21 @@ export function buildWorld() {
     dynamics: 'wheeled',
   };
   const state = {
-    position: { x: PLACES.base.x, y: PLACES.base.y },
+    position: { h3: places.base.h3 },
     clock_min: 0,
     endurance_fuel_pct: 100,
     availability: 'available',
   };
 
   /**
-   * Config core (DEC-48) — world-defining, canonicalised and hashed; the hash
-   * is a stamp axis. The instance shell below is deployment-only and excluded.
+   * Config core (DEC-48) — world-defining, canonicalised and hashed; the hash is a
+   * stamp axis. Hex movement is uniform (no diagonal step).
    */
   const configCore = {
     medium: 'land',
-    grid: { w: GRID_W, h: GRID_H, cell_m: CELL_M },
+    grid: { kind: 'h3', res: H3_RES, origin: { lat: 54.96, lng: -3.10 } },
     channels: ['mobility', 'tide'],
-    movement_model: { realisation: 'parametric', type: 'speed-factor', params: { diagonal: 'sqrt2' } },
+    movement_model: { realisation: 'parametric', type: 'speed-factor', params: { step: 'hex-uniform' } },
     providers: [],
     vocabulary: ['visit'],
   };
@@ -190,13 +261,11 @@ export function buildWorld() {
     view_defaults: { playback_speed: 64 },
   };
 
-  return { baseline, profile, state, configCore, instanceShell };
+  return { baseline, profile, state, configCore, instanceShell, ao, places };
 }
 
 /**
- * Band unit (minutes) derived from the channel's confidence (NF10: band widths
- * derive from channel confidence, not constants). The mapping itself is mock
- * calibration — flagged for the real kernel (DEC-46 band-calibration test).
+ * Band unit (minutes) derived from the channel's confidence (NF10).
  * @param {{confidence: string}} channel
  */
 export function bandUnitFor(channel) {
