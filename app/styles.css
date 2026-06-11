@@ -225,7 +225,7 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
   padding: .9rem 1rem; position: sticky; top: 1rem;
 }
 .proj-title { font-size: .95rem; }
-#map { border-radius: 8px; border: 1px solid var(--border); display: block; max-width: 100%; height: auto; }
+#map { border-radius: 8px; border: 1px solid var(--border); display: block; width: 100%; aspect-ratio: 14 / 9; min-height: 320px; overflow: hidden; }
 .sync-matrix-host { margin-top: .6rem; }
 .sync-matrix { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
 .sm-label { font-size: 10px; fill: var(--fg); }

@@ -44,11 +44,16 @@ export function makeMap(el, baseline, ao, places) {
   map.addControl(overlay);
 
   let clickFn = null;
-  map.on('click', (e) => {
+  // The deck.gl overlay canvas sits above MapLibre's and its event manager stops click
+  // propagation, so listen on the container in the CAPTURE phase (fires before deck) and
+  // unproject the pixel through the map transform.
+  el.addEventListener('click', (e) => {
     if (!clickFn) return;
-    const id = latLngToId(ao, e.lngLat.lat, e.lngLat.lng);
+    const rect = el.getBoundingClientRect();
+    const lngLat = map.unproject([e.clientX - rect.left, e.clientY - rect.top]);
+    const id = latLngToId(ao, lngLat.lat, lngLat.lng);
     if (id !== undefined) clickFn({ h3: ao.indexes[id], id });
-  });
+  }, true);
 
   const idOf = (o) => (o == null ? undefined : (o.id ?? ao.idOf.get(o.h3)));
 

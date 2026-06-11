@@ -91,6 +91,7 @@ export async function mountLearn(el, ctx) {
       profile: ctx.world.profile, profile_version: ids.profile,
       state: ctx.world.state, config_core: ctx.configCoreHash,
       appetites: ctx.appetites, steering: ctx.steering ?? [], strategy_seed: ctx.strategySeed,
+      ao: ctx.world.ao,
     });
     const before = ctx.handful.map((p) => p.id);
     const after = rerun.plans.map((p) => p.id);
