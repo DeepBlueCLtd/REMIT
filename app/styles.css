@@ -288,6 +288,104 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .drawer-list li { margin: .2em 0; }
 .honesty { color: var(--muted); font-size: .8rem; margin: .8rem 0 0; }
 
+/* ---- role tab bar (DEC-61) ---- */
+.tabbar {
+  display: flex; gap: .15rem; flex-wrap: wrap; align-items: flex-end;
+  padding: .5rem 1.1rem 0; margin-top: .4rem;
+  border-bottom: 1px solid var(--border);
+}
+.tab-wrap { display: inline-flex; align-items: stretch; }
+.tab {
+  background: transparent; border: 1px solid transparent; border-bottom: none;
+  border-radius: 9px 9px 0 0; padding: .45em .9em; color: var(--muted);
+  cursor: pointer; white-space: nowrap;
+}
+.tab:hover:not(.active) { color: var(--fg); border-color: var(--border); }
+.tab.active {
+  color: var(--fg); background: var(--bg2); border-color: var(--border);
+  box-shadow: 0 1px 0 0 var(--bg2);   /* sit over the bar's bottom border */
+}
+.tab[aria-selected="true"] { font-weight: 650; }
+.tab-stub { font-style: italic; opacity: .85; }
+.tab.popped::after { content: " ⧉"; color: var(--accent); }
+.tab-pop {
+  background: transparent; border: none; color: var(--muted);
+  padding: 0 .35em; cursor: pointer; font-size: .9em; align-self: center;
+  border-radius: 6px;
+}
+.tab-pop:hover { color: var(--accent); border-color: transparent; }
+
+.tab-view { display: none; }
+.tab-view.active { display: block; }
+.stub-pane, .popped-placeholder { padding: 2rem 1.1rem; max-width: 60ch; }
+.popped-placeholder .primary { margin-top: .6rem; }
+
+/* ---- Data Analysis (drill-down monitor) ---- */
+.da {
+  display: grid; grid-template-columns: 264px minmax(0, 1fr);
+  gap: 1rem; padding: 1rem 1.1rem; align-items: start;
+}
+.da-side { position: sticky; top: 1rem; }
+.da-search {
+  width: 100%; margin-bottom: .6rem;
+}
+.da-index { max-height: calc(100vh - 9rem); overflow: auto; }
+.da-group { margin-bottom: .7rem; }
+.da-group > h3 {
+  font-size: .72rem; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .06em; margin: 0 0 .3em; padding: .15em .2em;
+  border-radius: 6px;
+}
+.da-row {
+  display: flex; gap: .45rem; align-items: center; width: 100%; text-align: left;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: .32em .5em; margin: .25em 0; color: var(--fg);
+}
+.da-row:hover { border-color: var(--accent); }
+.da-row.selected { border-color: var(--accent); background: rgba(31,111,235,.14); }
+.da-row .da-rowhint { color: var(--muted); font-size: .76rem; margin-left: auto; }
+.da-detail {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+  padding: .9rem 1.1rem; min-width: 0;
+}
+.da-crumbs {
+  font-size: .85rem; margin-bottom: .7rem; color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: .2em; align-items: center;
+}
+.da-crumbs button {
+  background: none; border: none; padding: 0 .12em; color: var(--accent);
+  cursor: pointer; font: inherit;
+}
+.da-crumbs .crumb-sep { color: var(--muted); }
+.da-crumbs .crumb-current { color: var(--fg); font-weight: 600; }
+.da-body details { margin: .1em 0 .1em .55em; border-left: 1px solid var(--border); padding-left: .55em; }
+.da-body summary { cursor: pointer; color: var(--fg); }
+.da-body .da-leaf { margin: .1em 0 .1em .55em; }
+.da-key { color: var(--muted); }
+.da-ref {
+  cursor: pointer; border: 1px solid rgba(126,231,135,.4);
+  background: rgba(126,231,135,.08); color: var(--ok);
+  border-radius: 6px; padding: .02em .4em; font-family: ui-monospace, Menlo, monospace;
+  font-size: .85em;
+}
+.da-ref:hover { border-color: var(--ok); }
+.da-ref-dead { opacity: .7; cursor: default; }
+.da-empty { padding: 1.4rem .2rem; max-width: 48ch; }
+.da-empty .row { margin-top: .8rem; }
+
+/* ---- change glow (item + ancestors). Persistent: the latest change set stays
+   lit until the next change replaces it. Future mock feeds reuse the same hook. */
+.glow {
+  box-shadow: 0 0 0 2px var(--warn), 0 0 12px 2px rgba(240,180,41,.5);
+  border-radius: 8px;
+}
+.glow-soft { box-shadow: 0 0 0 1px rgba(240,180,41,.55); border-radius: 8px; }
+
+/* ---- popped-out window body ---- */
+.popout-body { padding: 0; }
+.popout-root { display: block; }
+.popout-root .da { min-height: 100vh; }
+
 /* ---- responsive overrides ----
    Placed last so source order lets them win over the base component rules. */
 
@@ -308,4 +406,11 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 /* Phone: single column, everything stacked. */
 @media (max-width: 640px) {
   .layout { grid-template-columns: 1fr; grid-template-areas: "rail" "panels" "projection"; }
+  /* Tab strip scrolls horizontally instead of wrapping into a tall block. */
+  .tabbar { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .25rem; }
+  .tab-wrap { flex: 0 0 auto; }
+  /* Data Analysis collapses to a single column. */
+  .da { grid-template-columns: 1fr; }
+  .da-side { position: static; }
+  .da-index { max-height: none; }
 }
