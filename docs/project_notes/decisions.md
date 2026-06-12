@@ -586,3 +586,23 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   attributed but not yet scope-checked) still follows in the writes phase. This makes the
   surface no longer strictly read-only, but holds NF1/NF2: reads still project, and the write
   is attributed (role + author + time).
+
+## ADR-0023 (2026-06-12) — Just-in-time departure: defer a tidal wait to base, not the exposed bank
+
+- **Context:** when a COA's exfil crossed a tidal wath that was shut, the kernel held the team
+  *at the bank* for low water — a visible but tactically poor "sit exposed at the ford" wait.
+  The maintainer noted two things: (a) it would be better to **delay departure** so the team
+  reaches the wath *at* low water, and (b) because both COAs departed at H+0, their map markers
+  overlapped (you saw one vehicle until the exfil diverged).
+- **Decision:** when a COA's exfil would hold at the bank for the tide, recompute the plan with
+  a **just-in-time departure** — the latest base departure that still meets the visit window and
+  reaches the wath exactly at low water (`kernel.js` `materialise()`). The bank-hold becomes a
+  leading *"Delay departure — cross at low water"* hold **at base**; the crossing is then a
+  single open-wath ford. Same RV (tide-bound), no exposed bank-wait, and the tide-waiting COA
+  departs *later* than the drive-the-road COA — so the two vehicles move at different times.
+- **Consequences:** the tracked COA's schedule changes from `[transit, hold(window), visit,
+  exfil, hold(bank), exfil]` to `[hold(delay), transit, visit, exfil]`; its **plan id is
+  unchanged** (ids key off the decision inputs, not the materialisation — NF3), so only the
+  golden's schedule/wait assertions moved. The window-hold (arriving early to be *in position*
+  before the observation window) is kept — only the *tidal* wait is deferred. The wingman's
+  in-flight re-routes still hold at the bank (you cannot retro-delay a departure mid-mission).

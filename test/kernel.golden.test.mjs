@@ -12,8 +12,10 @@
 // dry along the spit from the southern base. With the fords shut at H+0 the exfil FORKS —
 // ford Sandywath at low water, or drive the longer all-tide road south to the causeway. A
 // short watch (25 min) makes the fork bite: `direct` drives the road (fast, no wait) while
-// `tracked` waits out the tide and fords. A longer watch (45 min) puts the team at the bank
-// after low water, so both simply ford (no drive). See world.js PLACES.ops + buildTerrain.
+// `tracked` LEAVES BASE LATE to reach the wath at low water — a just-in-time departure that
+// waits out the tide at base, not the exposed bank (ADR-0023), so the two COAs' departures
+// stagger. A longer watch (45 min) lands `direct` at the wath after low water (it just fords);
+// `tracked` still times its departure. See world.js PLACES.ops + kernel.js materialise().
 //
 // Run: npm run test:unit
 
@@ -55,7 +57,7 @@ const byKey = (plans, k) => plans.find((p) => p.strategy.key === k);
 const kinds = (p) => p.materialisation.schedule.map((s) => s.kind);
 const sat = (p, label) => p.scores.satisfaction.find((s) => s.label === label);
 
-test('A — 25-min dwell: the fork — direct drives the long road; tracked waits out the tide and fords', async () => {
+test('A — 25-min dwell: the fork — direct drives the road; tracked leaves base late to ford at low water', async () => {
   const plans = await planFixture(25);
   assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked']);
   assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'wait']);
@@ -66,10 +68,12 @@ test('A — 25-min dwell: the fork — direct drives the long road; tracked wait
   assert.equal(direct.materialisation.schedule.at(-1).end_min, 85.8);          // RV East — the fast road
   assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 154.2, margin_band: 'robust', verdict: 'satisfied' });
 
-  // Tracked holds at the bank for low water, then fords Sandywath — a split exfil.
+  // Tracked LEAVES BASE LATE (the leading hold) so it reaches the wath exactly at low water —
+  // it waits out the tide at base, not the exposed bank, then fords in one leg. Same RV.
   const tracked = byKey(plans, 'tracked');
-  assert.deepEqual(kinds(tracked), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
-  assert.equal(tracked.tide_decision.wait_min, 32.4);
+  assert.deepEqual(kinds(tracked), ['hold', 'transit', 'visit', 'exfil']);
+  assert.equal(tracked.tide_decision.wait_min, 51.3);            // the delay at base (no bank-wait)
+  assert.equal(tracked.materialisation.schedule[0].label, 'Delay departure — cross at low water');
   assert.equal(tracked.materialisation.schedule.at(-1).end_min, 98.5);
 
   // Golden ids (NF3 — content-addressed plan identity).

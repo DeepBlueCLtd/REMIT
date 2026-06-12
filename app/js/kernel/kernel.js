@@ -202,43 +202,72 @@ export async function planHandful(input) {
       continue;
     }
 
-    // Materialise the OP leg with the REAL movement model (bias was search-only).
-    let t = state.clock_min;
-    let fuel = state.endurance_fuel_pct;
-    const trajectory = [{ ...pt(ao, startId), t: round1(t), fuel_pct: round1(fuel) }];
-    for (let i = 1; i < leg1.length; i++) {
-      t += edgeMinutes(cells, profile, ao, leg1[i - 1], leg1[i]);
-      fuel -= 0.6;
-      trajectory.push({ ...pt(ao, leg1[i]), t: round1(t), fuel_pct: round1(fuel) });
-    }
-    const arrival = round1(t);
-    const visitStart = Math.max(arrival, window.start_min);
-    const dwellEnd = round1(visitStart + duration);
-
-    const schedule = [{ kind: 'transit', label: 'Transit to OP', start_min: state.clock_min, end_min: arrival }];
-    if (visitStart > arrival) schedule.push({ kind: 'hold', label: 'Hold (await window)', start_min: arrival, end_min: visitStart });
-    schedule.push({ kind: 'visit', label: 'Observe OP', commitment_id: visitC.id, start_min: visitStart, end_min: dwellEnd });
-
-    let exfil = null;
-    if (rvId != null) {
-      // Position holds at the OP through hold+dwell; one point at the OP at dwellEnd makes
-      // interpolation stand still, then the time-dependent exfil runs.
-      trajectory.push({ ...pt(ao, opId), t: dwellEnd, fuel_pct: round1(fuel) });
-      exfil = materialiseExfil(cells, ao, profile, opId, rvId, dwellEnd, fuel, cost);
-      if (exfil === null) {
-        plans.push(await finalisePlan(stamp, strat, null, {
-          conflicts: [{
-            id: `conflict-${strat.key}`, kind: 'structural', parties: [exfilC.id],
-            narrative: 'No exfil route OP → RV (no crossing of the river).',
-          }],
-          visitC, exfilC, unit, latestOkArrival, exfilDeadline,
-        }));
-        continue;
+    // Materialise the whole plan for a given base-departure time, with the REAL movement
+    // model (the search bias was for routing only). The approach route (leg1) is fixed; only
+    // the clock shifts. A point at the OP at dwellEnd makes the position stand still through
+    // the visit before the time-dependent exfil runs; a point at base at departMin does the
+    // same for a delayed departure.
+    const materialise = (departMin) => {
+      let t = departMin, f = state.endurance_fuel_pct;
+      const traj = [{ ...pt(ao, startId), t: round1(state.clock_min), fuel_pct: round1(f) }];
+      if (departMin > state.clock_min) traj.push({ ...pt(ao, startId), t: round1(departMin), fuel_pct: round1(f) });
+      for (let i = 1; i < leg1.length; i++) {
+        t += edgeMinutes(cells, profile, ao, leg1[i - 1], leg1[i]);
+        f -= 0.6;
+        traj.push({ ...pt(ao, leg1[i]), t: round1(t), fuel_pct: round1(f) });
       }
-      trajectory.push(...exfil.points);
-      for (const leg of exfil.legs) schedule.push({ ...leg, commitment_id: exfilC.id });
-      fuel = exfil.fuel_end;
+      const arr = round1(t);
+      const vStart = Math.max(arr, window.start_min);
+      const dEnd = round1(vStart + duration);
+      const sched = [];
+      if (departMin > state.clock_min) sched.push({ kind: 'hold', label: 'Delay departure — cross at low water', start_min: round1(state.clock_min), end_min: round1(departMin) });
+      sched.push({ kind: 'transit', label: 'Transit to OP', start_min: round1(departMin), end_min: arr });
+      if (vStart > arr) sched.push({ kind: 'hold', label: 'Hold (await window)', start_min: arr, end_min: vStart });
+      sched.push({ kind: 'visit', label: 'Observe OP', commitment_id: visitC.id, start_min: vStart, end_min: dEnd });
+      let ex = null;
+      if (rvId != null) {
+        traj.push({ ...pt(ao, opId), t: dEnd, fuel_pct: round1(f) });
+        ex = materialiseExfil(cells, ao, profile, opId, rvId, dEnd, f, cost);
+        if (ex) { traj.push(...ex.points); for (const leg of ex.legs) sched.push({ ...leg, commitment_id: exfilC.id }); }
+      }
+      return { trajectory: traj, schedule: sched, exfil: ex, arrival: arr, dwellEnd: dEnd, fuel: ex ? ex.fuel_end : f };
+    };
+
+    let m = materialise(state.clock_min);
+    // If the exfil would hold *at the exposed bank* for the tide, leave base later instead so
+    // the team reaches the wath exactly at low water — same RV, no exposed wait, and the COAs'
+    // departures stagger (you watch two vehicles move at different times, not one overlapping
+    // marker). The drive-the-road COA keeps its early departure; only a tidal wait is deferred.
+    if (m.exfil && m.exfil.wait_min > 0) {
+      const bankHold = m.exfil.legs.find((l) => l.kind === 'hold');
+      const tApproach = m.arrival - state.clock_min;
+      const tFord = bankHold ? bankHold.start_min - m.dwellEnd : 0;          // OP → bank time
+      const depart = round1(bankHold.end_min - tFord - duration - tApproach); // just-in-time
+      const newVisitStart = depart + tApproach;
+      if (depart > state.clock_min + 0.5 && newVisitStart >= window.start_min && newVisitStart <= window.end_min - duration) {
+        const m2 = materialise(depart);
+        if (m2.exfil && m2.exfil.wait_min <= 0.5 && m2.exfil.via_ford) {
+          // Re-tell the tide decision as a timed departure: it still waits out the tide — at
+          // base, not the exposed bank — so the card and the schedule's leading hold agree.
+          m2.exfil.decision = {
+            mode: 'wait', wait_min: round1(depart - state.clock_min), rv_min: m2.exfil.end_min,
+            narrative: `wath shut at H+${round1(state.clock_min)} — leave base H+${round1(depart)} to cross at low water (RV H+${m2.exfil.end_min}, no exposed bank-wait)`,
+          };
+          m = m2;
+        }
+      }
     }
+    if (m.exfil === null && rvId != null) {
+      plans.push(await finalisePlan(stamp, strat, null, {
+        conflicts: [{
+          id: `conflict-${strat.key}`, kind: 'structural', parties: [exfilC.id],
+          narrative: 'No exfil route OP → RV (no crossing of the river).',
+        }],
+        visitC, exfilC, unit, latestOkArrival, exfilDeadline,
+      }));
+      continue;
+    }
+    const { trajectory, schedule, exfil, arrival, fuel } = m;
 
     // Within-band duplicate rejection (DEC-22): identical trajectories collapse.
     const sig = trajectory.map((p) => p.h3).join(';');
