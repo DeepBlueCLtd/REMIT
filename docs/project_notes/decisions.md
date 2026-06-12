@@ -509,4 +509,30 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   Bowness-Wath overlooks. **Trade-off:** the all-tide detour is never the cheaper option here,
   so the COAs no longer *split* wait-vs-detour the way ADR-0016 did — the demo shows a clean,
   unanimous tidal hold instead (the Goldilocks wath that would split them, Sandywath, sits in
-  the unreachable mid-estuary water).
+  the unreachable mid-estuary water). **The split is restored by ADR-0021.**
+
+## ADR-0021 (2026-06-12) — A designed tidal islet at Sandywath to restore the wait-vs-drive fork (refines ADR-0020)
+
+- **Context:** ADR-0020's north-head version gave a clear tidal *hold*, but every COA made the
+  same call, so the routes looked alike — the maintainer wanted the original **wait-vs-drive
+  fork** back (some COAs wait out the tide and ford; others take the longer all-tide road —
+  two visibly different routes). Exhaustive search confirmed the sampled estuary can't offer it
+  from real ground: the one wath at a "Goldilocks" distance from the causeway (**Sandywath**)
+  has open water on *both* shores (the estuary is widest exactly where the waths are), so there
+  is nowhere dry to stand beside it; the reachable waths are either too close to the causeway
+  (always drive) or too far (always wait), and the south head's natural land bypass is binary —
+  open (always drive) or walled (always wait). The maintainer asked for a designed islet.
+- **Decision** (maintainer-approved): carve a small **tidal islet + spit** beside Sandywath — a
+  rough saltmarsh causeway from the southern base out to a dry knoll at the wath (`buildTerrain`:
+  a `paintPath` spit + `paintDisk` knoll painted over the water — one more set-piece, exactly
+  like the causeway and the waths). Base sits on the south shore, the RV across Sandywath on the
+  east bank; the north-head walk-around stays filled, so the only all-tide alternative to fording
+  is the long road south to the causeway.
+- **Consequences:** the exfil genuinely **forks**, and the app's default dwell drops to **25 min**
+  so the default scenario shows it: `direct` drives the all-tide road (fast, RV ≈H+86, no wait)
+  while `tracked` holds ~32 min at the bank and fords Sandywath (RV ≈H+98) — two distinct routes,
+  a speed-vs-concealment trade-off. A longer watch (45 min) lands the team at the bank after low
+  water, so both simply ford and the fork closes. This is the first set-piece drawn over water
+  *as land* (the others carve crossings); it bends the sampled coastline by ~one spit, which the
+  Solway really does have. Golden fixtures, the e2e (dwell 25, `direct`/`tracked` cards, the
+  drive-leg block step) and evidence regenerated.

@@ -23,7 +23,7 @@ export function mountCapture(el, ctx) {
     where:        { value: 'OP-A', status: 'defaulted' },
     window_start: { value: 30,     status: 'defaulted' },
     window_end:   { value: 120,    status: 'defaulted' },
-    duration_min: { value: 45,     status: 'defaulted' },
+    duration_min: { value: 25,     status: 'defaulted' },
   };
   const ambiguities = [{
     question: 'Is OP-A itself confirmed clear of civilian use?',
@@ -49,7 +49,7 @@ export function mountCapture(el, ctx) {
         <input type="number" data-slot="window_end" data-testid="cap-end" value="120" step="15" min="0">
       </label>
       <label>Dwell at least (min)
-        <input type="number" data-slot="duration_min" data-testid="cap-dur" value="45" step="5" min="5">
+        <input type="number" data-slot="duration_min" data-testid="cap-dur" value="25" step="5" min="5">
       </label>
     </div>
     <div class="slot-audit" id="cap-audit"></div>

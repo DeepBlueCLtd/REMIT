@@ -35,21 +35,21 @@ export const TERRAIN = {
  *  The river runs ~N-S near lng -3.103, splitting the AO into a west (start) bank and
  *  an east (RV) bank, crossed by the bridge and the tidal waths. */
 export const PLACES = {
-  base:   { lat: 54.997, lng: -3.180, name: 'Patrol base SPARROW' },
-  rvEast: { lat: 54.958, lng: -3.022, name: 'RV EAST (east bank)' },
+  base:   { lat: 54.930, lng: -3.150, name: 'Patrol base SPARROW' },
+  rvEast: { lat: 54.961, lng: -3.055, name: 'RV EAST (east bank)' },
   bridge: { lat: 54.928, lng: -3.103, name: 'Solway road causeway (all-tide)' },
   fords: [
     { key: 'Peatwath',     lat: 54.945, lng: -3.103, name: 'Peatwath (tidal ford)' },
     { key: 'Sandywath',    lat: 54.962, lng: -3.103, name: 'Sandywath (tidal ford)' },
     { key: 'Bowness Wath', lat: 54.978, lng: -3.103, name: 'Bowness Wath (tidal ford)' },
   ],
-  // OPs sit on the north-head land overlooking Bowness Wath, reachable dry from the base
-  // along the north shore. The exfil must cross the tidal wath (wait for low water) or
-  // detour ~5 km south to the all-tide causeway — restoring the tide drama (ADR-0020).
+  // OPs sit on the designed tidal spit/islet beside Sandywath, reached dry from the southern
+  // base along the spit. The exfil forks at the wath: ford it at low water, or drive the
+  // longer all-tide road south to the causeway (the wait-vs-drive decision; ADR-0021).
   ops: [
-    { key: 'OP-A', lat: 54.978, lng: -3.128, name: 'OP-A — overlook above Bowness Wath' },
-    { key: 'OP-B', lat: 54.990, lng: -3.150, name: 'OP-B — north flank overlook' },
-    { key: 'OP-C', lat: 54.976, lng: -3.140, name: 'OP-C — west overlook above Bowness Wath' },
+    { key: 'OP-A', lat: 54.961, lng: -3.127, name: 'OP-A — islet overlook at Sandywath' },
+    { key: 'OP-B', lat: 54.953, lng: -3.138, name: 'OP-B — spit overlook below Sandywath' },
+    { key: 'OP-C', lat: 54.957, lng: -3.132, name: 'OP-C — north spit overlook at Sandywath' },
   ],
 };
 
@@ -153,14 +153,19 @@ function buildTerrain(ao) {
   // low-tide window (TIDE below); outside it the kernel treats them as water.
   for (const lat of FORD_LATS) paintBand(cells, ao, lat, 'ford');
 
-  // Close the north-head walk-around: fill the channel north of Bowness Wath (east of the
-  // OPs) with water, so the estuary reaches the northern shore. The OP's exfil must then
-  // cross the tidal wath (wait for low water) or detour ~5 km south to the all-tide
-  // causeway — the dwell-dependent choice that is the tide drama (ADR-0020). West of -3.107
-  // (the OPs and their dry north-shore approach) is untouched.
+  // Designed tidal spit + islet (ADR-0021): a rough saltmarsh causeway runs from the south
+  // shore out to a dry knoll beside Sandywath, giving the OP a stance right at the wath.
+  // The exfil then FORKS — ford Sandywath at low water, or drive the longer all-tide road
+  // back south to the causeway — the wait-vs-drive decision on two distinct routes.
+  paintPath(cells, ao, [54.938, -3.152], [54.960, -3.130], 'rough', 1);   // the spit (raised over the flats)
+  paintDisk(cells, ao, [54.961, -3.127], 1, 'open');                       // the islet knoll at the wath
+
+  // Close the north-head walk-around so the only all-tide alternative to fording Sandywath
+  // is the long road south to the causeway (without this the exfil slips round the head for
+  // free and never engages the tide). East of the OPs/spit; the west shore is untouched.
   for (let id = 0; id < ao.N; id++) {
     const [lat, lng] = ao.centers[id];
-    if (lat >= 54.979 && lng >= -3.107 && lng <= -3.083) cells[id] = 'water';
+    if (lat >= 54.972 && lng >= -3.103 && lng <= -3.083) cells[id] = 'water';
   }
 
   return cells;

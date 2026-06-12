@@ -8,11 +8,12 @@
 // stable. The pinned plan ids are GOLDEN — regenerate them deliberately (and review why)
 // if the stamp shape, scenario, or canonicalisation changes.
 //
-// Scenario note: the OPs sit on the north-head land overlooking Bowness Wath, reachable
-// dry from the base along the north shore. The north-head walk-around is closed (ADR-0020),
-// so with the fords shut at H+0 the exfil must *hold at the bank for low water* and then
-// ford — both dwells therefore WAIT, and a shorter visit means a LONGER hold for the same
-// tide-bound RV (the tide, not the dwell, sets the exfil). See world.js PLACES.ops.
+// Scenario note: OP-A sits on the designed tidal islet beside Sandywath (ADR-0021), reached
+// dry along the spit from the southern base. With the fords shut at H+0 the exfil FORKS —
+// ford Sandywath at low water, or drive the longer all-tide road south to the causeway. A
+// short watch (25 min) makes the fork bite: `direct` drives the road (fast, no wait) while
+// `tracked` waits out the tide and fords. A longer watch (45 min) puts the team at the bank
+// after low water, so both simply ford (no drive). See world.js PLACES.ops + buildTerrain.
 //
 // Run: npm run test:unit
 
@@ -54,38 +55,39 @@ const byKey = (plans, k) => plans.find((p) => p.strategy.key === k);
 const kinds = (p) => p.materialisation.schedule.map((s) => s.kind);
 const sat = (p, label) => p.scores.satisfaction.find((s) => s.label === label);
 
-test('A — 45-min dwell: both COAs hold at the bank for the tide, then ford the wath', async () => {
-  const plans = await planFixture(45);
-  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'covered']);
-  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['wait', 'wait']);
+test('A — 25-min dwell: the fork — direct drives the long road; tracked waits out the tide and fords', async () => {
+  const plans = await planFixture(25);
+  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked']);
+  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'wait']);
 
+  // Direct takes the all-tide road south to the causeway — one exfil leg, no tidal hold.
   const direct = byKey(plans, 'direct');
-  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
-  assert.equal(direct.tide_decision.wait_min, 9.8);                            // held at the bank for low water
-  assert.equal(direct.materialisation.schedule.at(-1).end_min, 102.6);         // RV East
-  assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 137.4, margin_band: 'robust', verdict: 'satisfied' });
+  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil']);
+  assert.equal(direct.materialisation.schedule.at(-1).end_min, 85.8);          // RV East — the fast road
+  assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 154.2, margin_band: 'robust', verdict: 'satisfied' });
 
-  const covered = byKey(plans, 'covered');
-  assert.deepEqual(kinds(covered), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
-  assert.equal(covered.tide_decision.via_ford, undefined);                     // decision carries mode/wait/rv
-  assert.equal(covered.materialisation.schedule.at(-1).end_min, 104.2);
+  // Tracked holds at the bank for low water, then fords Sandywath — a split exfil.
+  const tracked = byKey(plans, 'tracked');
+  assert.deepEqual(kinds(tracked), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
+  assert.equal(tracked.tide_decision.wait_min, 32.4);
+  assert.equal(tracked.materialisation.schedule.at(-1).end_min, 98.5);
 
   // Golden ids (NF3 — content-addressed plan identity).
   assert.deepEqual(plans.map((p) => p.id), [
-    'sha256:1cc2a7e684124006e6f200ec52be37eac542fdfbfc058c1ec2952d7772814c0e',
-    'sha256:d2d862ef64665bbdd3526a099cca58399c7b30e14379b9c2b1585f97d88f3ece',
+    'sha256:9f435715c0f3313ac1dad2e22a18a06dd6ec9f8b6e769055b7ad3d9b820da7d2',
+    'sha256:49c2f87af82ef88f39a31e148fc63845e52afdcc2ad3eebcf09ef7898ec74b63',
   ]);
 });
 
-test('B — 15-min dwell: a shorter visit means a LONGER tidal hold (the tide sets the RV)', async () => {
-  const plans = await planFixture(15);
-  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'covered']);
-  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['wait', 'wait']);
+test('B — 45-min dwell: a longer watch lands the team at low water, so both COAs ford (no drive)', async () => {
+  const plans = await planFixture(45);
+  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked']);
+  // Direct now arrives after the wath has opened (crosses without waiting); tracked waits a little.
+  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['open', 'wait']);
   const direct = byKey(plans, 'direct');
-  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
-  assert.equal(direct.tide_decision.wait_min, 39.8);                           // 30 min more hold than at dwell 45…
-  assert.equal(direct.materialisation.schedule.at(-1).end_min, 102.6);         // …yet the same tide-bound RV
-  assert.equal(direct.id, 'sha256:73d59c23d478ed4d1bc4646aaa52c86b6505477a3683d2b5a84bd5f383827603');
+  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil']);
+  assert.equal(direct.materialisation.schedule.at(-1).end_min, 99.9);
+  assert.equal(direct.id, 'sha256:e89ddc86c5328303d10b76e345c341b9b81a05c408e66800e89ac859d56945e0');
 });
 
 test('C — a no-go cordon across the river makes exfil structurally infeasible', async () => {
@@ -94,7 +96,7 @@ test('C — a no-go cordon across the river makes exfil structurally infeasible'
   world.ao.centers.forEach(([, lng], id) => {
     if (Math.abs(lng - (-3.103)) < 0.013) cordon.push({ h3: world.ao.indexes[id] });
   });
-  const plans = await planFixture(45, [{ type: 'no-go', cells: cordon }]);
+  const plans = await planFixture(25, [{ type: 'no-go', cells: cordon }]);
   for (const p of plans) {
     assert.equal(p.materialisation, null);
     assert.equal(sat(p, 'Observe OP').verdict, 'violated');
@@ -106,10 +108,10 @@ test('C — a no-go cordon across the river makes exfil structurally infeasible'
 });
 
 test('NF3 — identical inputs reproduce identical ids; a geometry change changes them', async () => {
-  const a = await planFixture(45);
-  const b = await planFixture(45);
+  const a = await planFixture(25);
+  const b = await planFixture(25);
   assert.deepEqual(a.map((p) => p.id), b.map((p) => p.id));
-  assert.notEqual(byKey(a, 'direct').id, byKey(await planFixture(15), 'direct').id);
+  assert.notEqual(byKey(a, 'direct').id, byKey(await planFixture(45), 'direct').id);
   assert.equal(new Set(a.map((p) => p.id)).size, 2);
   assert.equal(KERNEL_VERSION, 'mock-0.2');
 });
