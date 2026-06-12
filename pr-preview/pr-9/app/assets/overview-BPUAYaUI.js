@@ -1,0 +1,3 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./main-BlUCi90i.js","./roles-Dpj9yf77.js","./roles-DTZUit8m.css","./context-kOi2n3rp.js","./canonical-DbepWco5.js","./main-B2k4QVOw.css"])))=>i.map(i=>d[i]);
+import{r as e}from"./roles-Dpj9yf77.js";var t=!1;async function n(n){t||(t=!0,await e(()=>import(`./main-BlUCi90i.js`),__vite__mapDeps([0,1,2,3,4,5]),import.meta.url))}export{n as mountOverview};
+//# sourceMappingURL=overview-BPUAYaUI.js.map
