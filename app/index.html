@@ -48,6 +48,12 @@
 
   <div id="fault" class="fault" hidden></div>
 
+  <nav class="tabbar" id="tabbar" role="tablist" aria-label="Role views" data-testid="tabbar"></nav>
+
+  <div class="views" id="views">
+    <section id="view-overview" class="tab-view active" role="tabpanel"
+             aria-labelledby="tab-overview" data-testid="view-overview">
+
   <main class="layout">
     <nav id="rail" class="rail" aria-label="Lifecycle stages"></nav>
 
@@ -117,6 +123,9 @@
       mock kernel — real A* paths, illustrative scores. It does not validate planner quality.</p>
   </footer>
 
-  <script type="module" src="js/main.js"></script>
+    </section>
+  </div>
+
+  <script type="module" src="js/shell/shell.js"></script>
 </body>
 </html>

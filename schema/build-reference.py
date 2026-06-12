@@ -263,7 +263,10 @@ def main():
 
     srcmap = {f"mod-{k}": mermaid_src([n for n, _ in classes_by_mod.get(k, [])])
               for k in MODULE_ORDER if classes_by_mod.get(k)}
-    srcmap["overview"] = mermaid_src(list(class_names))
+    # Iterate the classes dict (deterministic insertion/merge order), not the
+    # class_names *set* — set iteration is hash-randomised, which made the
+    # generated ER diagram (and thus this whole file) churn on every run.
+    srcmap["overview"] = mermaid_src(list(classes))
 
     ER_LEGEND = ('<p class="erd-legend"><b>—</b> contains (inlined) &nbsp;·&nbsp; <b>┈</b> references (by id) '
                  '&nbsp;·&nbsp; <span class="cf">o{</span> many &nbsp;<span class="cf">||</span> one '

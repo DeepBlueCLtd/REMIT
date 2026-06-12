@@ -3,19 +3,20 @@
 // persistent projection surface (map + timeline + shared playhead), stage
 // gating, and the two transparency drawers (object store, seam traffic).
 
-import { ObjectStore, LogStore } from './stores/stores.js';
-import { createSeamServer, SeamClient } from './seam/seam.js';
-import { buildWorld, bandUnitFor, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
-import { planHandful, stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
+import { bandUnitFor, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
+import { stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
 import { mountCapture } from './capture/capture.js';
 import { mountCompare } from './compare/compare.js';
 import { mountWingman } from './wingman/wingman.js';
 import { mountLearn } from './learn/learn.js';
-import { Playhead, STRAT_COLORS } from './views/render.js';
+import { STRAT_COLORS } from './views/render.js';
 import { makeMap } from './views/map.js';
 import { makeSyncMatrix } from './views/sync-matrix.js';
 import { buildEntities, syncCatalogue, satOverhead, coincidenceRules, coincidenceWindows } from './entities/entities.js';
 import { contentId, shortId } from './shapes/canonical.js';
+// The shared app context — one store/seam/world/playhead, shared with every
+// other role surface (tab) so they all project the same objects (DEC-61).
+import { objects, logs, seam, world, playhead } from './shell/context.js';
 
 const MISSION_ID = 'M-001';
 const STRATEGY_SEED = 1337;
@@ -33,11 +34,8 @@ const STAGES = [
 ];
 
 // --- infrastructure -------------------------------------------------------
-const objects = new ObjectStore();
-const logs = new LogStore();
-const seam = new SeamClient(createSeamServer({ objects, logs, planHandful }));
-const world = buildWorld();
-const playhead = new Playhead();
+// objects / logs / seam / world / playhead now live in ./shell/context.js so
+// every tab shares one store; they are imported above.
 
 /** Mission state accumulated along the lap. */
 const state = {
@@ -60,8 +58,10 @@ const state = {
   nextHint: /** @type {string|null} */ (null),
 };
 
-// Debug/test handle (read-only use; not part of any contract).
-/** @type {any} */ (window).__remit = { state, playhead, seam, objects };
+// Debug/test handle (read-only use; not part of any contract). The context
+// module seeds window.__remit = {objects, logs, seam, world, playhead}; attach
+// the Overview's mission state so existing tooling can read window.__remit.state.
+/** @type {any} */ (window).__remit.state = state;
 
 // --- projection surface (map + timeline + playhead) ------------------------
 const mapEl = /** @type {HTMLElement} */ (document.getElementById('map'));
@@ -412,6 +412,39 @@ function mountCaptureStage() {
   });
 }
 
+// --- live steering share (the first DEC-61 write) --------------------------
+// Denying cells is the application of intel, so — unlike the local risk
+// appetites — it is *shared across the system*: the no-go set is written to the
+// shared store as a stamped delta (debounced), where every other surface (e.g.
+// the Data Analysis monitor, including a popped-out one) sees it land live. The
+// `constraints` payload is the schema's Constraint shape (DEC-24); the delta
+// envelope (scope + attribution) is the DEC-61 stamped-delta scaffolding that
+// becomes a first-class Delta type in the writes phase.
+let steeringShareTimer = 0;
+let lastSharedNogoKey = '';
+function shareSteering() {
+  // Hex world: no-go cells are H3 ids (the kernel reads `cell.h3`), not square x/y.
+  const cells = mapNogo.map((c) => ({ h3: c.h3 }));
+  const key = cells.map((c) => c.h3).sort().join('|');
+  if (key === lastSharedNogoKey) return;   // nothing net-new since the last share
+  lastSharedNogoKey = key;
+  // Shape is the LinkML-generated SteeringDelta (records.yaml → schema/gen/remit.ts),
+  // not hand-shaped: scope + Constraint[] payload + flat attribution (by/role/at).
+  /** @type {import('../../schema/gen/remit').SteeringDelta} */
+  const delta = {
+    scope: 'steering',
+    constraints: cells.length ? [{ type: 'no-go', cells }] : [],
+    by: 'operator',
+    role: 'duty-officer-plans',
+    at: new Date().toISOString(),
+  };
+  seam.putObject('SteeringDelta', delta).catch((err) => showFault(`sharing steering: ${err?.message ?? err}`));
+}
+function scheduleShareSteering() {
+  clearTimeout(steeringShareTimer);
+  steeringShareTimer = setTimeout(shareSteering, 450);
+}
+
 function mountPlan() {
   const el = panel('plan');
   el.innerHTML = `
@@ -442,6 +475,7 @@ function mountPlan() {
     if (i >= 0) mapNogo.splice(i, 1); else mapNogo.push({ h3: cell.h3 });
     updateCount();
     renderProjection();
+    scheduleShareSteering();   // applied intel → shared store (DEC-61)
   };
   nogoBtn.addEventListener('click', () => {
     const on = nogoBtn.classList.toggle('active');
@@ -450,6 +484,7 @@ function mountPlan() {
   });
   el.querySelector('#plan-nogo-clear')?.addEventListener('click', () => {
     mapNogo.length = 0; updateCount(); renderProjection();
+    scheduleShareSteering();   // a cleared no-go set is shared too (intel retracted)
   });
 
   el.querySelector('#plan-run')?.addEventListener('click', async () => {

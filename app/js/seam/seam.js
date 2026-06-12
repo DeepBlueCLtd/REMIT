@@ -68,9 +68,17 @@ export class SeamClient {
     this.listeners = [];
   }
 
-  /** @param {(t: SeamClient['traffic']) => void} fn */
+  /**
+   * Subscribe to seam traffic. Supports multiple listeners.
+   * @param {(t: SeamClient['traffic']) => void} fn
+   * @returns {() => void} unsubscribe (idempotent)
+   */
   onTraffic(fn) {
     this.listeners.push(fn);
+    return () => {
+      const i = this.listeners.indexOf(fn);
+      if (i >= 0) this.listeners.splice(i, 1);
+    };
   }
 
   /**
@@ -86,7 +94,10 @@ export class SeamClient {
       : Array.isArray(res) ? `→ ${res.length} entries`
       : '→ ok';
     this.traffic.push({ n: this.traffic.length + 1, method, path, note });
-    for (const fn of this.listeners) fn(this.traffic);
+    // Iterate a copy: a listener may unsubscribe itself during dispatch (e.g. a
+    // popped-out/unmounted surface dropping its handler), and splicing the live
+    // array mid-loop would skip the next listener.
+    for (const fn of [...this.listeners]) fn(this.traffic);
     if (res?.error) throw new Error(`${res.error.code}: ${res.error.message}`);
     return res;
   }

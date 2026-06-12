@@ -987,4 +987,28 @@ export interface Replan extends LogEntry {
 }
 
 
+/**
+ * A stamped cross-role write to the shared store (DEC-61): a role's contribution is an attributed delta — the same write path that serialises over `/sync` later (DEC-25), so going multi-node is transport, not re-architecture. Base of the concrete delta kinds; v1 emits SteeringDelta. Write-scope *enforcement* is designed-for — the delta is attributed (NF2) but not yet scope-checked.
+ */
+export interface Delta {
+    /** "the write-scope this delta falls under — e.g. steering" */
+    scope?: string,
+    /** the contributing author */
+    by?: string,
+    /** "the contributing role-hat — e.g. duty-officer-plans" */
+    role?: string,
+    /** when it was contributed (DEC-15, NF2) */
+    at?: string,
+}
+
+
+/**
+ * The first DEC-61 write built in v1: an operator's *applied intel* — denied (no-go) cells — shared to the store as steering constraints, where every surface (e.g. the Data Analysis monitor, including a popped-out one) sees it land. Risk appetites, by contrast, stay local (a ranking lens). Identity is content (DEC-35): the store keys it by the hash of its canonical form.
+ */
+export interface SteeringDelta extends Delta {
+    /** the interpreted steering gestures shared (DEC-24) — e.g. no-go regions */
+    constraints?: Constraint[],
+}
+
+
 
