@@ -176,4 +176,20 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
 - **Prevention:** never use `self` (or other Python-reserved/`__init__` kwarg names)
   as a permissible-value or mapping key in a LinkML schema.
 
+## 2026-06-12 — data-model HTML reference churns on every regen (nondeterministic)
+
+- **Symptom:** `bash schema/generate.sh` produces a different `site/data-model/index.html`
+  on every run even with no schema change (md5 differs), giving large spurious diffs; the
+  generated TS / JSON Schema are stable. Two consecutive regens disagree.
+- **Root cause:** `schema/build-reference.py` built the whole-model ER diagram from
+  `list(class_names)` where `class_names = set(classes)`. Iterating a Python `set` is
+  hash-randomised per process (PYTHONHASHSEED), so the ER entity order — and thus the file —
+  varied run to run. A generated artefact must be deterministic, or "regenerate, never
+  hand-edit" produces churn and CI can't diff-check it.
+- **Fix:** iterate the `classes` dict (deterministic insertion/merge order) instead of the
+  set: `mermaid_src(list(classes))`. Re-running now yields an identical file.
+- **Prevention:** never derive *ordered output* from a `set`. When emitting generated
+  artefacts, iterate an ordered structure (dict keys, a `sorted()` list) so the output is
+  byte-stable across runs.
+
 <!-- Add new entries above this line. -->
