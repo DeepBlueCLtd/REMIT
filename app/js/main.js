@@ -1,15 +1,16 @@
 // @ts-check
-// main.js — orchestration: the seven-stage lap (capture → … → learn), the
+// main.js — orchestration: the six-stage lap (world → … → learn), the
 // persistent projection surface (map + timeline + shared playhead), stage
 // gating, and the two transparency drawers (object store, seam traffic).
 
-import { bandUnitFor, PLACES, GRID_W, GRID_H, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
+import { bandUnitFor, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
 import { stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
 import { mountCapture } from './capture/capture.js';
 import { mountCompare } from './compare/compare.js';
 import { mountWingman } from './wingman/wingman.js';
 import { mountLearn } from './learn/learn.js';
-import { makeMap, STRAT_COLORS } from './views/render.js';
+import { STRAT_COLORS } from './views/render.js';
+import { makeMap } from './views/map.js';
 import { makeSyncMatrix } from './views/sync-matrix.js';
 import { buildEntities, syncCatalogue, satOverhead, coincidenceRules, coincidenceWindows } from './entities/entities.js';
 import { contentId, shortId } from './shapes/canonical.js';
@@ -28,9 +29,8 @@ const STAGES = [
   { key: 'capture', n: 2, label: 'Capture', hat: 'command' },
   { key: 'plan',    n: 3, label: 'Plan',    hat: 'implementer' },
   { key: 'compare', n: 4, label: 'Compare', hat: 'implementer' },
-  { key: 'views',   n: 5, label: 'Views',   hat: 'all hats' },
-  { key: 'execute', n: 6, label: 'Execute', hat: 'operator' },
-  { key: 'learn',   n: 7, label: 'Learn',   hat: 'all hats' },
+  { key: 'execute', n: 5, label: 'Execute', hat: 'operator' },
+  { key: 'learn',   n: 6, label: 'Learn',   hat: 'all hats' },
 ];
 
 // --- infrastructure -------------------------------------------------------
@@ -50,6 +50,7 @@ const state = {
   steering: /** @type {any[]} */ ([]),   // operator no-go constraints (Plan)
   handful: /** @type {any[]} */ ([]),
   selectedPlan: /** @type {any} */ (null),
+  previewPlan: /** @type {any} */ (null),  // COA highlighted (radio) in Compare, before commit
   execPlan: /** @type {any} */ (null),   // live clone played back (and re-routed) in Execute
   execSummary: /** @type {any} */ (null),
   horizonMin: 180,
@@ -63,8 +64,8 @@ const state = {
 /** @type {any} */ (window).__remit.state = state;
 
 // --- projection surface (map + timeline + playhead) ------------------------
-const mapCanvas = /** @type {HTMLCanvasElement} */ (document.getElementById('map'));
-const map = makeMap(mapCanvas, world.baseline, null);
+const mapEl = /** @type {HTMLElement} */ (document.getElementById('map'));
+const map = makeMap(mapEl, world.baseline, world.ao, world.places);
 let mapTarget = null;
 let mapRv = null;
 let mapCandidates = null;   // candidate OPs shown on the map during Capture
@@ -87,8 +88,11 @@ let pausePlayback = null;
 
 function renderProjection() {
   if (!worldProvisioned) return;
-  // During/after execution the live (re-routable) plan is what's shown.
-  const sel = state.execPlan ?? state.selectedPlan;
+  // During/after execution the live (re-routable) plan is what's shown. A committed
+  // COA (selectedPlan) — or, before commit, the COA merely highlighted (radio) in
+  // Compare — projects identically: map ghost, own-force tracks, coincidences.
+  const committed = state.execPlan ?? state.selectedPlan;
+  const sel = committed ?? state.previewPlan;
   // The playhead is the single authority for "what time we're viewing": the map
   // ghost is the kernel's evaluator at that time (NF1). During execution the
   // wingman advances the playhead; the user can also scrub it to review.
@@ -97,6 +101,7 @@ function renderProjection() {
     target: mapTarget, rv: mapRv,
     candidates: mapCandidates, highlight: mapHighlight,
     obstructions: mapObstructions, nogo: mapNogo, blocked: mapBlocked,
+    follow: state.stage === 'execute',   // Execute follow-cam: pan to keep the vehicle in view
   });
   // The Sync Matrix (D6) is the temporal projection — tide + satellite tracks
   // appear from the World step on; own-force tracks fill in once a COA exists.
@@ -119,10 +124,12 @@ function renderProjection() {
     `<span class="sm-cue ${fordOpenAt(t) ? 'on' : ''}">≋ ford ${fordOpenAt(t) ? 'open' : 'closed'}</span>`
     + `<span class="sm-cue ${satOverhead(t) ? 'on' : ''}">🛰 sat ${satOverhead(t) ? 'overhead' : 'below horizon'}</span>`
     + advisory;
-  const ghost = sel ? stateAt(sel, playhead.t) : null;
-  if (sel && ghost) {
+  // The single-ghost readout is for a *committed* COA; while merely previewing in
+  // Compare we keep the "race the ghosts" comparison table (below) live.
+  const ghost = committed ? stateAt(committed, playhead.t) : null;
+  if (committed && ghost) {
     readout.innerHTML =
-      `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${Math.round(ghost.x)},${Math.round(ghost.y)}</b>`
+      `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${ghost.h3 ? ghost.h3.slice(-6) : '—'}</b>`
       + ` · phase <b>${ghost.phase}</b> · fuel <b>${ghost.fuel_pct ?? '—'}%</b>`
       + ` <span class="sm-coincide" data-testid="sm-coincide">${coincidence}</span>`;
   } else if (state.handful.length) {
@@ -161,13 +168,9 @@ playhead.on((t) => {
 slider.addEventListener('pointerdown', () => pausePlayback?.());  // grabbing the scrubber pauses live play
 slider.addEventListener('input', () => playhead.set(Number(slider.value)));
 
-// Map clicks → cell coords, dispatched to the active handler (Plan no-go mode).
-mapCanvas.addEventListener('click', (e) => {
-  if (!mapOnCellClick || !worldProvisioned) return;
-  const r = mapCanvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - r.left) / r.width * GRID_W);
-  const y = Math.floor((e.clientY - r.top) / r.height * GRID_H);
-  if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H) mapOnCellClick({ x, y });
+// Map clicks → hex, dispatched to the active handler (Plan no-go mode).
+map.onCellClick((cell) => {
+  if (mapOnCellClick && worldProvisioned) mapOnCellClick(cell);
 });
 
 // --- drawers ---------------------------------------------------------------
@@ -285,6 +288,12 @@ function mountStage(key) {
   if (key === 'compare') {
     mountCompare(panel('compare'), {
       seam, handful: state.handful, commitments: state.requirement.commitments,
+      onPreview(planId) {
+        // Highlighting a COA (radio) previews it everywhere — map + Sync Matrix
+        // own-force tracks — before the rationale is committed.
+        state.previewPlan = state.handful.find((p) => p.id === planId);
+        renderProjection();
+      },
       onSelected(planId, _rationale, rationaleId) {
         state.selectedPlan = state.handful.find((p) => p.id === planId);
         state.ids.rationale = rationaleId;
@@ -293,10 +302,11 @@ function mountStage(key) {
       },
     });
   }
-  if (key === 'views') mountViews();
   if (key === 'execute') {
     // The wingman plays back (and may re-route) a live clone, so the committed
-    // plan stays immutable.
+    // plan stays immutable. Reset the shared playhead to H+0 (the removed Views
+    // interstitial used to do this on the way through).
+    playhead.set(0);
     state.execPlan = structuredClone(state.selectedPlan);
     mapBlocked = [];
     const wm = mountWingman(panel('execute'), {
@@ -306,7 +316,7 @@ function mountStage(key) {
       bandUnit: state.bandUnit,
       playhead,
       resetLog: () => logs.reset(MISSION_ID),
-      world: { cells: world.baseline.cells, grid: world.baseline.medium.grid, profile: world.profile },
+      world: { cells: world.baseline.cells, ao: world.ao, profile: world.profile },
       onObstructions(list) { mapObstructions = list.slice(); renderProjection(); },
       onBlocked(cells) { mapBlocked = cells; renderProjection(); },
       onComplete(summary) {
@@ -343,13 +353,13 @@ function mountWorld() {
     part of every plan's identity so plans built for different worlds can't be confused
     (DEC-48).</p>
     <ul class="fact-list">
-      <li>Area of operations: <b>${world.baseline.name}</b> · land · ${world.baseline.medium.grid.cell_m} m cells</li>
+      <li>Area of operations: <b>${world.baseline.name}</b> · land · H3 res ${world.baseline.medium.grid.res} hexes (~344 m)</li>
       <li>Conditions: <b>mobility</b> map (how fast each cell is to cross) → margin band unit <b>${state.bandUnit} min</b></li>
       <li data-testid="world-tide">Conditions: <b>tide</b> — semidiurnal, period ${TIDE.period_min} min; the
-          <b>K-7 ford</b> is wadeable only within ±${TIDE.open_half_width_min / 60} h of low tide.
-          At H+0 it is <b>${fordOpenAt(0) ? 'open' : 'closed'}</b>${fordOpenAt(0) ? '' : ` — opens H+${nextFordOpen(0)}`}
+          <b>tidal waths</b> are wadeable only within ±${TIDE.open_half_width_min / 60} h of low tide.
+          At H+0 they are <b>${fordOpenAt(0) ? 'open' : 'closed'}</b>${fordOpenAt(0) ? '' : ` — open H+${nextFordOpen(0)}`}
           (forecast changepoints, not surprises)</li>
-      <li>Own force: <b>${world.profile.name}</b> · ${world.profile.speed_by_medium.land_kph} km/h · start ${PLACES.base.name} (${world.state.position.x},${world.state.position.y})</li>
+      <li>Own force: <b>${world.profile.name}</b> · ${world.profile.speed_by_medium.land_kph} km/h · start ${world.places.base.name}</li>
       <li>Branding/view defaults stay out of the world's identity hash (DEC-48)</li>
     </ul>
     <div class="row">
@@ -369,7 +379,7 @@ function mountWorld() {
     worldProvisioned = true;
     // With the AO on the map, show the candidate OPs so Capture can point at
     // features it can see; the chosen target/RV are set when Capture commits.
-    mapCandidates = PLACES.ops;
+    mapCandidates = world.places.ops;
     renderProjection();
     el.querySelectorAll('button').forEach((n) => (n.disabled = true));
     /** @type {HTMLElement} */ (el.querySelector('#world-result')).innerHTML =
@@ -382,7 +392,7 @@ function mountWorld() {
 /** Capture is mounted on demand (after World), so the AO map is already shown. */
 function mountCaptureStage() {
   mountCapture(panel('capture'), {
-    seam,
+    seam, places: world.places,
     onPick(op) { mapHighlight = op; renderProjection(); },
     onCommitted(requirement, id) {
       state.requirement = requirement;
@@ -413,8 +423,9 @@ function mountCaptureStage() {
 let steeringShareTimer = 0;
 let lastSharedNogoKey = '';
 function shareSteering() {
-  const cells = mapNogo.map((c) => ({ x: c.x, y: c.y }));
-  const key = cells.map((c) => `${c.x},${c.y}`).sort().join('|');
+  // Hex world: no-go cells are H3 ids (the kernel reads `cell.h3`), not square x/y.
+  const cells = mapNogo.map((c) => ({ h3: c.h3 }));
+  const key = cells.map((c) => c.h3).sort().join('|');
   if (key === lastSharedNogoKey) return;   // nothing net-new since the last share
   lastSharedNogoKey = key;
   // Shape is the LinkML-generated SteeringDelta (records.yaml → schema/gen/remit.ts),
@@ -460,8 +471,8 @@ function mountPlan() {
   updateCount();
 
   const toggleCell = (cell) => {
-    const i = mapNogo.findIndex((c) => c.x === cell.x && c.y === cell.y);
-    if (i >= 0) mapNogo.splice(i, 1); else mapNogo.push(cell);
+    const i = mapNogo.findIndex((c) => c.h3 === cell.h3);
+    if (i >= 0) mapNogo.splice(i, 1); else mapNogo.push({ h3: cell.h3 });
     updateCount();
     renderProjection();
     scheduleShareSteering();   // applied intel → shared store (DEC-61)
@@ -477,13 +488,14 @@ function mountPlan() {
   });
 
   el.querySelector('#plan-run')?.addEventListener('click', async () => {
-    state.steering = mapNogo.length ? [{ type: 'no-go', cells: mapNogo.map((c) => ({ x: c.x, y: c.y })) }] : [];
+    state.steering = mapNogo.length ? [{ type: 'no-go', cells: mapNogo.map((c) => ({ h3: c.h3 })) }] : [];
     const body = {
       requirement: state.requirement, requirement_version: state.ids.requirement,
       baseline: world.baseline, baseline_version: state.ids.baseline,
       profile: world.profile, profile_version: state.ids.profile,
       state: world.state, config_core: state.configCoreHash,
       appetites: state.appetites, steering: state.steering, strategy_seed: STRATEGY_SEED,
+      ao: world.ao,
     };
     state.lastPlanRequest = body;
     const res = await seam.planHandful(body);
@@ -520,29 +532,6 @@ function mountPlan() {
 
     renderProjection();
     advance('plan');
-  });
-}
-
-function mountViews() {
-  const el = panel('views');
-  const sel = state.selectedPlan;
-  const legs = sel.materialisation.schedule.map((l) =>
-    `<li><b>${l.label}</b> — H+${l.start_min} → H+${l.end_min}</li>`).join('');
-  el.innerHTML = `
-    <p class="stage-intro">Map and Sync Matrix are co-equal projections of the selected plan
-    in its world, rendered from the kernel's own materialisation and evaluator —
-    <em>shown = optimised</em> (NF1). Scrub the playhead (slider or drag the matrix): the map
-    ghost, the own-force tracks, and the tide/satellite tracks all move under one cursor —
-    scan vertically for coincidences.</p>
-    <ul class="fact-list">${legs}</ul>
-    <div class="row">
-      <button id="views-continue" class="primary" data-testid="views-continue">Proceed to execution →</button>
-    </div>`;
-  playhead.set(0);
-  renderProjection();
-  el.querySelector('#views-continue')?.addEventListener('click', () => {
-    advance('views');
-    showStage('execute');
   });
 }
 

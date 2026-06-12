@@ -7,8 +7,6 @@
 // (the signed restatement IS the negotiated→committed transition), and
 // ambiguities recorded as resolvable-later.
 
-import { PLACES } from '../kernel/world.js';
-
 const AUTHOR = 'ian';
 const EXFIL_DEADLINE_MIN = 180;   // command-fixed: be across the river by H+180
 
@@ -19,12 +17,13 @@ const EXFIL_DEADLINE_MIN = 180;   // command-fixed: be across the river by H+180
  *          onCommitted: (req: any, id: string) => void}} ctx
  */
 export function mountCapture(el, ctx) {
+  const PLACES = ctx.places;   // resolved named places (h3-anchored), from the world
   /** Slot state: value + capture status (DEC-17 stamped defaults). */
   const slots = {
     where:        { value: 'OP-A', status: 'defaulted' },
     window_start: { value: 30,     status: 'defaulted' },
     window_end:   { value: 120,    status: 'defaulted' },
-    duration_min: { value: 45,     status: 'defaulted' },
+    duration_min: { value: 25,     status: 'defaulted' },
   };
   const ambiguities = [{
     question: 'Is OP-A itself confirmed clear of civilian use?',
@@ -50,7 +49,7 @@ export function mountCapture(el, ctx) {
         <input type="number" data-slot="window_end" data-testid="cap-end" value="120" step="15" min="0">
       </label>
       <label>Dwell at least (min)
-        <input type="number" data-slot="duration_min" data-testid="cap-dur" value="45" step="5" min="5">
+        <input type="number" data-slot="duration_min" data-testid="cap-dur" value="25" step="5" min="5">
       </label>
     </div>
     <div class="slot-audit" id="cap-audit"></div>
@@ -60,9 +59,9 @@ export function mountCapture(el, ctx) {
     </div>
     <div class="command-fixed">
       <strong>Command-fixed task (second commitment):</strong> on completion of the
-      observation, <b>exfiltrate east across the K-7 tidal ford</b> to ${PLACES.rvEast.name}
-      (cell ${PLACES.rvEast.x},${PLACES.rvEast.y}), not later than H+${EXFIL_DEADLINE_MIN} min.
-      Criticality HARD. <span class="muted">(The recce confirms the ford; the team then wades it at low water.)</span>
+      observation, <b>exfiltrate east across the tidal waths</b> to ${PLACES.rvEast.name},
+      not later than H+${EXFIL_DEADLINE_MIN} min.
+      Criticality HARD. <span class="muted">(The recce confirms the crossing; the team then wades it at low water.)</span>
     </div>
     <div class="echo-back card" id="cap-echo" data-testid="cap-echo"></div>
     <div class="row">
@@ -76,11 +75,11 @@ export function mountCapture(el, ctx) {
   const opFor = (key) => PLACES.ops.find((o) => o.key === key);
   const echoText = () => {
     const op = opFor(slots.where.value);
-    return `ROVER-1 will VISIT ${op.name} (cell ${op.x},${op.y}), arriving not before `
+    return `ROVER-1 will VISIT ${op.name}, arriving not before `
       + `H+${slots.window_start.value} min and departing not later than H+${slots.window_end.value} min, `
       + `holding observation for at least ${slots.duration_min.value} min. `
-      + `Then EXFILTRATE east across the K-7 tidal ford to ${PLACES.rvEast.name} `
-      + `(cell ${PLACES.rvEast.x},${PLACES.rvEast.y}) not later than H+${EXFIL_DEADLINE_MIN} min. `
+      + `Then EXFILTRATE east across the tidal waths to ${PLACES.rvEast.name} `
+      + `not later than H+${EXFIL_DEADLINE_MIN} min. `
       + `Both commitments HARD — inviolable (command-issued).`;
   };
 
@@ -109,7 +108,7 @@ export function mountCapture(el, ctx) {
       id: 'cmt-1',
       activity: {
         type: 'visit',
-        where: { x: op.x, y: op.y, alias: op.key },
+        where: { h3: op.h3, alias: op.key },
         when: { window: { start_min: Number(slots.window_start.value), end_min: Number(slots.window_end.value) } },
         duration: { min_min: Number(slots.duration_min.value) },
         modifiers: { stationary: true, be_at_role: 'visit' },
@@ -135,7 +134,7 @@ export function mountCapture(el, ctx) {
       id: 'cmt-2',
       activity: {
         type: 'transit',
-        where: { x: PLACES.rvEast.x, y: PLACES.rvEast.y, alias: 'RV-EAST' },
+        where: { h3: PLACES.rvEast.h3, alias: 'RV-EAST' },
         when: { before_min: EXFIL_DEADLINE_MIN },
         modifiers: { after: 'cmt-1' },             // sequenced: only after the observation
         effects: [],

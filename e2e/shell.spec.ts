@@ -14,7 +14,7 @@ async function planOnOverview(page: Page) {
   await page.getByTestId('cap-commit').click();
   await page.getByTestId('continue-plan').click();
   await page.getByTestId('plan-run').click();
-  await expect(page.locator('.plan-card')).toHaveCount(3);
+  await expect(page.locator('.plan-card')).toHaveCount(2);
 }
 
 test('tab bar: seven roles, switching, and the stub placeholders', async ({ page }) => {
@@ -45,7 +45,10 @@ test('tab bar: seven roles, switching, and the stub placeholders', async ({ page
   await expect(page.getByTestId('view-data-analysis')).toBeVisible();
   await expect(page.getByTestId('data-analysis')).toBeVisible();
   await expect(page.locator('#fault')).toBeHidden();
-  expect(consoleErrors, consoleErrors.join('\n')).toEqual([]);
+  // The hex map fetches Carto basemap tiles, which are network-blocked in cloud sessions;
+  // tolerate those fetch/cert errors only (as the skeleton suite does).
+  const realErrors = consoleErrors.filter((e) => !/cartocdn|Failed to fetch|AJAXError|ERR_CERT|net::ERR|tile/i.test(e));
+  expect(realErrors, realErrors.join('\n')).toEqual([]);
 });
 
 test('data analysis: empty state → provision → index populates', async ({ page }) => {
@@ -80,7 +83,7 @@ test('data analysis: drill a content-id reference and breadcrumb back', async ({
   await expect(detail).toContainText('stamp');
 
   await detail.locator('.da-ref', { hasText: 'Baseline' }).first().click();
-  await expect(detail).toContainText('Kara Crossing');   // the baseline's name
+  await expect(detail).toContainText('Solway crossing');  // the baseline's name (hex AO)
   await expect(detail).toContainText('medium');
 
   const crumbs = page.getByTestId('da-crumbs');
@@ -146,15 +149,16 @@ test('plan steering is shared to the store as a delta (first DEC-61 write)', asy
   // Enter no-go paint mode and deny a cell — the application of intel.
   await page.getByTestId('plan-nogo').click();
   const box = (await page.getByTestId('map').boundingBox())!;
-  await page.getByTestId('map').click({ position: { x: (23.5 / 28) * box.width, y: (5.5 / 18) * box.height } });
-  await expect.poll(() => page.getByTestId('map').getAttribute('data-nogo')).toContain('23,5');
+  await page.getByTestId('map').click({ position: { x: box.width * 0.5, y: box.height * 0.5 } });
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-nogo')).not.toBe('');
 
   // The denial is written to the shared store as a SteeringDelta (debounced),
-  // carrying the no-go constraint with the painted cell.
+  // carrying the no-go constraint with the painted H3 cell (hex world, not square x/y).
   await expect.poll(() => page.evaluate(() => {
     const rec = (window as any).__remit.objects.list().reverse().find((o: any) => o.type === 'SteeringDelta');
-    return rec ? (window as any).__remit.objects.get(rec.id).body.constraints[0].cells : [];
-  })).toContainEqual({ x: 23, y: 5 });
+    const cells = rec ? ((window as any).__remit.objects.get(rec.id).body.constraints[0]?.cells ?? []) : [];
+    return cells.length > 0 && typeof cells[0].h3 === 'string';
+  })).toBe(true);
 
   // And it surfaces in the Data Analysis monitor like any other shared object.
   await page.getByTestId('tab-data-analysis').click();

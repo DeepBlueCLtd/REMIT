@@ -23,6 +23,7 @@ const stepDown = (order, b) => order[Math.max(0, order.indexOf(b) - 1)];
  * @param {HTMLElement} el
  * @param {{seam: import('../seam/seam.js').SeamClient,
  *          handful: any[], commitments: any[],
+ *          onPreview?: (planId: string) => void,
  *          onSelected: (planId: string, rationale: any, rationaleId: string) => void}} ctx
  */
 export function mountCompare(el, ctx) {
@@ -163,6 +164,7 @@ export function mountCompare(el, ctx) {
       r.addEventListener('change', () => {
         selectedId = /** @type {HTMLInputElement} */ (r).value;
         commitBtn.disabled = false;
+        ctx.onPreview?.(selectedId);   // project the highlighted COA before commit
       }));
     renderAppetiteNote(rec);
   }

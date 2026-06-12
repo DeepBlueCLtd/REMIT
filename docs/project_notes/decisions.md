@@ -337,7 +337,207 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   this ADR (the deleted renderer is in git history). The pan/zoom script is
   renderer-agnostic, so an SVG path could be re-added later without touching it.
 
-## ADR-0014 (2026-06-12) — Tab shell as the read-only DEC-61 seed (roles-as-config, context-by-injection, pop-out via opener-shared store)
+## ADR-0014 (2026-06-11) — Dependency policy: minimise, don't prohibit (maintainer-approved)
+
+- **Context:** ADR-0005 shipped the skeleton as no-build ES modules with effectively zero
+  runtime dependencies, and `CLAUDE.md` described the app as having "zero external
+  dependencies". The H3 hex-grid migration (ADR-0016) needs correct H3 maths and a real map
+  renderer; hand-rolling either is large, bug-prone, and off the project's value. The
+  maintainer clarified the intent: dependencies are not forbidden — they should be
+  **minimised**, and each addition is **approval-gated**.
+- **Decision:** runtime dependencies are permitted where they give a clear
+  development/maintenance benefit over hand-rolling, **subject to explicit maintainer
+  approval**. "Zero dependencies" is no longer an invariant; "minimise, justify, approve" is.
+  First approved set (ADR-0015/0016): `h3-js` (indexing/neighbours/hierarchy), `maplibre-gl`
+  + `@deck.gl/*` (map + hex rendering), `vite` (build, dev-only).
+- **Options considered:** (a) keep zero-dependency, hand-roll H3 + a hex renderer — rejected:
+  re-implementing H3 grid maths and a WebGL map is large and error-prone; (b) allow deps
+  freely — rejected: erodes the small, auditable surface; (c) minimise + approval-gate — chosen.
+- **Consequences:** new deps are listed and justified in the PR and recorded here on approval;
+  `package-lock.json` pins exact versions; kernel modules stay dependency-light (only `h3-js`,
+  Node-importable) so the browser-free `node --test` suite still runs. Relaxes ADR-0005's
+  spirit; `CLAUDE.md` updated to match.
+
+## ADR-0015 (2026-06-11) — Adopt a Vite build step (revisits ADR-0005)
+
+- **Context:** ADR-0005 chose no-build ES modules to keep the PR-preview demo decoupled from
+  build machinery, naming DEC-57 (generated TS types) as the natural revisit point. The H3
+  migration (ADR-0016) pulls in `maplibre-gl` and `@deck.gl/*` — large ESM packages with
+  bare-specifier imports and submodules, impractical to serve un-bundled. An earlier-than-
+  expected but warranted revisit.
+- **Decision:** adopt **Vite**. `pages.config.yml` already drives an optional build in both
+  workflows, so the change is config, not workflow code: `build_command: "npm ci && npm run
+  build"`, `dist_dir: "dist"`, `app_path: "app"` (unchanged). Vite is rooted at `app/`, builds
+  to `dist/`, with **`base: './'`** so one bundle resolves under `/REMIT/app/` (deploy) and
+  `/REMIT/pr-preview/pr-<n>/` (preview).
+- **Options considered:** (a) stay no-build, load deck.gl/maplibre via CDN/import-map —
+  rejected: runtime CDN dependency + fragile submodule resolution; (b) vendor pre-built bundles
+  — rejected: heavy committed blobs, manual versioning; (c) Vite — chosen (best DX; workflows
+  already support a build command).
+- **Consequences:** the PR preview now exercises `vite build` (ADR-0001/0005's review surface
+  preserved); `run-playwright.mjs` serves the built `dist/`; Node-importable kernel modules keep
+  `node --test` build-free. `dist/` stays gitignored.
+
+## ADR-0016 (2026-06-11) — H3 hex grid for routing & visualisation (supersedes the square grid and ADR-0006)
+
+- **Context:** the skeleton planned on an abstract 28×18 square grid (8-connected A*, octile)
+  with a hand-rolled Canvas, and modelled one tidal ford via a leg-level wait-vs-detour chooser
+  (ADR-0006), which itself noted "a real kernel would need time-expanded search". We move to a
+  hex grid based on **H3** for isotropic 6-neighbour movement, genuine real-lat/lon-anchored
+  indexes with a **latent hierarchy** (future-proofing + dataset interop), and a real-map
+  renderer — over a fresh scenario with **multiple** tidal fords.
+- **Decision:**
+  - **Grid:** H3 at **res 9** (~300 m cells, ~1.2k over a ~14×9 km AO) anchored to a real
+    lat/lon (Solway Firth head). A canonical **sorted** AO cell-set gives each cell a stable
+    integer id; neighbours are **bearing-sorted** into a frozen adjacency for deterministic A*
+    (NF3). Plan identity keys off H3 index **strings** (canonical-JSON-safe, no floats).
+  - **Routing:** a deterministic **time-dependent (time-expanded) A*** (state = cell × time,
+    1-min steps, waiting allowed) replaces the octile search and **subsumes ADR-0006's chooser**
+    — multiple fords are handled by arrival-time-gated edge feasibility; the wait-vs-detour
+    decision emerges from the search and is read back into `plan.tide_decision`.
+  - **Rendering:** **MapLibre GL JS** (keyless Carto Positron *light* raster basemap, behind a
+    load-guard so it degrades gracefully where tiles are blocked) + **deck.gl**
+    `H3HexagonLayer`/`PathLayer`/`IconLayer` via `MapboxOverlay` replace the Canvas renderer.
+    The hex-cell overlay is independently **toggleable** (a MapLibre control) so the basemap
+    beneath can be revealed; routes/markers/ghost stay drawn either way.
+  - The H3 **hierarchy is latent** — no active LOD / coarse-to-fine planning / aggregation yet.
+- **Trade-offs:** richer and geographically grounded, but a larger surface (build + WebGL + new
+  coordinate model) and a deliberate identity change (the config-core hash and golden plan ids
+  are regenerated for the new world). WebGL gates only screenshots, not logic (functional e2e is
+  `data-*`/state-based), capping the risk.
+- **Consequences:** `world.js`/`astar.js`/`kernel.js` are rewritten and `render.js` is replaced;
+  `entities.js`, `sync-matrix.js`, `learn.js`, `seam.js`, `stores.js`, `canonical.js` are
+  position-agnostic and unchanged; golden fixtures and e2e map-interaction are regenerated.
+  Supersedes ADR-0006.
+
+## ADR-0017 (2026-06-11) — Hex terrain sampled from the basemap, baked (refines ADR-0016)
+
+- **Context:** ADR-0016 shipped *synthetic* terrain (a procedural N–S river, fords, woods)
+  over the real lat/lon anchor — "abstract-now / geo-later". Once the real Carto basemap
+  rendered beneath the hexes (switched to the legible Positron *light* style), the synthetic
+  terrain visibly **did not line up** with the map: the painted river ran N–S while the real
+  Solway estuary runs ~E–W. The maintainer asked for the hex characteristics to come from the
+  map.
+- **Decision:** **sample the basemap and bake the result.** `tools/sample-terrain.mjs` renders
+  the Positron basemap fit to the AO in a headless browser, reads the basemap framebuffer
+  (`gl.readPixels` after a forced redraw), and classifies each of the ~1,445 H3 cells by colour
+  (water / open / forest / rough) into a committed `app/js/kernel/terrain-sampled.json`.
+  `world.js` loads that baked file as its base terrain, then paints a few **designed set-pieces
+  over it** — bank roads, an all-tide causeway, and three tidal fords (the "waths") carved
+  across the real water — and snaps the named places (base / RV / OPs) to the nearest dry cell.
+- **Determinism (NF3):** the sample is taken **once, offline, and committed**; nothing is
+  fetched at runtime, so the browser app and the browser-free `node --test` golden suite read
+  identical terrain and plan ids stay reproducible. Re-run the sampler deliberately (basemap or
+  AO change) and regenerate the goldens.
+- **Options considered:** (a) full OSM/Overpass classification — most accurate, heavier data
+  pipeline; (b) **sample the basemap, bake — chosen** (quick; auto-matches whatever basemap is
+  shown; classification is approximate — water and green are reliable on Positron, roads/landuse
+  are not, hence the designed road/ford overlay); (c) classify at runtime — rejected
+  (non-deterministic; the Node golden suite has no browser).
+- **Consequences:** the scenario was **re-anchored onto the real estuary** and the golden
+  fixtures regenerated (new plan ids, schedules, tide decisions); a short 15-min dwell now
+  yields two COAs (direct and tracked converge and content-dedupe) where the 45-min demo still
+  yields three. A small author-time hook in `views/map.js` (`window.__REMIT_SAMPLE` →
+  `preserveDrawingBuffer` + `window.__map`) keeps the framebuffer readable; it is inert in
+  production.
+
+## ADR-0018 (2026-06-12) — Reposition the mission onto the contiguous south-shore arc; the approach is overland (refines ADR-0016/0017)
+
+- **Context:** ADR-0017's sampled estuary, while visually faithful, fragments the west
+  "bank" into a thin **ring** of dry land around a broad water body. ADR-0017 snapped the
+  named places to the *nearest* dry cell — but for the northern OPs (above Sandywath /
+  Bowness Wath) the nearest dry ground was a **water-isolated pocket**: base→OP-A/OP-C were
+  reachable only by a ~65-step loop around the whole estuary. Worse, the approach A* reused
+  the exfil's edge cost, so it treated the full-width tidal fords as cheap shortcuts and the
+  green **approach line waded straight across the deep estuary** (the reported bug). A
+  fan-out probe confirmed *no* west-bank base reaches all three OPs by a short dry route —
+  the geometry, not the router, was broken.
+- **Decision** (maintainer-chosen among reposition / reshape-terrain / revert-ADR-0017):
+  **reposition the mission points.** Keep the real sampled estuary as the water to cross;
+  move the three OPs onto the one contiguous **south-shore arc** near the river mouth, where
+  a short ford-free approach exists (`world.js` `PLACES.ops`). Give the approach/observe leg
+  its **own passability** (`kernel.js` `approachCost`, fords → `Infinity`) so the observe
+  leg is overland-only while the **exfil keeps the tide-gated ford/bridge** search.
+- **Consequences:** approaches are now 9–20 dry steps, ford-free, west of the river (no
+  wading, no grand tour). Because the arc sits beside the all-tide causeway, the cheapest
+  exfil **detours to the causeway** rather than waiting out a ford, and balanced appetites
+  collapse the handful to **two COAs** (covered ≡ direct, content-deduped) at *both* the 45-
+  and 15-min dwells — so the tidal "wait vs. cross" drama is muted relative to ADR-0017 (the
+  price of a workable geometry on this terrain; the northern waths that gave that drama are
+  the unreachable ones). Golden fixtures + e2e COA counts regenerated; the OP names became
+  positional (the wath-overlook labels no longer applied). **The muted drama is restored by
+  ADR-0020** (the OP positions here are superseded).
+
+## ADR-0019 (2026-06-12) — Drop the standalone "Views" stage; Compare previews the projections live
+
+- **Context:** the lap had a dedicated **Views** stage between Compare and Execute whose
+  only job was to show the selected plan's map + Sync-Matrix projections and let the operator
+  scrub the playhead before executing. With Compare now **previewing a highlighted COA
+  everywhere on selection** (map ghost + own-force tracks, before commit), the Views
+  interstitial was redundant.
+- **Decision** (maintainer-requested): remove Views; Compare → **Execute** directly. The
+  shared projection surface (map + matrix + playhead) is always on screen, so no projection
+  capability is lost; the playhead reset to H+0 that Views performed moved into the Execute
+  mount. The lap is now **six stages** (World → Capture → Plan → Compare → Execute → Learn).
+- **Consequences:** `main.js` (STAGES, `mountStage`, removed `mountViews`), `app/index.html`
+  (panel + renumbered headings) and the e2e (the Views assertions folded into Compare,
+  screenshots renumbered `05-execute` / `06-learn`) updated. One fewer click to execution.
+
+## ADR-0020 (2026-06-12) — Relocate the mission to the north head to restore the tide drama (refines ADR-0018)
+
+- **Context:** ADR-0018 moved the OPs to the south-shore arc to stop the approach wading the
+  estuary — but that arc *is* the all-tide causeway, with a free land walk-around at the river
+  mouth, so the exfil always detoured and the tidal "hold for low water" drama vanished. That
+  drama (the optimiser handling a *temporal* obstruction, scheduling a hold at the bank) is
+  the most valuable thing the demo shows, and the maintainer asked for it back. Investigation
+  (ASCII terrain maps + fan-out probes) showed the sampled estuary is **widest exactly where
+  the historic waths are** (the middle is all water/ford), so the only dry, base-reachable
+  land *adjacent to a wath* is the **north head**, beside Bowness Wath — and, like the south
+  head, it has a free walk-around.
+- **Decision:** relocate base + the three OPs onto the **north-head land overlooking Bowness
+  Wath** (dry approach, 8–14 ford-free steps), and **close the north-head walk-around** with a
+  designed water fill (extend the estuary to the northern shore, *east* of the OPs — west of
+  −3.107, the OPs and their approach, is untouched). The exfil must then hold at the bank for
+  low water and ford the wath; the all-tide causeway stays at 54.928 as the (now far, ~5 km)
+  alternative the optimiser weighs and rejects.
+- **Consequences:** both the 45- and 15-min dwells now **wait** — the schedule splits
+  `exfil → hold (await low tide) → exfil`, and because the tide (waths open H+88) bounds the
+  crossing, a shorter visit just means a **longer hold** for the **same RV** (≈H+102): the
+  tide, not the dwell, sets the exfil. ADR-0018's wading fix is preserved (approaches are dry
+  and ford-free); the cordon test reverts to exfil-infeasibility (the OP is no longer inside
+  the cordon band). Golden fixtures, e2e, and evidence regenerated; OP names became
+  Bowness-Wath overlooks. **Trade-off:** the all-tide detour is never the cheaper option here,
+  so the COAs no longer *split* wait-vs-detour the way ADR-0016 did — the demo shows a clean,
+  unanimous tidal hold instead (the Goldilocks wath that would split them, Sandywath, sits in
+  the unreachable mid-estuary water). **The split is restored by ADR-0021.**
+
+## ADR-0021 (2026-06-12) — A designed tidal islet at Sandywath to restore the wait-vs-drive fork (refines ADR-0020)
+
+- **Context:** ADR-0020's north-head version gave a clear tidal *hold*, but every COA made the
+  same call, so the routes looked alike — the maintainer wanted the original **wait-vs-drive
+  fork** back (some COAs wait out the tide and ford; others take the longer all-tide road —
+  two visibly different routes). Exhaustive search confirmed the sampled estuary can't offer it
+  from real ground: the one wath at a "Goldilocks" distance from the causeway (**Sandywath**)
+  has open water on *both* shores (the estuary is widest exactly where the waths are), so there
+  is nowhere dry to stand beside it; the reachable waths are either too close to the causeway
+  (always drive) or too far (always wait), and the south head's natural land bypass is binary —
+  open (always drive) or walled (always wait). The maintainer asked for a designed islet.
+- **Decision** (maintainer-approved): carve a small **tidal islet + spit** beside Sandywath — a
+  rough saltmarsh causeway from the southern base out to a dry knoll at the wath (`buildTerrain`:
+  a `paintPath` spit + `paintDisk` knoll painted over the water — one more set-piece, exactly
+  like the causeway and the waths). Base sits on the south shore, the RV across Sandywath on the
+  east bank; the north-head walk-around stays filled, so the only all-tide alternative to fording
+  is the long road south to the causeway.
+- **Consequences:** the exfil genuinely **forks**, and the app's default dwell drops to **25 min**
+  so the default scenario shows it: `direct` drives the all-tide road (fast, RV ≈H+86, no wait)
+  while `tracked` holds ~32 min at the bank and fords Sandywath (RV ≈H+98) — two distinct routes,
+  a speed-vs-concealment trade-off. A longer watch (45 min) lands the team at the bank after low
+  water, so both simply ford and the fork closes. This is the first set-piece drawn over water
+  *as land* (the others carve crossings); it bends the sampled coastline by ~one spit, which the
+  Solway really does have. Golden fixtures, the e2e (dwell 25, `direct`/`tracked` cards, the
+  drive-leg block step) and evidence regenerated.
+
+## ADR-0022 (2026-06-12) — Tab shell as the read-only DEC-61 seed (roles-as-config, context-by-injection, pop-out via opener-shared store)
 
 - **Context:** the app was a single UI. The target is a command post — many role surfaces
   over **one** content-addressed store (DEC-59/60/61). The maintainer asked to start that:
@@ -386,3 +586,23 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   attributed but not yet scope-checked) still follows in the writes phase. This makes the
   surface no longer strictly read-only, but holds NF1/NF2: reads still project, and the write
   is attributed (role + author + time).
+
+## ADR-0023 (2026-06-12) — Just-in-time departure: defer a tidal wait to base, not the exposed bank
+
+- **Context:** when a COA's exfil crossed a tidal wath that was shut, the kernel held the team
+  *at the bank* for low water — a visible but tactically poor "sit exposed at the ford" wait.
+  The maintainer noted two things: (a) it would be better to **delay departure** so the team
+  reaches the wath *at* low water, and (b) because both COAs departed at H+0, their map markers
+  overlapped (you saw one vehicle until the exfil diverged).
+- **Decision:** when a COA's exfil would hold at the bank for the tide, recompute the plan with
+  a **just-in-time departure** — the latest base departure that still meets the visit window and
+  reaches the wath exactly at low water (`kernel.js` `materialise()`). The bank-hold becomes a
+  leading *"Delay departure — cross at low water"* hold **at base**; the crossing is then a
+  single open-wath ford. Same RV (tide-bound), no exposed bank-wait, and the tide-waiting COA
+  departs *later* than the drive-the-road COA — so the two vehicles move at different times.
+- **Consequences:** the tracked COA's schedule changes from `[transit, hold(window), visit,
+  exfil, hold(bank), exfil]` to `[hold(delay), transit, visit, exfil]`; its **plan id is
+  unchanged** (ids key off the decision inputs, not the materialisation — NF3), so only the
+  golden's schedule/wait assertions moved. The window-hold (arriving early to be *in position*
+  before the observation window) is kept — only the *tidal* wait is deferred. The wingman's
+  in-flight re-routes still hold at the bank (you cannot retro-delay a departure mid-mission).

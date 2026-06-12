@@ -28,8 +28,12 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      # The wrapper starts the static server and runs the suite; outside Claude
-      # Code cloud sessions (no CLAUDECODE env) it uses Playwright's own browser.
+      - name: Build app
+        run: npm run build
+
+      # The wrapper starts the static server over the built dist/ and runs the suite;
+      # outside Claude Code cloud sessions (no CLAUDECODE env) it uses Playwright's own
+      # browser (with SwiftShader GL for deck.gl/MapLibre — see playwright.config.ts).
       - name: Run e2e suite
         run: node run-playwright.mjs
 

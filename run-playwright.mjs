@@ -19,7 +19,7 @@ const isCloud = ['1', 'true'].includes(process.env.CLAUDE_CODE ?? '')
   || ['1', 'true'].includes(process.env.CLAUDECODE ?? '');
 
 // --- Configure these for your app ------------------------------------------------
-const SERVER_CMD = process.env.SERVER_CMD || 'npx --yes http-server app -p 4173 -s';
+const SERVER_CMD = process.env.SERVER_CMD || 'npx --yes http-server dist -p 4173 -s';
 const SERVER_URL = process.env.SERVER_URL || 'http://127.0.0.1:4173';
 // --------------------------------------------------------------------------------
 

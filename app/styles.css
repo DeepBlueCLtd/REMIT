@@ -225,7 +225,15 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
   padding: .9rem 1rem; position: sticky; top: 1rem;
 }
 .proj-title { font-size: .95rem; }
-#map { border-radius: 8px; border: 1px solid var(--border); display: block; max-width: 100%; height: auto; }
+#map { border-radius: 8px; border: 1px solid var(--border); display: block; width: 100%; aspect-ratio: 14 / 9; min-height: 320px; overflow: hidden; }
+/* hex-grid toggle (a MapLibre control) — dark-themed to match the app */
+.maplibregl-ctrl-group.hex-toggle { background: var(--bg2); border: 1px solid var(--border); }
+.maplibregl-ctrl-group.hex-toggle button {
+  width: auto; height: 30px; padding: 0 10px; background: transparent; border: 0;
+  color: var(--fg); font: 600 12px/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer;
+}
+.maplibregl-ctrl-group.hex-toggle button:hover { background: var(--bg3); }
+.maplibregl-ctrl-group.hex-toggle button[aria-pressed="false"] { color: var(--muted); opacity: .8; }
 .sync-matrix-host { margin-top: .6rem; }
 .sync-matrix { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
 .sm-label { font-size: 10px; fill: var(--fg); }

@@ -19,10 +19,18 @@ export default defineConfig({
     baseURL,
     screenshot: 'on',
     trace: 'on-first-retry',
-    // In cloud sessions, use the bundled @sparticuz/chromium binary.
-    ...(isCloud && chromiumPath
-      ? { launchOptions: { executablePath: chromiumPath, args: ['--no-sandbox'] } }
-      : {}),
+    // WebGL (deck.gl / MapLibre) headless needs software GL via SwiftShader (ADR-0016).
+    launchOptions: {
+      args: [
+        ...(isCloud ? ['--no-sandbox'] : []),
+        '--use-gl=angle',
+        '--use-angle=swiftshader',
+        '--enable-unsafe-swiftshader',
+        '--ignore-gpu-blocklist',
+      ],
+      // In cloud sessions, use the bundled @sparticuz/chromium binary.
+      ...(isCloud && chromiumPath ? { executablePath: chromiumPath } : {}),
+    },
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });

@@ -26,12 +26,14 @@ import { assess, assessExfil, stateAt, rerouteExecution } from '../kernel/kernel
  */
 export function mountWingman(el, ctx) {
   const { plan, commitment, exfilCommitment, bandUnit, missionId, world } = ctx;
+  const ao = world?.ao;
+  const shortH3 = (h) => h.slice(-6);
   const sched = plan.materialisation.schedule;
   let missionEnd = sched[sched.length - 1].end_min;     // exfil arrival (or visit end)
 
-  // Objectives the re-router needs (DEC-24/25).
-  const opCell = commitment.activity.where;
-  const rvCell = exfilCommitment?.activity?.where ?? null;
+  // Objectives the re-router needs (DEC-24/25), as hex ids.
+  const opId = ao ? ao.idOf.get(commitment.activity.where.h3) : null;
+  const rvId = ao && exfilCommitment ? ao.idOf.get(exfilCommitment.activity.where.h3) : null;
   const dwellMin = commitment.activity.duration.min_min;
   const windowStart = commitment.activity.when.window.start_min;
 
@@ -54,11 +56,11 @@ export function mountWingman(el, ctx) {
     re-runs the <em>same</em> margin assessment the kernel scored with (NF1), and speaks
     only when the band is crossed (E3).</p>
     <div class="row exec-controls">
-      <button id="wx-play" class="primary" data-testid="wx-play">▶ Play 64 min/s</button>
+      <button id="wx-play" class="primary" data-testid="wx-play">▶ Play 2 min/s</button>
       <label class="speed-ctl">speed
-        <input id="wx-speed" data-testid="wx-speed" type="range" min="1" max="9" step="1" value="6"
+        <input id="wx-speed" data-testid="wx-speed" type="range" min="1" max="9" step="1" value="1"
                aria-label="time acceleration">
-        <b id="wx-speed-label">64 min/s</b>
+        <b id="wx-speed-label">2 min/s</b>
       </label>
       <button id="wx-restart" data-testid="wx-restart">↺ Restart</button>
       <button id="wx-step10" data-testid="wx-step10">Step +10 min</button>
@@ -244,12 +246,12 @@ export function mountWingman(el, ctx) {
       return;
     }
     const holdMin = Math.round((mins + (activeHold ? activeHold.end_min - tau : 0)) * 10) / 10;
-    const cell = { x: Math.round(pos.x), y: Math.round(pos.y) };
+    const cell = { h3: pos.h3, lat: pos.lat, lng: pos.lng };
     const oldEnd = missionEnd;
     const oldMode = plan.materialisation.tide?.mode ?? null;
     const ok = rerouteExecution(plan, {
-      cells: world.cells, grid: world.grid, profile: world.profile,
-      tau, blocked: exec.blocked, opCell, rvCell, dwellMin, windowStart,
+      cells: world.cells, ao, profile: world.profile,
+      tau, blocked: exec.blocked, opId, rvId, dwellMin, windowStart,
       holdMin, holdLabel: `Obstruction — track blocked (+${mins} min)`,
     });
     if (!ok) {
@@ -265,7 +267,7 @@ export function mountWingman(el, ctx) {
     await ctx.seam.appendLog(missionId, {
       kind: 'Observation', at: Math.round(exec.simT),
       fact_delta: {
-        note: `Obstruction at cell ${cell.x},${cell.y} (H+${Math.round(exec.simT)}) — +${mins} min; `
+        note: `Obstruction at cell ${shortH3(cell.h3)} (H+${Math.round(exec.simT)}) — +${mins} min; `
           + `re-planned, RV H+${missionEnd}${absorbed > 0 ? ` (holds absorbed ${absorbed} min)` : ''}`,
         tag: 'track-state',
       },
@@ -282,39 +284,36 @@ export function mountWingman(el, ctx) {
     if (exec.complete || !world) return;
     const tau = exec.lastTau;
     const cur = stateAt(plan, tau);
-    const curCell = { x: Math.round(cur.x), y: Math.round(cur.y) };
     // The next cell on the route ahead (first that differs from the current one).
-    const next = plan.materialisation.trajectory.find((p) =>
-      p.t > tau + 0.01 && (Math.round(p.x) !== curCell.x || Math.round(p.y) !== curCell.y));
+    const next = plan.materialisation.trajectory.find((p) => p.t > tau + 0.01 && p.h3 !== cur.h3);
     if (!next) {
       $('#wx-alerts').innerHTML += `<div class="alert"><span class="muted">no next cell to block — at the objective</span></div>`;
       return;
     }
-    const bx = Math.round(next.x), by = Math.round(next.y);
-    const idx = by * world.grid.w + bx;
-    exec.blocked.add(idx);
+    const blockedId = ao.idOf.get(next.h3);
+    exec.blocked.add(blockedId);
     const oldMode = plan.materialisation.tide?.mode ?? null;
     // A pending obstruction hold is an exogenous fact — carry its remainder
     // through the rebase (planned tide/window holds are re-derived instead).
     const pendingHold = plan.materialisation.schedule.find((s) =>
       s.kind === 'hold' && s.label.startsWith('Obstruction') && tau >= s.start_min && tau < s.end_min);
     const ok = rerouteExecution(plan, {
-      cells: world.cells, grid: world.grid, profile: world.profile,
-      tau, blocked: exec.blocked, opCell, rvCell, dwellMin, windowStart,
+      cells: world.cells, ao, profile: world.profile,
+      tau, blocked: exec.blocked, opId, rvId, dwellMin, windowStart,
       holdMin: pendingHold ? Math.round((pendingHold.end_min - tau) * 10) / 10 : 0,
       holdLabel: pendingHold?.label,
     });
     if (!ok) {
-      exec.blocked.delete(idx);              // keep the route; report being boxed in
+      exec.blocked.delete(blockedId);        // keep the route; report being boxed in
       $('#wx-alerts').innerHTML +=
-        `<div class="alert band-violated" data-testid="wx-block-fail">⚠ H+${Math.round(exec.simT)} — blocked in: no route around ${bx},${by}</div>`;
+        `<div class="alert band-violated" data-testid="wx-block-fail">⚠ H+${Math.round(exec.simT)} — blocked in: no route around ${shortH3(next.h3)}</div>`;
       return;
     }
     missionEnd = plan.materialisation.schedule[plan.materialisation.schedule.length - 1].end_min;
-    ctx.onBlocked?.([...exec.blocked].map((i) => ({ x: i % world.grid.w, y: Math.floor(i / world.grid.w) })));
+    ctx.onBlocked?.([...exec.blocked].map((i) => ({ h3: ao.indexes[i] })));
     await ctx.seam.appendLog(missionId, {
       kind: 'Observation', at: Math.round(exec.simT),
-      fact_delta: { note: `Cell ${bx},${by} blocked — re-routed in flight`, tag: 'track-state' },
+      fact_delta: { note: `Cell ${shortH3(next.h3)} blocked — re-routed in flight`, tag: 'track-state' },
       source: 'operator', confidence: 'reported',
     });
     await maybeTideAlert(oldMode);

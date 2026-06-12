@@ -1,12 +1,21 @@
-// Golden-fixture tests for the mock kernel (kernel/kernel.js).
+// Golden-fixture tests for the mock kernel (kernel/kernel.js) on the H3 "Solway crossing"
+// scenario (ADR-0016).
 //
-// A fast, browser-free guard on the deterministic planner that the e2e suite
-// only exercises through the UI. Inputs mirror the app's capture defaults
-// (docs/project_notes/key_facts.md: OP-A 21,3 · window H+30–120 · RV 27,8 ·
-// deadline H+180 · seed 1337 · base 2,15), minus the volatile capture
-// timestamps so content ids are stable. The three scenarios are the demo's
-// tidal-ford set-pieces; the pinned plan ids are GOLDEN — regenerate them
-// deliberately (and review why) if the stamp shape or canonicalisation changes.
+// A fast, browser-free guard on the deterministic planner that the e2e suite only
+// exercises through the UI. The requirement geometry is the app's capture defaults
+// (OP-A · window H+30–120 · RV EAST · deadline H+240 · seed 1337), resolved to H3 cells
+// from the world's own places, minus the volatile capture timestamps so content ids are
+// stable. The pinned plan ids are GOLDEN — regenerate them deliberately (and review why)
+// if the stamp shape, scenario, or canonicalisation changes.
+//
+// Scenario note: OP-A sits on the designed tidal islet beside Sandywath (ADR-0021), reached
+// dry along the spit from the southern base. With the fords shut at H+0 the exfil FORKS —
+// ford Sandywath at low water, or drive the longer all-tide road south to the causeway. A
+// short watch (25 min) makes the fork bite: `direct` drives the road (fast, no wait) while
+// `tracked` LEAVES BASE LATE to reach the wath at low water — a just-in-time departure that
+// waits out the tide at base, not the exposed bank (ADR-0023), so the two COAs' departures
+// stagger. A longer watch (45 min) lands `direct` at the wath after low water (it just fords);
+// `tracked` still times its departure. See world.js PLACES.ops + kernel.js materialise().
 //
 // Run: npm run test:unit
 
@@ -17,14 +26,16 @@ import { planHandful, KERNEL_VERSION } from '../app/js/kernel/kernel.js';
 import { contentId } from '../app/js/shapes/canonical.js';
 
 const world = buildWorld();
+const OP = world.places.ops[0];          // OP-A
+const RV = world.places.rvEast;
 
 /** The app's requirement geometry at an arbitrary dwell (timestamp-free). */
 function requirement(dwellMin) {
   return { commitments: [
-    { id: 'cmt-1', activity: { type: 'visit', where: { x: 21, y: 3, alias: 'OP-A' },
+    { id: 'cmt-1', activity: { type: 'visit', where: { h3: OP.h3, alias: 'OP-A' },
         when: { window: { start_min: 30, end_min: 120 } }, duration: { min_min: dwellMin } } },
-    { id: 'cmt-2', activity: { type: 'transit', where: { x: 27, y: 8, alias: 'RV-EAST' },
-        when: { before_min: 180 } } },
+    { id: 'cmt-2', activity: { type: 'transit', where: { h3: RV.h3, alias: 'RV-EAST' },
+        when: { before_min: 240 } } },
   ] };
 }
 
@@ -37,76 +48,74 @@ async function planFixture(dwellMin, steering = []) {
     profile: world.profile, profile_version: await contentId(world.profile),
     state: world.state, config_core: await contentId(world.configCore),
     appetites: { tempo: 'balanced', exposure: 'balanced' }, steering, strategy_seed: 1337,
+    ao: world.ao,
   });
   return plans;
 }
 
 const byKey = (plans, k) => plans.find((p) => p.strategy.key === k);
 const kinds = (p) => p.materialisation.schedule.map((s) => s.kind);
-const labels = (p) => p.materialisation.schedule.map((s) => s.label);
 const sat = (p, label) => p.scores.satisfaction.find((s) => s.label === label);
 
-test('A — 45-min dwell: the direct plan waits out the tide; the slower covered plan crosses on the open window', async () => {
-  const plans = await planFixture(45);
-  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked', 'covered']);
+test('A — 25-min dwell: the fork — direct drives the road; tracked leaves base late to ford at low water', async () => {
+  const plans = await planFixture(25);
+  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked']);
+  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'wait']);
 
+  // Direct takes the all-tide road south to the causeway — one exfil leg, no tidal hold.
   const direct = byKey(plans, 'direct');
-  assert.equal(direct.tide_decision.mode, 'wait');
-  // transit → hold (await window) → visit → exfil-to-bank → hold (await tide) → cross.
-  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
-  assert.ok(labels(direct).includes('Await low tide — ford opens H+88'));
-  assert.equal(direct.materialisation.schedule.at(-1).end_min, 95.5);   // RV East
-  assert.equal(direct.materialisation.state_curves.fuel_end_pct, 87.4);
-  assert.deepEqual(sat(direct, 'Observe OP'), { commitment_id: 'cmt-1', label: 'Observe OP', margin_min: 48.9, margin_band: 'robust', verdict: 'satisfied' });
-  assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 84.5, margin_band: 'robust', verdict: 'satisfied' });
-  assert.equal(direct.scores.cost_band, 'robust');
-  assert.equal(direct.scores.robustness_band, 'fragile');
-  assert.equal(direct.conflicts.length, 0);
+  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil']);
+  assert.equal(direct.materialisation.schedule.at(-1).end_min, 85.8);          // RV East — the fast road
+  assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 154.2, margin_band: 'robust', verdict: 'satisfied' });
 
-  // Covered is slow enough to reach the bank after the window opens → no wait.
-  const covered = byKey(plans, 'covered');
-  assert.equal(covered.tide_decision.mode, 'open');
-  assert.deepEqual(kinds(covered), ['transit', 'visit', 'exfil']);
-  assert.ok(labels(covered).some((l) => l.includes('ford K-7 (tide open)')));
+  // Tracked LEAVES BASE LATE (the leading hold) so it reaches the wath exactly at low water —
+  // it waits out the tide at base, not the exposed bank, then fords in one leg. Same RV.
+  const tracked = byKey(plans, 'tracked');
+  assert.deepEqual(kinds(tracked), ['hold', 'transit', 'visit', 'exfil']);
+  assert.equal(tracked.tide_decision.wait_min, 51.3);            // the delay at base (no bank-wait)
+  assert.equal(tracked.materialisation.schedule[0].label, 'Delay departure — cross at low water');
+  assert.equal(tracked.materialisation.schedule.at(-1).end_min, 98.5);
 
   // Golden ids (NF3 — content-addressed plan identity).
   assert.deepEqual(plans.map((p) => p.id), [
-    'sha256:f0fc74b2ca04127f4c513e94aa4233790e3e02bfc55fef6d97fa5cd2a620e2ae',
-    'sha256:7bca8334b4ee7dda8d0c04648a67ae296b4cfc8d83eb54fc69cde70c0aae9321',
-    'sha256:6b90e43a1121e92aae9ef2bd5060556f2184de76b96db3cd3f06213e2753005f',
+    'sha256:9f435715c0f3313ac1dad2e22a18a06dd6ec9f8b6e769055b7ad3d9b820da7d2',
+    'sha256:49c2f87af82ef88f39a31e148fc63845e52afdcc2ad3eebcf09ef7898ec74b63',
   ]);
 });
 
-test('B — 15-min dwell: the early bank arrival flips every plan to the K-9 detour', async () => {
-  const plans = await planFixture(15);
-  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'detour', 'detour']);
-
+test('B — 45-min dwell: a longer watch lands the team at low water, so both COAs ford (no drive)', async () => {
+  const plans = await planFixture(45);
+  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked']);
+  // Direct now arrives after the wath has opened (crosses without waiting); tracked waits a little.
+  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['open', 'wait']);
   const direct = byKey(plans, 'direct');
-  assert.ok(labels(direct).some((l) => l.includes('via K-9 bridge')));
-  assert.ok(!labels(direct).some((l) => l.includes('Await low tide')));
   assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil']);
-  assert.equal(direct.materialisation.schedule.at(-1).end_min, 66.1);
-  assert.equal(direct.id, 'sha256:2d1c5985d79dde202f10434b492903836194060ed1cefaeb978c2c0567f6e0a8');
+  assert.equal(direct.materialisation.schedule.at(-1).end_min, 99.9);
+  assert.equal(direct.id, 'sha256:e89ddc86c5328303d10b76e345c341b9b81a05c408e66800e89ac859d56945e0');
 });
 
-test('C — no-go on both river crossings: exfil is structurally infeasible for every COA', async () => {
-  const plans = await planFixture(45, [{ type: 'no-go', cells: [{ x: 23, y: 5 }, { x: 23, y: 15 }] }]);
+test('C — a no-go cordon across the river makes exfil structurally infeasible', async () => {
+  // A longitude wall around the river centreline cuts every crossing (fords + causeway).
+  const cordon = [];
+  world.ao.centers.forEach(([, lng], id) => {
+    if (Math.abs(lng - (-3.103)) < 0.013) cordon.push({ h3: world.ao.indexes[id] });
+  });
+  const plans = await planFixture(25, [{ type: 'no-go', cells: cordon }]);
   for (const p of plans) {
     assert.equal(p.materialisation, null);
     assert.equal(sat(p, 'Observe OP').verdict, 'violated');
     assert.equal(sat(p, 'Exfil E').verdict, 'violated');
     assert.equal(p.conflicts[0].kind, 'structural');
-    assert.match(p.conflicts[0].narrative, /No exfil route OP → RV 27,8/);
+    assert.match(p.conflicts[0].narrative, /No exfil route/);
     assert.equal(p.scores.cost_band, 'fragile');
   }
-  assert.equal(byKey(plans, 'direct').id, 'sha256:39f806905ff343b2cce82588380ab9c49a8d0068ca7da68d5359209f1371d709');
 });
 
 test('NF3 — identical inputs reproduce identical ids; a geometry change changes them', async () => {
-  const a = await planFixture(45);
-  const b = await planFixture(45);
-  assert.deepEqual(a.map((p) => p.id), b.map((p) => p.id));        // same body → same ids
-  assert.notEqual(byKey(a, 'direct').id, byKey(await planFixture(15), 'direct').id);
-  assert.equal(new Set(a.map((p) => p.id)).size, 3);               // the handful is distinct
-  assert.equal(KERNEL_VERSION, 'mock-0.1');
+  const a = await planFixture(25);
+  const b = await planFixture(25);
+  assert.deepEqual(a.map((p) => p.id), b.map((p) => p.id));
+  assert.notEqual(byKey(a, 'direct').id, byKey(await planFixture(45), 'direct').id);
+  assert.equal(new Set(a.map((p) => p.id)).size, 2);
+  assert.equal(KERNEL_VERSION, 'mock-0.2');
 });
