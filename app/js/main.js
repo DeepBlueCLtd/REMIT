@@ -1,5 +1,5 @@
 // @ts-check
-// main.js — orchestration: the seven-stage lap (capture → … → learn), the
+// main.js — orchestration: the six-stage lap (world → … → learn), the
 // persistent projection surface (map + timeline + shared playhead), stage
 // gating, and the two transparency drawers (object store, seam traffic).
 
@@ -28,9 +28,8 @@ const STAGES = [
   { key: 'capture', n: 2, label: 'Capture', hat: 'command' },
   { key: 'plan',    n: 3, label: 'Plan',    hat: 'implementer' },
   { key: 'compare', n: 4, label: 'Compare', hat: 'implementer' },
-  { key: 'views',   n: 5, label: 'Views',   hat: 'all hats' },
-  { key: 'execute', n: 6, label: 'Execute', hat: 'operator' },
-  { key: 'learn',   n: 7, label: 'Learn',   hat: 'all hats' },
+  { key: 'execute', n: 5, label: 'Execute', hat: 'operator' },
+  { key: 'learn',   n: 6, label: 'Learn',   hat: 'all hats' },
 ];
 
 // --- infrastructure -------------------------------------------------------
@@ -303,10 +302,11 @@ function mountStage(key) {
       },
     });
   }
-  if (key === 'views') mountViews();
   if (key === 'execute') {
     // The wingman plays back (and may re-route) a live clone, so the committed
-    // plan stays immutable.
+    // plan stays immutable. Reset the shared playhead to H+0 (the removed Views
+    // interstitial used to do this on the way through).
+    playhead.set(0);
     state.execPlan = structuredClone(state.selectedPlan);
     mapBlocked = [];
     const wm = mountWingman(panel('execute'), {
@@ -497,29 +497,6 @@ function mountPlan() {
 
     renderProjection();
     advance('plan');
-  });
-}
-
-function mountViews() {
-  const el = panel('views');
-  const sel = state.selectedPlan;
-  const legs = sel.materialisation.schedule.map((l) =>
-    `<li><b>${l.label}</b> — H+${l.start_min} → H+${l.end_min}</li>`).join('');
-  el.innerHTML = `
-    <p class="stage-intro">Map and Sync Matrix are co-equal projections of the selected plan
-    in its world, rendered from the kernel's own materialisation and evaluator —
-    <em>shown = optimised</em> (NF1). Scrub the playhead (slider or drag the matrix): the map
-    ghost, the own-force tracks, and the tide/satellite tracks all move under one cursor —
-    scan vertically for coincidences.</p>
-    <ul class="fact-list">${legs}</ul>
-    <div class="row">
-      <button id="views-continue" class="primary" data-testid="views-continue">Proceed to execution →</button>
-    </div>`;
-  playhead.set(0);
-  renderProjection();
-  el.querySelector('#views-continue')?.addEventListener('click', () => {
-    advance('views');
-    showStage('execute');
   });
 }
 

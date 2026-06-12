@@ -43,10 +43,13 @@ export const PLACES = {
     { key: 'Sandywath',    lat: 54.962, lng: -3.103, name: 'Sandywath (tidal ford)' },
     { key: 'Bowness Wath', lat: 54.978, lng: -3.103, name: 'Bowness Wath (tidal ford)' },
   ],
+  // OPs sit on the contiguous south-shore arc (the northern waths are on water-isolated
+  // ground that no west-bank approach reaches without looping the whole estuary), spread
+  // along the river mouth so the dry approach stays short and the exfil crosses east.
   ops: [
-    { key: 'OP-A', lat: 54.965, lng: -3.140, name: 'OP-A — overlook above Sandywath' },
-    { key: 'OP-B', lat: 54.946, lng: -3.150, name: 'OP-B — south overlook above Peatwath' },
-    { key: 'OP-C', lat: 54.980, lng: -3.145, name: 'OP-C — north overlook above Bowness Wath' },
+    { key: 'OP-A', lat: 54.932, lng: -3.108, name: 'OP-A — forward overlook at the wath mouth' },
+    { key: 'OP-B', lat: 54.934, lng: -3.160, name: 'OP-B — western flank overlook' },
+    { key: 'OP-C', lat: 54.931, lng: -3.124, name: 'OP-C — central overlook above the crossing' },
   ],
 };
 
@@ -100,10 +103,15 @@ function paintBand(cells, ao, lat, kind, widen = 1) {
   paintPath(cells, ao, [lat, -3.210], [lat, -2.990], kind, widen, 'water');
 }
 
-/** BFS from the cell at (lat,lng) to the nearest non-water cell — anchors land places. */
-function nearestLand(ao, terr, lat, lng) {
+/** Genuinely dry land: not open water, and not a tidal ford band (which sits *over*
+ *  water and is only conditionally passable). Land places must anchor here. */
+const isDry = (kind) => kind !== 'water' && kind !== 'ford';
+
+/** BFS from the cell at (lat,lng) to the nearest dry cell — anchors land places so they
+ *  never sit in the estuary or on a tidal ford band (DEC-44 / issue: routes wading water). */
+function nearestDry(ao, terr, lat, lng) {
   const start = ao.idOf.get(cellOf(lat, lng));
-  if (start === undefined || terr[start] !== 'water') return start;
+  if (start === undefined || isDry(terr[start])) return start;
   const seen = new Set([start]);
   let frontier = [start];
   while (frontier.length) {
@@ -111,7 +119,7 @@ function nearestLand(ao, terr, lat, lng) {
     for (const id of frontier) for (const nb of ao.adj[id]) {
       if (seen.has(nb)) continue;
       seen.add(nb);
-      if (terr[nb] !== 'water') return nb;
+      if (isDry(terr[nb])) return nb;
       next.push(nb);
     }
     frontier = next;
@@ -205,9 +213,10 @@ export function buildWorld() {
   }));
 
   // Land places (base / RV / OPs) snap to the nearest dry cell of the sampled terrain, so
-  // they never land in the real estuary; fords and the bridge keep their carved-crossing cell.
+  // they never land in the real estuary or on a tidal ford band; fords and the bridge keep
+  // their carved-crossing cell.
   const landPlace = (p) => {
-    const id = nearestLand(ao, terrain, p.lat, p.lng);
+    const id = nearestDry(ao, terrain, p.lat, p.lng);
     const [lat, lng] = ao.centers[id];
     return { ...p, h3: ao.indexes[id], id, lat, lng };
   };
@@ -286,7 +295,7 @@ export function buildWorld() {
   const instanceShell = {
     app_name: 'REMIT — walking skeleton',
     theme: 'dark',
-    view_defaults: { playback_speed: 64 },
+    view_defaults: { playback_speed: 2 },
   };
 
   return { baseline, profile, state, configCore, instanceShell, ao, places };

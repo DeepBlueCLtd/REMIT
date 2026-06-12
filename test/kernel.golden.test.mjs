@@ -8,6 +8,12 @@
 // stable. The pinned plan ids are GOLDEN — regenerate them deliberately (and review why)
 // if the stamp shape, scenario, or canonicalisation changes.
 //
+// Scenario note: the OPs sit on the contiguous south-shore arc (the only ground a dry,
+// ford-free approach reaches — the northern waths are water-isolated), close to the
+// all-tide causeway. With the fords shut at H+0 the cheapest exfil therefore *detours* to
+// the causeway rather than waiting out the tide, and balanced appetites collapse the
+// handful to two COAs (covered ≡ direct, content-deduped). See world.js PLACES.ops.
+//
 // Run: npm run test:unit
 
 import { test } from 'node:test';
@@ -48,43 +54,41 @@ const byKey = (plans, k) => plans.find((p) => p.strategy.key === k);
 const kinds = (p) => p.materialisation.schedule.map((s) => s.kind);
 const sat = (p, label) => p.scores.satisfaction.find((s) => s.label === label);
 
-test('A — 45-min dwell: direct & covered wait out the tide and ford; tracked detours via the causeway', async () => {
+test('A — 45-min dwell: both COAs detour via the causeway (fords shut at H+0)', async () => {
   const plans = await planFixture(45);
-  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked', 'covered']);
-  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['wait', 'detour', 'wait']);
+  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked']);
+  assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'detour']);
 
   const direct = byKey(plans, 'direct');
-  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
-  assert.equal(direct.materialisation.schedule.at(-1).end_min, 97.3);         // RV East
-  assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 142.7, margin_band: 'robust', verdict: 'satisfied' });
+  assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil']);
+  assert.equal(direct.materialisation.schedule.at(-1).end_min, 90.4);          // RV East
+  assert.deepEqual(sat(direct, 'Exfil E'), { commitment_id: 'cmt-2', label: 'Exfil E', margin_min: 149.6, margin_band: 'robust', verdict: 'satisfied' });
 
-  // Covered is slow too → it also waits and fords.
-  const covered = byKey(plans, 'covered');
-  assert.deepEqual(kinds(covered), ['transit', 'hold', 'visit', 'exfil', 'hold', 'exfil']);
-  assert.equal(covered.tide_decision.via_ford, undefined);                    // decision carries mode/wait/rv
-  assert.equal(covered.materialisation.schedule.at(-1).end_min, 99.8);
+  const tracked = byKey(plans, 'tracked');
+  assert.deepEqual(kinds(tracked), ['transit', 'hold', 'visit', 'exfil']);
+  assert.equal(tracked.tide_decision.via_ford, undefined);                     // decision carries mode/wait/rv
+  assert.equal(tracked.materialisation.schedule.at(-1).end_min, 91.3);
 
   // Golden ids (NF3 — content-addressed plan identity).
   assert.deepEqual(plans.map((p) => p.id), [
-    'sha256:adb1449a8dfa17ef5d53ddeff91a0aba73324d509e32363801e699e7fa888113',
-    'sha256:26344a2287ffb7919fdf6688392e80eec17badb04a296083584bd888c7751eb8',
-    'sha256:968f640ae12f553d1636259ef12d8f93e40cbdabd2b5ff6189eab23154bd60e6',
+    'sha256:b44e3796567694067562084b7b45d873e6d69b908fecedbbefe701e47fedb2e7',
+    'sha256:efe3f4dbb9b802714291773b2d54448f9237aa6f9a4fb5903c492790bf88ee01',
   ]);
 });
 
-test('B — 15-min dwell: a short visit lets both plans detour via the causeway (no tide wait)', async () => {
+test('B — 15-min dwell: the same causeway detour, an earlier RV, distinct ids (NF3)', async () => {
   const plans = await planFixture(15);
-  // Short dwell → direct and tracked converge to one route (content-deduped) → two COAs.
-  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'covered']);
+  assert.deepEqual(plans.map((p) => p.strategy.key), ['direct', 'tracked']);
   assert.deepEqual(plans.map((p) => p.tide_decision.mode), ['detour', 'detour']);
   const direct = byKey(plans, 'direct');
   assert.deepEqual(kinds(direct), ['transit', 'hold', 'visit', 'exfil']);
-  assert.equal(direct.materialisation.schedule.at(-1).end_min, 67.5);
-  assert.equal(direct.id, 'sha256:c12feb67a33a9166da9c1dffa1db8c045e3a9443784cf40867908df1d46588ba');
+  assert.equal(direct.materialisation.schedule.at(-1).end_min, 60.4);
+  assert.equal(direct.id, 'sha256:ec5a90442ed196b700915a185dcdb98e19a37d7ea790def602b9fc963e5a3bf3');
 });
 
-test('C — a no-go cordon across the river makes exfil structurally infeasible', async () => {
-  // A longitude wall around the river centreline cuts every crossing (fords + bridge).
+test('C — a no-go cordon over the crossing cuts off the OP, so every COA is infeasible', async () => {
+  // A longitude wall around the river centreline cuts every crossing — and, because OP-A
+  // overlooks the wath from that same band, the dry approach to the OP as well.
   const cordon = [];
   world.ao.centers.forEach(([, lng], id) => {
     if (Math.abs(lng - (-3.103)) < 0.013) cordon.push({ h3: world.ao.indexes[id] });
@@ -95,7 +99,7 @@ test('C — a no-go cordon across the river makes exfil structurally infeasible'
     assert.equal(sat(p, 'Observe OP').verdict, 'violated');
     assert.equal(sat(p, 'Exfil E').verdict, 'violated');
     assert.equal(p.conflicts[0].kind, 'structural');
-    assert.match(p.conflicts[0].narrative, /No exfil route/);
+    assert.match(p.conflicts[0].narrative, /No route from start to OP-A/);
     assert.equal(p.scores.cost_band, 'fragile');
   }
 });
@@ -105,6 +109,6 @@ test('NF3 — identical inputs reproduce identical ids; a geometry change change
   const b = await planFixture(45);
   assert.deepEqual(a.map((p) => p.id), b.map((p) => p.id));
   assert.notEqual(byKey(a, 'direct').id, byKey(await planFixture(15), 'direct').id);
-  assert.equal(new Set(a.map((p) => p.id)).size, 3);
+  assert.equal(new Set(a.map((p) => p.id)).size, 2);
   assert.equal(KERNEL_VERSION, 'mock-0.2');
 });

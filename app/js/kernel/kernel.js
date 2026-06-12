@@ -111,7 +111,7 @@ function materialiseExfil(cells, ao, profile, fromId, rvId, departMin, fuel0, co
       points.push({ ...pt(ao, cur.id), t: round1(cur.t), fuel_pct: round1(fuel) });
       segStartT = cur.t;
     } else {                                                     // move one hex
-      fuel -= 0.35;
+      fuel -= 0.6;
       if (isFord(cells, cur.id)) viaFord = true;
       points.push({ ...pt(ao, cur.id), t: round1(cur.t), fuel_pct: round1(fuel) });
       moved = true;
@@ -183,9 +183,13 @@ export async function planHandful(input) {
 
   for (const strat of STRATEGIES) {
     const cost = strategyCost(strat.key, cells, profile, ao, nogo);
+    // The approach is genuinely overland: tidal fords are impassable on the way IN (the
+    // river is crossed only at exfil, tide-gated). Without this the static search wades
+    // the fords — which span the sampled estuary — instead of driving the bank around it.
+    const approachCost = (from, to) => (isFord(cells, from) || isFord(cells, to)) ? Infinity : cost(from, to);
     const hScale = stepMin * (strat.key === 'tracked' ? 0.65 : 1);
     const hTo = (goal) => (id) => hexDistance(ao, id, goal) * hScale;
-    const leg1 = findPath(ao, startId, opId, cost, hTo(opId));            // base → OP (dry)
+    const leg1 = findPath(ao, startId, opId, approachCost, hTo(opId));    // base → OP (overland)
 
     if (leg1 === null) {
       plans.push(await finalisePlan(stamp, strat, null, {
@@ -204,7 +208,7 @@ export async function planHandful(input) {
     const trajectory = [{ ...pt(ao, startId), t: round1(t), fuel_pct: round1(fuel) }];
     for (let i = 1; i < leg1.length; i++) {
       t += edgeMinutes(cells, profile, ao, leg1[i - 1], leg1[i]);
-      fuel -= 0.35;
+      fuel -= 0.6;
       trajectory.push({ ...pt(ao, leg1[i]), t: round1(t), fuel_pct: round1(fuel) });
     }
     const arrival = round1(t);
@@ -444,7 +448,7 @@ export function rerouteExecution(plan, opts) {
   const advance = (path) => {
     for (let i = 1; i < path.length; i++) {
       t += edgeMinutes(cells, profile, ao, path[i - 1], path[i]);
-      fuel -= 0.35;
+      fuel -= 0.6;
       traj.push({ ...pt(ao, path[i]), t: round1(t), fuel_pct: round1(fuel) });
     }
   };

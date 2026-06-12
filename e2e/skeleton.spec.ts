@@ -1,4 +1,4 @@
-// e2e/skeleton.spec.ts — walks the seven-stage lap on the H3 hex grid (ADR-0016) and
+// e2e/skeleton.spec.ts — walks the six-stage lap on the H3 hex grid (ADR-0016) and
 // captures the spec-003 evidence screenshots. Kernel set-pieces (tide wait/detour,
 // infeasibility, NF3 ids) are pinned in the browser-free golden tests; here we assert the
 // UI lap works end-to-end on hexes without faults.
@@ -18,7 +18,7 @@ async function walkToPlan(page: Page) {
   await page.getByTestId('cap-commit').click();
   await page.getByTestId('continue-plan').click();
   await page.getByTestId('plan-run').click();
-  await expect(page.locator('.plan-card')).toHaveCount(3);
+  await expect(page.locator('.plan-card')).toHaveCount(2);
 }
 
 test('the lap walks end-to-end on the H3 hex grid', async ({ page }) => {
@@ -49,45 +49,40 @@ test('the lap walks end-to-end on the H3 hex grid', async ({ page }) => {
   await expect(page.locator('#cap-result')).toContainText('round-trip ✓');
   await shot(page, '02-capture');
 
-  // 3 Plan — a handful of three distinct banded COAs, each scoring observe + exfil.
+  // 3 Plan — a handful of two distinct banded COAs, each scoring observe + exfil.
   await page.getByTestId('continue-plan').click();
   await page.getByTestId('plan-run').click();
   await expect(page.getByTestId('plan-stampid')).toBeVisible();
-  await expect(page.locator('.plan-card')).toHaveCount(3);
-  for (const s of ['direct', 'tracked', 'covered']) await expect(page.getByTestId(`plan-card-${s}`)).toBeVisible();
+  await expect(page.locator('.plan-card')).toHaveCount(2);
+  for (const s of ['direct', 'tracked']) await expect(page.getByTestId(`plan-card-${s}`)).toBeVisible();
   const shape = await page.evaluate(() => {
     const h = (window as any).__remit.state.handful;
     return { count: h.length, sats: h.map((p: any) => p.scores.satisfaction.length),
              allExfil: h.every((p: any) => p.materialisation.schedule.some((s: any) => s.kind === 'exfil')) };
   });
-  expect(shape.count).toBe(3);
-  expect(shape.sats).toEqual([2, 2, 2]);
+  expect(shape.count).toBe(2);
+  expect(shape.sats).toEqual([2, 2]);
   expect(shape.allExfil).toBe(true);
   await shot(page, '03-plan');
 
-  // 4 Compare — guard passes, matrix of three; a COA is selected and its rationale committed.
+  // 4 Compare — guard passes, matrix of two. Scrubbing moves the comparison ghosts;
+  // selecting a COA previews it everywhere (map ghost + own-force tracks activate in the
+  // Sync Matrix) before its rationale is committed.
   await page.getByTestId('continue-compare').click();
   await expect(page.getByTestId('cmp-guard')).toContainText('✓');
-  await expect(page.getByTestId('cmp-matrix').locator('tbody tr')).toHaveCount(3);
+  await expect(page.getByTestId('cmp-matrix').locator('tbody tr')).toHaveCount(2);
   const g0 = await page.getByTestId('map').getAttribute('data-ghost');
   await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => { el.value = '40'; el.dispatchEvent(new Event('input', { bubbles: true })); });
   await expect.poll(() => page.getByTestId('map').getAttribute('data-ghost')).not.toBe(g0);
-  await shot(page, '04-compare');
   await page.getByTestId('pick-direct').check();
+  await expect(page.getByTestId('sync-matrix')).toContainText('Own force');
+  expect(await page.getByTestId('sync-matrix-host').getAttribute('data-self-active')).toBe('1');
+  await shot(page, '04-compare');
   await page.getByTestId('cmp-commit').click();
   await expect(page.getByTestId('cmp-ratid')).toBeVisible();
 
-  // 5 Views — scrubbing the playhead moves the map ghost; own-force tracks activate.
-  await page.getByTestId('continue-views').click();
-  const v0 = await page.getByTestId('map').getAttribute('data-ghost');
-  await page.getByTestId('playhead').evaluate((el: HTMLInputElement) => { el.value = '20'; el.dispatchEvent(new Event('input', { bubbles: true })); });
-  await expect.poll(() => page.getByTestId('map').getAttribute('data-ghost')).not.toBe(v0);
-  await expect(page.getByTestId('sync-matrix')).toContainText('Own force');
-  expect(await page.getByTestId('sync-matrix-host').getAttribute('data-self-active')).toBe('1');
-  await shot(page, '05-views');
-  await page.getByTestId('views-continue').click();
-
-  // 6 Execute — play to completion via the deterministic step buttons.
+  // 5 Execute — play to completion via the deterministic step buttons.
+  await page.getByTestId('continue-execute').click();
   await expect(page.getByTestId('wx-clock')).toBeVisible();
   for (let i = 0; i < 12; i++) {
     const f = await page.getByTestId('wx-final').textContent();
@@ -95,14 +90,14 @@ test('the lap walks end-to-end on the H3 hex grid', async ({ page }) => {
     await page.getByTestId('wx-step').click();
   }
   await expect(page.getByTestId('wx-final')).toContainText('complete');
-  await shot(page, '06-execute');
+  await shot(page, '05-execute');
 
-  // 7 Learn — after-action exists; replay from the stamp reproduces the decision (NF3).
+  // 6 Learn — after-action exists; replay from the stamp reproduces the decision (NF3).
   await page.getByTestId('continue-learn').click();
   await expect(page.getByTestId('aa-recon')).toBeVisible();
   await page.getByTestId('aa-replay').click();
   await expect(page.getByTestId('aa-replay-result')).toContainText('identical decision');
-  await shot(page, '07-learn');
+  await shot(page, '06-learn');
 
   // Substrate — store + seam drawers populated.
   await page.locator('.foot details').first().click();
@@ -123,7 +118,7 @@ test('same stamp reproduces the same decision ids (NF3)', async ({ page }) => {
     return { first: w.state.handful.map((p: any) => p.id), second: again.plans.map((p: any) => p.id) };
   });
   expect(ids.second).toEqual(ids.first);
-  expect(new Set(ids.first).size).toBe(3);
+  expect(new Set(ids.first).size).toBe(2);
 });
 
 test('plan steering: painting a no-go re-plans (routes bend around it)', async ({ page }) => {
@@ -136,7 +131,7 @@ test('plan steering: painting a no-go re-plans (routes bend around it)', async (
   await expect.poll(() => page.getByTestId('map').getAttribute('data-nogo')).not.toBe('');
   await expect(page.getByTestId('plan-nogo-count')).not.toContainText('0 cells');
   await page.getByTestId('plan-run').click();
-  await expect(page.locator('.plan-card')).toHaveCount(3);
+  await expect(page.locator('.plan-card')).toHaveCount(2);
   await noFault(page);
   void before;
 });
@@ -163,11 +158,10 @@ test('execute: blocking the next hex re-routes in flight', async ({ page }) => {
   await page.getByTestId('continue-compare').click();
   await page.getByTestId('pick-direct').check();
   await page.getByTestId('cmp-commit').click();
-  await page.getByTestId('continue-views').click();
-  await page.getByTestId('views-continue').click();
+  await page.getByTestId('continue-execute').click();
 
-  // Step into the exfil (after the visit), then block the next hex on the route.
-  for (let i = 0; i < 9; i++) await page.getByTestId('wx-step10').click();
+  // Step into the exfil (after the visit ends at H+75, RV at ~H+90), then block the next hex.
+  for (let i = 0; i < 8; i++) await page.getByTestId('wx-step10').click();
   const cells = () => page.evaluate(() => (window as any).__remit.state.execPlan.materialisation.trajectory.map((p: any) => p.h3));
   const before = await cells();
   await page.getByTestId('wx-block').click();

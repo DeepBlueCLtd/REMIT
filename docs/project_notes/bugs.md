@@ -176,4 +176,31 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
 - **Prevention:** never use `self` (or other Python-reserved/`__init__` kwarg names)
   as a permissible-value or mapping key in a LinkML schema.
 
+## 2026-06-12 — Route approach wades across the deep estuary instead of going overland
+
+- **Symptom:** on the sampled-estuary basemap the green **approach** line from the base to
+  the OP cut straight across open deep-blue water, and the planned schedules leaned on a
+  tidal "wait then ford" that looked wrong for an *approach* (you don't wade a deep wath to
+  get *to* an observation post).
+- **Root cause:** two compounding effects of the ADR-0017 sampling. (1) `nearestDry`
+  anchored each land place to the *nearest* dry cell, but the northern OPs' nearest dry
+  ground was a **water-isolated pocket** — the sampled estuary fragments the west "bank"
+  into a ring, so base→OP-A/OP-C were reachable only by a ~65-step loop around the whole
+  estuary. (2) The approach A* reused the exfil's `edgeMin`, so the fords (painted
+  full-width across the estuary, mobility 0.55) were valid **cheap shortcuts** — the
+  approach simply waded a ford rather than walk around. Forbidding fords on the approach
+  alone then exposed (1): the only ford-free route was the grand tour (worse) or infeasible.
+- **Fix:** (a) give the **approach/observe leg its own cost** (`approachCost` in
+  `kernel.js`) that returns `Infinity` across any ford cell, so the observe leg is
+  overland-only while the **exfil keeps the tide-gated ford/bridge** search; (b) **snap land
+  places to dry land** in `world.js` (`nearestDry`, already present) **and reposition the
+  three OPs onto the contiguous south-shore arc** (`PLACES.ops`) — the only ground a short
+  dry approach reaches. Approaches are now 9–20 dry steps, ford-free, west of the river;
+  the exfil detours to the all-tide causeway. Goldens regenerated.
+- **Prevention:** a land place must anchor to dry ground **short-reachable from the base**,
+  not merely the nearest dry cell (nearest-dry can be a disconnected pocket). The approach
+  and the exfil need **different passability** — approach forbids water, exfil allows
+  tide-gated fords. When repositioning places, assert in a diag that every approach is
+  ford-free and stays on the start bank.
+
 <!-- Add new entries above this line. -->

@@ -440,3 +440,44 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   yields three. A small author-time hook in `views/map.js` (`window.__REMIT_SAMPLE` →
   `preserveDrawingBuffer` + `window.__map`) keeps the framebuffer readable; it is inert in
   production.
+
+## ADR-0018 (2026-06-12) — Reposition the mission onto the contiguous south-shore arc; the approach is overland (refines ADR-0016/0017)
+
+- **Context:** ADR-0017's sampled estuary, while visually faithful, fragments the west
+  "bank" into a thin **ring** of dry land around a broad water body. ADR-0017 snapped the
+  named places to the *nearest* dry cell — but for the northern OPs (above Sandywath /
+  Bowness Wath) the nearest dry ground was a **water-isolated pocket**: base→OP-A/OP-C were
+  reachable only by a ~65-step loop around the whole estuary. Worse, the approach A* reused
+  the exfil's edge cost, so it treated the full-width tidal fords as cheap shortcuts and the
+  green **approach line waded straight across the deep estuary** (the reported bug). A
+  fan-out probe confirmed *no* west-bank base reaches all three OPs by a short dry route —
+  the geometry, not the router, was broken.
+- **Decision** (maintainer-chosen among reposition / reshape-terrain / revert-ADR-0017):
+  **reposition the mission points.** Keep the real sampled estuary as the water to cross;
+  move the three OPs onto the one contiguous **south-shore arc** near the river mouth, where
+  a short ford-free approach exists (`world.js` `PLACES.ops`). Give the approach/observe leg
+  its **own passability** (`kernel.js` `approachCost`, fords → `Infinity`) so the observe
+  leg is overland-only while the **exfil keeps the tide-gated ford/bridge** search.
+- **Consequences:** approaches are now 9–20 dry steps, ford-free, west of the river (no
+  wading, no grand tour). Because the arc sits beside the all-tide causeway, the cheapest
+  exfil **detours to the causeway** rather than waiting out a ford, and balanced appetites
+  collapse the handful to **two COAs** (covered ≡ direct, content-deduped) at *both* the 45-
+  and 15-min dwells — so the tidal "wait vs. cross" drama is muted relative to ADR-0017 (the
+  price of a workable geometry on this terrain; the northern waths that gave that drama are
+  the unreachable ones). Golden fixtures + e2e COA counts regenerated; the OP names became
+  positional (the wath-overlook labels no longer applied).
+
+## ADR-0019 (2026-06-12) — Drop the standalone "Views" stage; Compare previews the projections live
+
+- **Context:** the lap had a dedicated **Views** stage between Compare and Execute whose
+  only job was to show the selected plan's map + Sync-Matrix projections and let the operator
+  scrub the playhead before executing. With Compare now **previewing a highlighted COA
+  everywhere on selection** (map ghost + own-force tracks, before commit), the Views
+  interstitial was redundant.
+- **Decision** (maintainer-requested): remove Views; Compare → **Execute** directly. The
+  shared projection surface (map + matrix + playhead) is always on screen, so no projection
+  capability is lost; the playhead reset to H+0 that Views performed moved into the Execute
+  mount. The lap is now **six stages** (World → Capture → Plan → Compare → Execute → Learn).
+- **Consequences:** `main.js` (STAGES, `mountStage`, removed `mountViews`), `app/index.html`
+  (panel + renumbered headings) and the e2e (the Views assertions folded into Compare,
+  screenshots renumbered `05-execute` / `06-learn`) updated. One fewer click to execution.
