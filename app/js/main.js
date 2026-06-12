@@ -53,6 +53,7 @@ const state = {
   steering: /** @type {any[]} */ ([]),   // operator no-go constraints (Plan)
   handful: /** @type {any[]} */ ([]),
   selectedPlan: /** @type {any} */ (null),
+  previewPlan: /** @type {any} */ (null),  // COA highlighted (radio) in Compare, before commit
   execPlan: /** @type {any} */ (null),   // live clone played back (and re-routed) in Execute
   execSummary: /** @type {any} */ (null),
   horizonMin: 180,
@@ -88,8 +89,11 @@ let pausePlayback = null;
 
 function renderProjection() {
   if (!worldProvisioned) return;
-  // During/after execution the live (re-routable) plan is what's shown.
-  const sel = state.execPlan ?? state.selectedPlan;
+  // During/after execution the live (re-routable) plan is what's shown. A committed
+  // COA (selectedPlan) — or, before commit, the COA merely highlighted (radio) in
+  // Compare — projects identically: map ghost, own-force tracks, coincidences.
+  const committed = state.execPlan ?? state.selectedPlan;
+  const sel = committed ?? state.previewPlan;
   // The playhead is the single authority for "what time we're viewing": the map
   // ghost is the kernel's evaluator at that time (NF1). During execution the
   // wingman advances the playhead; the user can also scrub it to review.
@@ -98,6 +102,7 @@ function renderProjection() {
     target: mapTarget, rv: mapRv,
     candidates: mapCandidates, highlight: mapHighlight,
     obstructions: mapObstructions, nogo: mapNogo, blocked: mapBlocked,
+    follow: state.stage === 'execute',   // Execute follow-cam: pan to keep the vehicle in view
   });
   // The Sync Matrix (D6) is the temporal projection — tide + satellite tracks
   // appear from the World step on; own-force tracks fill in once a COA exists.
@@ -120,8 +125,10 @@ function renderProjection() {
     `<span class="sm-cue ${fordOpenAt(t) ? 'on' : ''}">≋ ford ${fordOpenAt(t) ? 'open' : 'closed'}</span>`
     + `<span class="sm-cue ${satOverhead(t) ? 'on' : ''}">🛰 sat ${satOverhead(t) ? 'overhead' : 'below horizon'}</span>`
     + advisory;
-  const ghost = sel ? stateAt(sel, playhead.t) : null;
-  if (sel && ghost) {
+  // The single-ghost readout is for a *committed* COA; while merely previewing in
+  // Compare we keep the "race the ghosts" comparison table (below) live.
+  const ghost = committed ? stateAt(committed, playhead.t) : null;
+  if (committed && ghost) {
     readout.innerHTML =
       `t <b>H+${Math.round(playhead.t)}</b> · cell <b>${ghost.h3 ? ghost.h3.slice(-6) : '—'}</b>`
       + ` · phase <b>${ghost.phase}</b> · fuel <b>${ghost.fuel_pct ?? '—'}%</b>`
@@ -282,6 +289,12 @@ function mountStage(key) {
   if (key === 'compare') {
     mountCompare(panel('compare'), {
       seam, handful: state.handful, commitments: state.requirement.commitments,
+      onPreview(planId) {
+        // Highlighting a COA (radio) previews it everywhere — map + Sync Matrix
+        // own-force tracks — before the rationale is committed.
+        state.previewPlan = state.handful.find((p) => p.id === planId);
+        renderProjection();
+      },
       onSelected(planId, _rationale, rationaleId) {
         state.selectedPlan = state.handful.find((p) => p.id === planId);
         state.ids.rationale = rationaleId;

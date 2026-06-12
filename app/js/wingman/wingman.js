@@ -56,11 +56,11 @@ export function mountWingman(el, ctx) {
     re-runs the <em>same</em> margin assessment the kernel scored with (NF1), and speaks
     only when the band is crossed (E3).</p>
     <div class="row exec-controls">
-      <button id="wx-play" class="primary" data-testid="wx-play">▶ Play 64 min/s</button>
+      <button id="wx-play" class="primary" data-testid="wx-play">▶ Play 2 min/s</button>
       <label class="speed-ctl">speed
-        <input id="wx-speed" data-testid="wx-speed" type="range" min="1" max="9" step="1" value="6"
+        <input id="wx-speed" data-testid="wx-speed" type="range" min="1" max="9" step="1" value="1"
                aria-label="time acceleration">
-        <b id="wx-speed-label">64 min/s</b>
+        <b id="wx-speed-label">2 min/s</b>
       </label>
       <button id="wx-restart" data-testid="wx-restart">↺ Restart</button>
       <button id="wx-step10" data-testid="wx-step10">Step +10 min</button>

@@ -16,14 +16,14 @@ import { STRAT_COLORS } from './render.js';
 
 const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const STRAT_RGB = Object.fromEntries(Object.entries(STRAT_COLORS).map(([k, v]) => [k, rgb(v)]));
-// Keyless Carto **Positron** (light) raster basemap — chosen over dark-matter for legible
-// detail (roads, water, place labels) beneath the hex overlay. A background layer sits
-// *underneath* it as a graceful fallback: where the tiles are blocked (cloud sessions,
-// offline, a strict CSP) the map degrades to a flat field — the style still loads, so
-// deck.gl keeps a valid viewport — while in a normal browser the real basemap shows
+// Keyless Carto **dark-matter** raster basemap — matches the app's dark theme and, at this
+// AO's zoom, renders the estuary/coastline legibly beneath the hex overlay. A background
+// layer sits *underneath* it as a graceful fallback: where the tiles are blocked (cloud
+// sessions, offline, a strict CSP) the map degrades to a flat field — the style still loads,
+// so deck.gl keeps a valid viewport — while in a normal browser the real basemap shows
 // through wherever the hex grid is toggled off. The synthetic terrain hexes remain the
 // substance; the basemap is geographic context (the AO is anchored to a real lat/lon).
-const CARTO_TILES = ['a', 'b', 'c', 'd'].map((s) => `https://${s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`);
+const CARTO_TILES = ['a', 'b', 'c', 'd'].map((s) => `https://${s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png`);
 const BASEMAP_STYLE = {
   version: 8,
   sources: { carto: { type: 'raster', tiles: CARTO_TILES, tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } },
@@ -148,10 +148,28 @@ export function makeMap(el, baseline, ao, places) {
     el.dataset.obstructions = obstructions.map((o) => shortH3(o.h3)).join('|');
   }
 
+  // Execute-mode follow-cam: keep the live vehicle comfortably on screen (esp. when zoomed
+  // in) without fighting the user — only recenter once the ghost drifts into the outer
+  // margin of the viewport, and preserve the current zoom (pan only).
+  function keepInView(lng, lat) {
+    let b;
+    try { b = map.getBounds(); } catch { return; }        // viewport not ready yet
+    const mx = (b.getEast() - b.getWest()) * 0.2;
+    const my = (b.getNorth() - b.getSouth()) * 0.2;
+    if (lng < b.getWest() + mx || lng > b.getEast() - mx ||
+        lat < b.getSouth() + my || lat > b.getNorth() - my) {
+      map.easeTo({ center: [lng, lat], duration: 600 });
+    }
+  }
+
   function render(opts = {}) {
     lastOpts = opts;
     overlay.setProps({ layers: buildLayers(opts) });   // deck overlay renders above the basemap
     setData(opts);
+    if (opts.follow && opts.selected) {
+      const g = stateAt(opts.selected, opts.t ?? 0);
+      if (g) keepInView(g.lng, g.lat);
+    }
   }
 
   // Hex-grid visibility toggle, as a MapLibre control button (top-right). Flipping it
