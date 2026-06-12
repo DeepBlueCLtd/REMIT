@@ -336,3 +336,39 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   zoomable, source-inlined diagrams. Re-introducing an offline render is a revert of
   this ADR (the deleted renderer is in git history). The pan/zoom script is
   renderer-agnostic, so an SVG path could be re-added later without touching it.
+
+## ADR-0014 (2026-06-12) — Tab shell as the read-only DEC-61 seed (roles-as-config, context-by-injection, pop-out via opener-shared store)
+
+- **Context:** the app was a single UI. The target is a command post — many role surfaces
+  over **one** content-addressed store (DEC-59/60/61). The maintainer asked to start that:
+  a tabbed, role-based UI where the current screen becomes "Overview" and a new "Data
+  Analysis" surface drills through the live data — and, crucially, can be **monitored while
+  the mission is driven** (so it must run *beside* Overview, not instead of it).
+- **Decision:** introduce a thin shell (`app/js/shell/`) that realises DEC-61 in its
+  simplest **read-only** form. (a) **One shared context** — `objects`/`logs`/`seam`/`world`/
+  `playhead` are extracted from `main.js` into `shell/context.js`; every surface projects the
+  same store. (b) **Roles are config** — `shell/roles.js` lists `{id,label,status,poppable,
+  mount}` (the DEC-61 "config-declared bundle"; `writeScope`/`mode` are deferred with the
+  writes). (c) **Context by injection** — surfaces are `mount(container, ctx)`, so the *same*
+  surface renders the *same* live store inline or popped-out. (d) **Pop-out** — a poppable
+  surface opens `popout.html` in its own window and reads the opener's live context via
+  `window.opener.__remit` (same-origin), so it monitors changes the main window makes. (e)
+  **Overview untouched** — its markup stays static in `index.html`, and `main.js` is imported
+  lazily by `shell/overview.js` (it auto-boots on import and queries DOM ids that must exist
+  first). Change visibility: since objects are immutable/content-addressed, "changed" = new
+  ids; Data Analysis diffs `objects.list()` and **glows** new rows + their type-group header
+  (the hook future mock feeds reuse).
+- **Options considered:** (a) iframe/second-instance per role — separate stores, defeats
+  "one shared store"; (b) swap the whole UI per role — no side-by-side monitor; (c) grow
+  `main.js` into the shell — forces the boot block to move and bloats the orchestrator;
+  (d) **thin shell + lazy Overview + context injection — chosen.** For cross-window state:
+  `window.opener` sharing (chosen, no serialisation) vs a `BroadcastChannel` of stamped
+  deltas (deferred — the real `/sync` path, needed once feeds/multi-window *writes* land).
+- **Consequences:** the popped-out monitor shares the opener's in-memory store, so it lives
+  only while the main window is open and does not survive a main-window reload (it shows a
+  recovery message). `SeamClient.onTraffic` gained a backward-compatible unsubscribe return so
+  unmounted/popped-out surfaces drop their listener. **No LinkML change** — the roles list is
+  UI-only discrete config (ADR-0012 §2); Operation/Scheme/Role/Delta stay designed-for. The
+  five non-Overview roles are labelled placeholders; their surfaces, and DEC-61 stamped-delta
+  writes + write-scope enforcement, are the next phases. The entry module is now
+  `js/shell/shell.js`.

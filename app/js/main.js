@@ -3,18 +3,19 @@
 // persistent projection surface (map + timeline + shared playhead), stage
 // gating, and the two transparency drawers (object store, seam traffic).
 
-import { ObjectStore, LogStore } from './stores/stores.js';
-import { createSeamServer, SeamClient } from './seam/seam.js';
-import { buildWorld, bandUnitFor, PLACES, GRID_W, GRID_H, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
-import { planHandful, stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
+import { bandUnitFor, PLACES, GRID_W, GRID_H, TIDE, fordOpenAt, nextFordOpen } from './kernel/world.js';
+import { stateAt, measuresAt, KERNEL_VERSION } from './kernel/kernel.js';
 import { mountCapture } from './capture/capture.js';
 import { mountCompare } from './compare/compare.js';
 import { mountWingman } from './wingman/wingman.js';
 import { mountLearn } from './learn/learn.js';
-import { Playhead, makeMap, STRAT_COLORS } from './views/render.js';
+import { makeMap, STRAT_COLORS } from './views/render.js';
 import { makeSyncMatrix } from './views/sync-matrix.js';
 import { buildEntities, syncCatalogue, satOverhead, coincidenceRules, coincidenceWindows } from './entities/entities.js';
 import { contentId, shortId } from './shapes/canonical.js';
+// The shared app context — one store/seam/world/playhead, shared with every
+// other role surface (tab) so they all project the same objects (DEC-61).
+import { objects, logs, seam, world, playhead } from './shell/context.js';
 
 const MISSION_ID = 'M-001';
 const STRATEGY_SEED = 1337;
@@ -33,11 +34,8 @@ const STAGES = [
 ];
 
 // --- infrastructure -------------------------------------------------------
-const objects = new ObjectStore();
-const logs = new LogStore();
-const seam = new SeamClient(createSeamServer({ objects, logs, planHandful }));
-const world = buildWorld();
-const playhead = new Playhead();
+// objects / logs / seam / world / playhead now live in ./shell/context.js so
+// every tab shares one store; they are imported above.
 
 /** Mission state accumulated along the lap. */
 const state = {
@@ -59,8 +57,10 @@ const state = {
   nextHint: /** @type {string|null} */ (null),
 };
 
-// Debug/test handle (read-only use; not part of any contract).
-/** @type {any} */ (window).__remit = { state, playhead, seam, objects };
+// Debug/test handle (read-only use; not part of any contract). The context
+// module seeds window.__remit = {objects, logs, seam, world, playhead}; attach
+// the Overview's mission state so existing tooling can read window.__remit.state.
+/** @type {any} */ (window).__remit.state = state;
 
 // --- projection surface (map + timeline + playhead) ------------------------
 const mapCanvas = /** @type {HTMLCanvasElement} */ (document.getElementById('map'));
