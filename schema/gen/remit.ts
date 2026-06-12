@@ -213,6 +213,16 @@ export enum LogEntryKind {
     Waiver = "Waiver",
     Replan = "Replan",
 };
+/**
+* The kind of in-flight operator perturbation applied during Execute (issue
+*/
+export enum ExecutionEventKind {
+    
+    /** a +N min hold spliced at the vehicle's current cell, re-timed through the tide-aware chooser (ADR-0006/0007) */
+    obstruction = "obstruction",
+    /** a cell ahead declared impassable, forcing an in-flight re-route around it */
+    block = "block",
+};
 
 
 /**
@@ -261,6 +271,19 @@ export interface Waypoint {
     y: number,
     /** a human-friendly name, e.g. "OP-21,3" */
     alias?: string,
+}
+
+
+/**
+ * A single H3 hex location — the hex-grid successor to Waypoint (ADR-0014). Identified by its H3 index, with an optional lat/lng centre for rendering.
+ */
+export interface HexCell {
+    /** the H3 cell index (res 9) */
+    h3: string,
+    /** cell-centre latitude */
+    lat?: number,
+    /** cell-centre longitude */
+    lng?: number,
 }
 
 
@@ -1008,6 +1031,25 @@ export interface Delta {
 export interface SteeringDelta extends Delta {
     /** the interpreted steering gestures shared (DEC-24) — e.g. no-go regions */
     constraints?: Constraint[],
+}
+
+
+/**
+ * An in-flight operator perturbation during Execute (issue #7): an obstruction (a +N min hold at the vehicle's current cell) or a blocked cell forcing a re-route. Previously these survived only as a prose Observation note; capturing them as a typed, content-addressed store object preserves their structured inputs for inspection (the Data Analysis monitor) and replay (NF3), and re-uses the DEC-61 attributed-delta write path. Identity is content (DEC-35).
+ */
+export interface ExecutionDelta extends Delta {
+    /** which perturbation — obstruction or block */
+    event: string,
+    /** mission minutes when applied (sim-time ≡ plan-time, ADR-0007) */
+    at_min?: number,
+    /** where the perturbation bites — the vehicle's cell for an obstruction, the blocked cell for a block */
+    cell?: HexCell,
+    /** the hold added by an obstruction (absent for a block) */
+    delay_min?: number,
+    /** the re-planned RV / mission-end after the perturbation */
+    rv_min?: number,
+    /** minutes the downstream holds absorbed, so the RV slipped less than delay_min (ADR-0007) */
+    absorbed_min?: number,
 }
 
 

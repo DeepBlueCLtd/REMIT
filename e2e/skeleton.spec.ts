@@ -152,6 +152,39 @@ test('the hex grid can be toggled off and on (basemap shows through)', async ({ 
   await expect(map).toHaveAttribute('data-hexes', 'on');  // and back
 });
 
+test('execute: an obstruction is captured in the model as a typed ExecutionDelta (issue #7)', async ({ page }) => {
+  await page.goto('/');
+  await walkToPlan(page);
+  await page.getByTestId('continue-compare').click();
+  await page.getByTestId('pick-direct').check();
+  await page.getByTestId('cmp-commit').click();
+  await page.getByTestId('continue-execute').click();
+
+  // Step past the visit into the exfil drive (where an obstruction applies — the
+  // vehicle is on the move), then insert a +25 min obstruction.
+  for (let i = 0; i < 7; i++) await page.getByTestId('wx-step10').click();
+  await page.getByTestId('wx-delay').click();
+
+  // The perturbation lands in the shared content store as a typed ExecutionDelta —
+  // structured inputs (event/cell/delay), not just a prose log note (issue #7).
+  await expect.poll(() => page.evaluate(() => {
+    const w = (window as any).__remit;
+    const rec = w.objects.list().reverse().find((o: any) => o.type === 'ExecutionDelta');
+    if (!rec) return false;
+    const d = w.objects.get(rec.id).body;
+    return d.event === 'obstruction' && d.delay_min === 25 && typeof d.cell?.h3 === 'string';
+  })).toBe(true);
+
+  // It surfaces in the Data Analysis monitor like any other store object.
+  await page.getByTestId('tab-data-analysis').click();
+  await expect(page.getByTestId('da-index')).toContainText('ExecutionDelta');
+  await page.locator('.da-group[data-group="ExecutionDelta"] .da-row').first().click();
+  await page.screenshot({
+    path: 'specs/004-capture-execution-deltas/evidence/screenshots/01-execution-delta.png',
+    fullPage: true });
+  await noFault(page);
+});
+
 test('execute: blocking the next hex re-routes in flight', async ({ page }) => {
   await page.goto('/');
   await walkToPlan(page);

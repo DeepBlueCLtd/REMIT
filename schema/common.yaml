@@ -161,6 +161,13 @@ enums:
       Observation: {}
       Waiver: {}
       Replan: {}
+  ExecutionEventKind:
+    description: The kind of in-flight operator perturbation applied during Execute (issue #7).
+    permissible_values:
+      obstruction:
+        description: a +N min hold spliced at the vehicle's current cell, re-timed through the tide-aware chooser (ADR-0006/0007)
+      block:
+        description: a cell ahead declared impassable, forcing an in-flight re-route around it
 classes:
   Attribution:
     description: Who decided, under what authority, when. Stamped on every committing act — this is universal rule 2 (DEC-15, NF2).
@@ -202,3 +209,15 @@ classes:
         required: true
       alias:
         description: a human-friendly name, e.g. "OP-21,3"
+  HexCell:
+    description: A single H3 hex location — the hex-grid successor to Waypoint (ADR-0014). Identified by its H3 index, with an optional lat/lng centre for rendering.
+    attributes:
+      h3:
+        required: true
+        description: the H3 cell index (res 9)
+      lat:
+        range: float
+        description: cell-centre latitude
+      lng:
+        range: float
+        description: cell-centre longitude
