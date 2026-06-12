@@ -17,9 +17,9 @@ import { assess, assessExfil, stateAt, rerouteExecution } from '../kernel/kernel
  *          bandUnit: number,
  *          playhead: import('../views/render.js').Playhead,
  *          resetLog?: () => void,
- *          world?: {cells: any[], grid: any, profile: any},
- *          onObstructions?: (list: {tau: number, x: number, y: number}[]) => void,
- *          onBlocked?: (cells: {x: number, y: number}[]) => void,
+ *          world?: {cells: any[], ao: any, profile: any},
+ *          onObstructions?: (list: {tau: number, h3: string, lat: number, lng: number}[]) => void,
+ *          onBlocked?: (cells: {h3: string}[]) => void,
  *          onComplete: (summary: any) => void}} ctx
  * @returns {{ pause: () => void }} handle so the host can pause live playback
  *          (e.g. when the user grabs the scrubber to review).
@@ -27,7 +27,7 @@ import { assess, assessExfil, stateAt, rerouteExecution } from '../kernel/kernel
 export function mountWingman(el, ctx) {
   const { plan, commitment, exfilCommitment, bandUnit, missionId, world } = ctx;
   const ao = world?.ao;
-  const shortH3 = (h) => h.slice(-6);
+  const shortH3 = (/** @type {string} */ h) => h.slice(-6);
   const sched = plan.materialisation.schedule;
   let missionEnd = sched[sched.length - 1].end_min;     // exfil arrival (or visit end)
 
@@ -44,7 +44,7 @@ export function mountWingman(el, ctx) {
     lastBand: assess(plan, commitment, bandUnit, 0).band,
     lastLabel: 'observe',                                // which commitment the band tracks
     visitVerdict: /** @type {string|null} */ (null),     // locked once past the OP
-    obstructions: /** @type {{tau:number,x:number,y:number}[]} */ ([]),
+    obstructions: /** @type {{tau:number, h3:string, lat:number, lng:number}[]} */ ([]),
     blocked: new Set(),                                  // mid-mission blocked cell indices
     complete: false,
   };
@@ -85,11 +85,11 @@ export function mountWingman(el, ctx) {
     <ol id="wx-log" class="exec-log" data-testid="wx-log"></ol>
     <div class="row"><span id="wx-final" class="result" data-testid="wx-final"></span></div>`;
 
-  const $ = (sel) => /** @type {HTMLElement} */ (el.querySelector(sel));
+  const $ = (/** @type {string} */ sel) => /** @type {HTMLElement} */ (el.querySelector(sel));
 
   async function refreshLog() {
     const entries = await ctx.seam.getLog(missionId);
-    $('#wx-log').innerHTML = entries.map((e) => {
+    $('#wx-log').innerHTML = entries.map((/** @type {any} */ e) => {
       const kind = e.kind;
       const body = kind === 'Alert'
         ? `band crossing on <b>${e.cause.commitment ?? e.cause.commitment_id ?? e.cause.type}</b>: ${e.cause.from} → <b>${e.cause.to}</b>`
@@ -99,7 +99,7 @@ export function mountWingman(el, ctx) {
     }).join('');
   }
 
-  async function tick(stepMin) {
+  async function tick(/** @type {number} */ stepMin) {
     if (exec.complete) return;
     exec.simT = Math.round((exec.simT + stepMin) * 10) / 10;
     // Plan-time ≡ sim-time: an obstruction is a LOCAL RE-PLAN (a hold leg is
@@ -116,7 +116,7 @@ export function mountWingman(el, ctx) {
     // verdict at the hand-off so later (exfil) delays don't rewrite it.
     // Keyed off the visit's end (not the phase) so a tide hold at the ford —
     // phase 'hold' mid-exfil — doesn't flip the band back to the observation.
-    const visitLeg = plan.materialisation.schedule.find((s) => s.kind === 'visit');
+    const visitLeg = plan.materialisation.schedule.find((/** @type {any} */ s) => s.kind === 'visit');
     const inExfil = tau >= visitLeg.end_min;
     if (inExfil && exec.visitVerdict == null) {
       exec.visitVerdict = assess(plan, commitment, bandUnit).verdict;
@@ -159,7 +159,7 @@ export function mountWingman(el, ctx) {
         + `${exec.delayMin ? `, +${exec.delayMin} min obstruction` : ''})</span>`;
       ctx.onComplete({
         // The rebased plan IS the actual: the last pre-OP transit ends at the OP.
-        actual_arrival: plan.materialisation.schedule.findLast((s) => s.kind === 'transit').end_min,
+        actual_arrival: plan.materialisation.schedule.findLast((/** @type {any} */ s) => s.kind === 'transit').end_min,
         delay_min: exec.delayMin,
         visit_verdict: visitVerdict,
         exfil_verdict: eRes?.verdict ?? null,
@@ -219,7 +219,7 @@ export function mountWingman(el, ctx) {
   });
   /** Alert when a rebase changed the live tide decision (e.g. wait → open,
    *  open → detour after the window is forfeited). */
-  async function maybeTideAlert(oldMode) {
+  async function maybeTideAlert(/** @type {any} */ oldMode) {
     const cur = plan.materialisation.tide;
     if (!cur || !oldMode || cur.mode === oldMode) return;
     await ctx.seam.appendLog(missionId, {
@@ -230,15 +230,16 @@ export function mountWingman(el, ctx) {
       `<div class="alert" data-testid="wx-tide-alert">≋ H+${Math.round(exec.simT)} — tide re-assessed: <b>${oldMode} → ${cur.mode}</b> · ${cur.narrative}</div>`;
   }
 
-  async function addObstruction(mins) {
+  async function addObstruction(/** @type {number} */ mins) {
     if (exec.complete || !world) return;
     const tau = exec.lastTau;
     const pos = stateAt(plan, tau);
+    if (!pos) return;
     // An obstruction is a LOCAL RE-PLAN: splice a hold where the vehicle is and
     // re-time the remainder through the tide-aware chooser — so downstream holds
     // (tide, OP window) absorb the delay in the plan itself. Allowed while
     // moving, or while already stopped by an obstruction (which it extends).
-    const activeHold = plan.materialisation.schedule.find((s) =>
+    const activeHold = plan.materialisation.schedule.find((/** @type {any} */ s) =>
       s.kind === 'hold' && s.label.startsWith('Obstruction') && tau >= s.start_min && tau < s.end_min);
     if (pos.phase !== 'transit' && pos.phase !== 'exfil' && !activeHold) {
       $('#wx-alerts').innerHTML +=
@@ -284,8 +285,9 @@ export function mountWingman(el, ctx) {
     if (exec.complete || !world) return;
     const tau = exec.lastTau;
     const cur = stateAt(plan, tau);
+    if (!cur) return;
     // The next cell on the route ahead (first that differs from the current one).
-    const next = plan.materialisation.trajectory.find((p) => p.t > tau + 0.01 && p.h3 !== cur.h3);
+    const next = plan.materialisation.trajectory.find((/** @type {any} */ p) => p.t > tau + 0.01 && p.h3 !== cur.h3);
     if (!next) {
       $('#wx-alerts').innerHTML += `<div class="alert"><span class="muted">no next cell to block — at the objective</span></div>`;
       return;
@@ -295,7 +297,7 @@ export function mountWingman(el, ctx) {
     const oldMode = plan.materialisation.tide?.mode ?? null;
     // A pending obstruction hold is an exogenous fact — carry its remainder
     // through the rebase (planned tide/window holds are re-derived instead).
-    const pendingHold = plan.materialisation.schedule.find((s) =>
+    const pendingHold = plan.materialisation.schedule.find((/** @type {any} */ s) =>
       s.kind === 'hold' && s.label.startsWith('Obstruction') && tau >= s.start_min && tau < s.end_min);
     const ok = rerouteExecution(plan, {
       cells: world.cells, ao, profile: world.profile,

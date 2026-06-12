@@ -16,7 +16,9 @@ const AXES = ['time/speed', 'exposure', 'robustness', 'completeness'];
 const ROB_ORDER = ['fragile', 'marginal', 'robust'];     // higher = more robust (better)
 const COST_ORDER = ['fragile', 'marginal', 'robust'];    // higher = cheaper (better)
 
+/** @param {string[]} order @param {string} b */
 const stepUp = (order, b) => order[Math.min(order.length - 1, order.indexOf(b) + 1)];
+/** @param {string[]} order @param {string} b */
 const stepDown = (order, b) => order[Math.max(0, order.indexOf(b) - 1)];
 
 /**
@@ -31,16 +33,19 @@ export function mountCompare(el, ctx) {
 
   // Comparability guard (DEC-23/48): objective comparison is valid only across
   // COAs sharing the full stamp basis.
+  /** @param {any} p */
   const basisOf = (p) => JSON.stringify([
     p.stamp.requirement_version, p.stamp.baseline_version, p.stamp.excursions,
     p.stamp.config_core_hash, p.stamp.kernel_version,
   ]);
   const comparable = new Set(handful.map(basisOf)).size === 1;
 
+  /** @param {string} band */
   const bandChip = (band) => `<span class="band band-${band}">${band}</span>`;
-  const commitCols = handful[0].scores.satisfaction.map((s) => s.label);
+  const commitCols = handful[0].scores.satisfaction.map((/** @type {any} */ s) => s.label);
+  /** @param {any} p @param {any} label */
   const satCell = (p, label) => {
-    const s = p.scores.satisfaction.find((x) => x.label === label);
+    const s = p.scores.satisfaction.find((/** @type {any} */ x) => x.label === label);
     return s
       ? `<td class="${s.verdict}">${s.verdict}<div class="muted">${s.margin_min} min ${bandChip(s.margin_band)}</div></td>`
       : `<td class="muted">—</td>`;
@@ -49,11 +54,14 @@ export function mountCompare(el, ctx) {
   // Implementer state (DEC-6): appetites rank, the escort mitigation modifies.
   const appetites = { tempo: 'balanced', exposure: 'balanced' };
   const mitigations = { escort: false };
+  /** @type {string | null} */
   let selectedId = null;
 
-  const feasible = (p) => p.scores.satisfaction.every((s) => s.verdict !== 'violated');
+  /** @param {any} p */
+  const feasible = (p) => p.scores.satisfaction.every((/** @type {any} */ s) => s.verdict !== 'violated');
 
-  /** Displayed bands after applying the chosen mitigations. */
+  /** Displayed bands after applying the chosen mitigations.
+   *  @param {any} p */
   const displayedBands = (p) => {
     let cost = p.scores.cost_band, rob = p.scores.robustness_band;
     if (mitigations.escort) { rob = stepUp(ROB_ORDER, rob); cost = stepDown(COST_ORDER, cost); }
@@ -61,11 +69,12 @@ export function mountCompare(el, ctx) {
   };
 
   /** Appetite-weighted "implementer fit" (DEC-6 ranking): how well a COA suits
-   *  the current risk appetite. Infeasible COAs score 0. */
+   *  the current risk appetite. Infeasible COAs score 0.
+   *  @param {any} p */
   const fitOf = (p) => {
     if (!feasible(p)) return 0;
-    const wCost = { rapid: 2, balanced: 1, deliberate: 0.5 }[appetites.tempo];
-    const wRob = { bold: 0.5, balanced: 1, cautious: 2 }[appetites.exposure];
+    const wCost = /** @type {number} */ (({ rapid: 2, balanced: 1, deliberate: 0.5 })[appetites.tempo]);
+    const wRob = /** @type {number} */ (({ bold: 0.5, balanced: 1, cautious: 2 })[appetites.exposure]);
     const { cost, rob } = displayedBands(p);
     return wCost * (COST_ORDER.indexOf(cost) + 1) + wRob * (ROB_ORDER.indexOf(rob) + 1);
   };
@@ -113,7 +122,7 @@ export function mountCompare(el, ctx) {
     <table class="matrix" data-testid="cmp-matrix">
       <thead><tr>
         <th></th><th>Course of action</th>
-        ${commitCols.map((c) => `<th>${c} (hard)</th>`).join('')}
+        ${commitCols.map((/** @type {any} */ c) => `<th>${c} (hard)</th>`).join('')}
         <th>cost</th><th>robustness</th><th>conflicts</th>
       </tr></thead>
       <tbody id="cmp-body"></tbody>
@@ -134,6 +143,7 @@ export function mountCompare(el, ctx) {
 
   const commitBtn = /** @type {HTMLButtonElement} */ (el.querySelector('#cmp-commit'));
   const tbody = /** @type {HTMLElement} */ (el.querySelector('#cmp-body'));
+  /** @type {Record<string, string>} */
   const stratColor = { direct: '#f0b429', tracked: '#4493f8', covered: '#38d39f' };
 
   function renderMatrix() {
@@ -154,10 +164,10 @@ export function mountCompare(el, ctx) {
               <span class="fit-lbl">fit</span>
               <span class="fit-bar"><i data-testid="fit-${p.strategy.key}" style="width:${fitPct}%;background:${stratColor[p.strategy.key]}"></i></span>
             </div></td>
-        ${commitCols.map((c) => satCell(p, c)).join('')}
+        ${commitCols.map((/** @type {any} */ c) => satCell(p, c)).join('')}
         <td>${bandChip(cost)}${esc}</td>
         <td>${bandChip(rob)}${esc}</td>
-        <td>${p.conflicts.length ? p.conflicts.map((c) => c.narrative).join('; ') : '—'}</td>
+        <td>${p.conflicts.length ? p.conflicts.map((/** @type {any} */ c) => c.narrative).join('; ') : '—'}</td>
       </tr>`;
     }).join('');
     tbody.querySelectorAll('input[name=cmp-pick]').forEach((r) =>
@@ -169,8 +179,9 @@ export function mountCompare(el, ctx) {
     renderAppetiteNote(rec);
   }
 
+  /** @param {any} rec */
   function renderAppetiteNote(rec) {
-    const recP = handful.find((p) => p.id === rec);
+    const recP = handful.find((/** @type {any} */ p) => p.id === rec);
     const lean = appetites.exposure === 'cautious' || appetites.tempo === 'deliberate' ? 'robustness'
       : appetites.exposure === 'bold' || appetites.tempo === 'rapid' ? 'speed / low cost' : 'a balance';
     /** @type {HTMLElement} */ (el.querySelector('#cmp-appetite-note')).innerHTML = recP
@@ -209,6 +220,6 @@ export function mountCompare(el, ctx) {
     el.querySelectorAll('input,select,button').forEach((n) => /** @type {any} */ (n).disabled = true);
     /** @type {HTMLElement} */ (el.querySelector('#cmp-result')).innerHTML =
       `selected · rationale <code class="hash" data-testid="cmp-ratid">${id.slice(7, 15)}</code> committed (NF2)`;
-    ctx.onSelected(picked, rationale, id);
+    ctx.onSelected(/** @type {string} */ (picked), rationale, id);
   });
 }

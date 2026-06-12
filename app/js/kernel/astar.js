@@ -8,11 +8,17 @@
 //                   so multiple fords + a ford-free bridge detour are weighed in one
 //                   search (supersedes ADR-0006's leg-level chooser).
 
-/** Deterministic binary min-heap keyed by a caller `less` predicate. */
+/**
+ * Deterministic binary min-heap keyed by a caller `less` predicate.
+ * @template T
+ * @param {(a: T, b: T) => boolean} less
+ */
 function makeHeap(less) {
+  /** @type {T[]} */
   const heap = [];
   return {
     get size() { return heap.length; },
+    /** @param {T} k */
     push(k) {
       heap.push(k);
       let c = heap.length - 1;
@@ -59,7 +65,7 @@ export function findPath(ao, start, goal, edgeCost, h) {
   const parent = new Int32Array(N).fill(-1);
   const closed = new Uint8Array(N);
   g[start] = 0; fOf[start] = h(start);
-  const heap = makeHeap((a, b) => (fOf[a] !== fOf[b] ? fOf[a] < fOf[b] : (g[a] !== g[b] ? g[a] > g[b] : a < b)));
+  const heap = makeHeap(/** @param {number} a @param {number} b */ (a, b) => (fOf[a] !== fOf[b] ? fOf[a] < fOf[b] : (g[a] !== g[b] ? g[a] > g[b] : a < b)));
 
   heap.push(start);
   while (heap.size) {
@@ -103,29 +109,36 @@ export function findPathTimed(ao, start, goal, t0, opts) {
   const { adj } = ao;
   const { edgeCost, edgeMin, isFord, isBank, fordOpen, nextOpen, h, tMax = 1000 } = opts;
   const T = Math.max(1, Math.ceil(tMax));
+  /** @param {number} id @param {number} t */
   const keyOf = (id, t) => id * (T + 1) + Math.min(T, Math.max(0, Math.round(t)));
 
+  /** @type {Map<number, number>} */
   const g = new Map();      // stateKey -> best cost
+  /** @type {Map<number, number>} */
   const fOf = new Map();    // stateKey -> f
+  /** @type {Map<number, {id:number, t:number}>} */
   const node = new Map();   // stateKey -> {id, t}  (actual fractional t)
+  /** @type {Map<number, number>} */
   const parent = new Map(); // stateKey -> predecessor stateKey
+  /** @type {Set<number>} */
   const closed = new Set();
 
   const startK = keyOf(start, t0);
   g.set(startK, 0); fOf.set(startK, h(start)); node.set(startK, { id: start, t: t0 });
-  const heap = makeHeap((a, b) => {
-    const fa = fOf.get(a), fb = fOf.get(b);
+  const heap = makeHeap(/** @param {number} a @param {number} b */ (a, b) => {
+    const fa = /** @type {number} */ (fOf.get(a)), fb = /** @type {number} */ (fOf.get(b));
     if (fa !== fb) return fa < fb;
-    const ga = g.get(a), gb = g.get(b);
+    const ga = /** @type {number} */ (g.get(a)), gb = /** @type {number} */ (g.get(b));
     if (ga !== gb) return ga > gb;
     return a < b;
   });
 
+  /** @param {number} sk @param {number} nid @param {number} nt @param {number} addCost */
   const relax = (sk, nid, nt, addCost) => {
     if (nt > tMax) return;
     const nk = keyOf(nid, nt);
     if (closed.has(nk)) return;
-    const ng = g.get(sk) + addCost;
+    const ng = /** @type {number} */ (g.get(sk)) + addCost;
     const cur = g.get(nk);
     if (cur === undefined || ng < cur - 1e-9) {
       g.set(nk, ng); node.set(nk, { id: nid, t: nt }); parent.set(nk, sk);
@@ -139,7 +152,7 @@ export function findPathTimed(ao, start, goal, t0, opts) {
     const sk = heap.pop();
     if (closed.has(sk)) continue;
     closed.add(sk);
-    const s = node.get(sk);
+    const s = /** @type {{id:number, t:number}} */ (node.get(sk));
     if (s.id === goal) { goalK = sk; break; }
     for (const v of adj[s.id]) {
       const cE = edgeCost(s.id, v);
@@ -155,8 +168,9 @@ export function findPathTimed(ao, start, goal, t0, opts) {
     }
   }
   if (goalK === undefined) return null;
+  /** @type {{id:number, t:number}[]} */
   const steps = [];
-  for (let k = goalK; k !== undefined; k = parent.get(k)) steps.push(node.get(k));
+  for (let k = /** @type {number | undefined} */ (goalK); k !== undefined; k = parent.get(k)) steps.push(/** @type {{id:number, t:number}} */ (node.get(k)));
   steps.reverse();
-  return { steps, cost: g.get(goalK) };
+  return { steps, cost: /** @type {number} */ (g.get(goalK)) };
 }

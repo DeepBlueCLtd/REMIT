@@ -12,9 +12,11 @@ export class Playhead {
     /** @type {((t: number) => void)[]} */
     this.listeners = [];
   }
+  /** @param {number} t */
   set(t) {
     this.t = Math.max(0, t);
     for (const fn of this.listeners) fn(this.t);
   }
+  /** @param {(t: number) => void} fn */
   on(fn) { this.listeners.push(fn); fn(this.t); }
 }

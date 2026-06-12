@@ -219,4 +219,35 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
   artefacts, iterate an ordered structure (dict keys, a `sorted()` list) so the output is
   byte-stable across runs.
 
+## 2026-06-12 — `@types/node` leaks into the browser tsconfig (`setTimeout` returns `Timeout`, not `number`)
+
+- **Symptom:** under the new `npm run typecheck`, a timer id types wrong —
+  `let t = 0; t = setTimeout(...)` errors `Type 'Timeout' is not assignable to type 'number'`
+  (e.g. `main.js` steering debounce; also `data-analysis.js` `clearTimeout`), **even with**
+  `"types": []` in `tsconfig.json`.
+- **Root cause:** `types: []` only stops *auto-inclusion* of `@types/*` via `typeRoots`; a
+  transitive dep (`@types/node`, pulled by the toolchain) still ships the Node global
+  declarations, whose `setTimeout`/`setInterval` overloads return `NodeJS.Timeout`. So timer
+  ids resolve to `Timeout`, not the browser lib's `number`.
+- **Fix:** cast the timer id at the call site — `/** @type {any} */ (setTimeout(...))` —
+  matching the existing `wingman.js` `setInterval` workaround; or type the handle as
+  `ReturnType<typeof setTimeout>` (as `data-analysis.js` does for `clearTimeout`).
+- **Prevention:** don't assume `types: []` yields a pure-DOM lib. Treat timer ids as
+  `ReturnType<typeof setTimeout>`, never `number`, whenever any `@types/node` is on disk.
+
+## 2026-06-12 — Type-checking surfaced a SteeringDelta schema/code drift (hex `{h3}` vs square `Waypoint{x,y}`)
+
+- **Symptom:** `main.js`'s `SteeringDelta` write (`constraints: [{ type: 'no-go', cells }]`)
+  fails to typecheck against the generated `schema/gen/remit.ts`: `{ h3 }[]` is not assignable
+  to `Constraint.cells: Waypoint[]`, where `Waypoint = { x: number, y: number }`.
+- **Root cause:** the app moved to H3 hex ids (PR #5, ADR-0016) but the LinkML schema still
+  models `Waypoint` as square-grid `x`/`y` — the schema was not regenerated for hex, so the
+  DEC-57 "schema ≡ code" invariant has drifted on this class.
+- **Fix (interim):** cast the hex cells to `Waypoint[]` through `unknown` at the write, with a
+  `DEC-57`-tagged comment, so the generated `SteeringDelta` binding is kept and the drift is
+  *documented* rather than hidden behind a bare `any`.
+- **Prevention / real fix:** update the LinkML source (a hex cell type, or `Waypoint.h3`) and
+  re-run `schema/generate.sh`, then drop the cast. Enforced type-checking (ADR-0024) now
+  catches this class of schema/code drift at build time instead of silently.
+
 <!-- Add new entries above this line. -->

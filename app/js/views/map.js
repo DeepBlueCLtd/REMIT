@@ -14,7 +14,7 @@ import { stateAt } from '../kernel/kernel.js';
 import { latLngToId } from '../kernel/hexgrid.js';
 import { STRAT_COLORS } from './render.js';
 
-const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const rgb = (/** @type {string} */ h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const STRAT_RGB = Object.fromEntries(Object.entries(STRAT_COLORS).map(([k, v]) => [k, rgb(v)]));
 // Keyless Carto **dark-matter** raster basemap — matches the app's dark theme and, at this
 // AO's zoom, renders the estuary/coastline legibly beneath the hex overlay. A background
@@ -32,7 +32,7 @@ const BASEMAP_STYLE = {
     { id: 'carto', type: 'raster', source: 'carto' },
   ],
 };
-const shortH3 = (h) => h.slice(-6);
+const shortH3 = (/** @type {string} */ h) => h.slice(-6);
 
 /**
  * @param {HTMLElement} el  the #map container
@@ -44,23 +44,27 @@ export function makeMap(el, baseline, ao, places) {
   const cells = baseline.cells;
   let showHexes = true;   // hex-grid overlay visibility — toggleable to reveal the basemap
   let lastOpts = {};      // remembered render opts so the toggle can re-render in place
-  const llById = (id) => [ao.centers[id][1], ao.centers[id][0]];   // [lng,lat]
-  const idOfH3 = (h3) => ao.idOf.get(h3);
-  const hexTerrain = ao.indexes.map((h3, id) => ({ h3, id, terrain: cells[id].terrain }));
+  const llById = (/** @type {number} */ id) => [ao.centers[id][1], ao.centers[id][0]];   // [lng,lat]
+  const idOfH3 = (/** @type {string} */ h3) => ao.idOf.get(h3);
+  const hexTerrain = ao.indexes.map((/** @type {string} */ h3, /** @type {number} */ id) => ({ h3, id, terrain: cells[id].terrain }));
 
   // Author-time terrain sampling (tools/sample-terrain.mjs) sets window.__REMIT_SAMPLE
   // before load: keep the basemap framebuffer readable and expose the map. Inert otherwise.
-  const sampling = typeof window !== 'undefined' && window.__REMIT_SAMPLE;
-  const map = new maplibregl.Map({
+  const sampling = typeof window !== 'undefined' && /** @type {any} */ (window).__REMIT_SAMPLE;
+  // maplibre's MapOptions type is stricter/narrower than the runtime options
+  // (e.g. it omits preserveDrawingBuffer); cast the options blob at this library
+  // boundary — the map instance itself stays fully typed.
+  const map = new maplibregl.Map(/** @type {any} */ ({
     container: el, style: BASEMAP_STYLE,
     bounds: AO_BOUNDS, fitBoundsOptions: { padding: 8 }, attributionControl: { compact: true },
     preserveDrawingBuffer: sampling,
-  });
+  }));
   map.on('error', () => {});
-  if (sampling) window.__map = map;
+  if (sampling) /** @type {any} */ (window).__map = map;
   const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
   map.addControl(overlay);
 
+  /** @type {((cell: {h3: string, id: number}) => void) | null} */
   let clickFn = null;
   // The deck.gl overlay canvas sits above MapLibre's and its event manager stops click
   // propagation, so listen on the container in the CAPTURE phase (fires before deck) and
@@ -75,18 +79,18 @@ export function makeMap(el, baseline, ao, places) {
     if (id !== undefined) clickFn({ h3: ao.indexes[id], id });
   }, true);
 
-  const idOf = (o) => (o == null ? undefined : (o.id ?? ao.idOf.get(o.h3)));
+  const idOf = (/** @type {any} */ o) => (o == null ? undefined : (o.id ?? ao.idOf.get(o.h3)));
 
-  function buildLayers(opts) {
+  function buildLayers(/** @type {any} */ opts) {
     const { plans = [], selected = null, t = 0, target = null, rv = null,
             candidates = null, highlight = null, obstructions = [], nogo = [], blocked = [] } = opts;
     const fordOpen = fordOpenAt(t);
-    const nogoIds = [...new Set(nogo.map(idOf).filter((x) => x !== undefined))];
-    const blockedIds = [...new Set(blocked.map(idOf).filter((x) => x !== undefined))];
+    const nogoIds = [...new Set(nogo.map(idOf).filter((/** @type {any} */ x) => x !== undefined))];
+    const blockedIds = [...new Set(blocked.map(idOf).filter((/** @type {any} */ x) => x !== undefined))];
 
-    const terrainColor = (d) => {
+    const terrainColor = (/** @type {any} */ d) => {
       if (d.terrain === 'ford') { const c = rgb(fordOpen ? TERRAIN.ford.color : TERRAIN.water.color); return [c[0], c[1], c[2], 235]; }
-      const c = rgb(TERRAIN[d.terrain].color); return [c[0], c[1], c[2], d.terrain === 'water' ? 230 : 215];
+      const c = rgb(TERRAIN[/** @type {keyof typeof TERRAIN} */ (d.terrain)].color); return [c[0], c[1], c[2], d.terrain === 'water' ? 230 : 215];
     };
 
     // Hex-grid overlay (terrain + situational no-go / blocked highlights). Toggleable:
@@ -95,7 +99,7 @@ export function makeMap(el, baseline, ao, places) {
     const layers = [];
     if (showHexes) {
       layers.push(new H3HexagonLayer({
-        id: 'terrain', data: hexTerrain, getHexagon: (d) => d.h3, getFillColor: terrainColor,
+        id: 'terrain', data: hexTerrain, getHexagon: (d) => d.h3, getFillColor: /** @type {any} */ (terrainColor),
         updateTriggers: { getFillColor: [fordOpen] }, highPrecision: true, getLineColor: [255, 255, 255, 18],
         lineWidthMinPixels: 1, stroked: true, filled: true, extruded: false, pickable: false,
       }));
@@ -104,26 +108,26 @@ export function makeMap(el, baseline, ao, places) {
     }
 
     // Routes — non-selected faint, selected bold (or all bold in compare mode).
-    const path = (p) => p.materialisation.trajectory.map((q) => [q.lng, q.lat]);
+    const path = (/** @type {any} */ p) => p.materialisation.trajectory.map((/** @type {any} */ q) => [q.lng, q.lat]);
     for (const p of plans) {
       if (!p.materialisation) continue;
       const isSel = selected && p.id === selected.id;
       const base = STRAT_RGB[p.strategy.key] || [200, 200, 200];
       layers.push(new PathLayer({
         id: 'route-' + p.strategy.key, data: [p], getPath: path,
-        getColor: selected && !isSel ? [base[0], base[1], base[2], 110] : base,
+        getColor: /** @type {any} */ (selected && !isSel ? [base[0], base[1], base[2], 110] : base),
         getWidth: isSel ? 3.6 : (selected ? 2 : 3), widthUnits: 'pixels', capRounded: true, jointRounded: true,
       }));
     }
 
     // Markers.
-    const dot = (o, color, r) => ({ pos: llById(idOf(o)), color, r });
+    const dot = (/** @type {any} */ o, /** @type {any} */ color, /** @type {number} */ r) => ({ pos: llById(idOf(o)), color, r });
     const marks = [dot(places.base, [235, 240, 245], 90)];
     if (candidates) for (const c of candidates) marks.push(dot(c, highlight && highlight.h3 === c.h3 ? [255, 123, 114] : [200, 210, 220], 80));
     if (target) marks.push(dot(target, [255, 123, 114], 95));
     if (rv) marks.push(dot(rv, [227, 179, 65], 95));
     layers.push(new ScatterplotLayer({ id: 'marks', data: marks.filter((m) => m.pos), getPosition: (d) => d.pos, getFillColor: (d) => d.color, getRadius: (d) => d.r, radiusUnits: 'meters', stroked: true, getLineColor: [8, 12, 18], lineWidthMinPixels: 1.5 }));
-    if (candidates) layers.push(new TextLayer({ id: 'cand-labels', data: candidates, getPosition: (c) => llById(idOf(c)), getText: (c) => c.key ?? '', getColor: [235, 240, 245], getSize: 12, getPixelOffset: [0, -15], outlineWidth: 2, outlineColor: [8, 12, 18, 255], fontWeight: 700 }));
+    if (candidates) layers.push(new TextLayer({ id: 'cand-labels', data: candidates, getPosition: /** @type {any} */ ((/** @type {any} */ c) => llById(idOf(c))), getText: (c) => c.key ?? '', getColor: [235, 240, 245], getSize: 12, getPixelOffset: [0, -15], outlineWidth: 2, outlineColor: [8, 12, 18, 255], fontWeight: 700 }));
 
     // Vehicle ghost(s).
     const ghosts = [];
@@ -137,21 +141,21 @@ export function makeMap(el, baseline, ao, places) {
     return layers;
   }
 
-  function setData(opts) {
+  function setData(/** @type {any} */ opts) {
     const { selected = null, t = 0, plans = [], highlight = null, nogo = [], blocked = [], obstructions = [] } = opts;
     el.dataset.fordState = fordOpenAt(t) ? 'open' : 'closed';
     if (selected) { const g = stateAt(selected, t); el.dataset.ghost = g ? `${g.lng.toFixed(4)},${g.lat.toFixed(4)},${g.phase}` : ''; }
-    else el.dataset.ghost = plans.filter((p) => p.materialisation).map((p) => { const g = stateAt(p, t); return g ? `${p.strategy.key}:${g.lng.toFixed(4)},${g.lat.toFixed(4)}` : ''; }).filter(Boolean).join('|');
+    else el.dataset.ghost = plans.filter((/** @type {any} */ p) => p.materialisation).map((/** @type {any} */ p) => { const g = stateAt(p, t); return g ? `${p.strategy.key}:${g.lng.toFixed(4)},${g.lat.toFixed(4)}` : ''; }).filter(Boolean).join('|');
     el.dataset.highlight = highlight ? shortH3(highlight.h3) : '';
-    el.dataset.nogo = nogo.map((c) => shortH3(c.h3)).join('|');
-    el.dataset.blocked = blocked.map((c) => shortH3(c.h3 ?? ao.indexes[c.id ?? c])).join('|');
-    el.dataset.obstructions = obstructions.map((o) => shortH3(o.h3)).join('|');
+    el.dataset.nogo = nogo.map((/** @type {any} */ c) => shortH3(c.h3)).join('|');
+    el.dataset.blocked = blocked.map((/** @type {any} */ c) => shortH3(c.h3 ?? ao.indexes[c.id ?? c])).join('|');
+    el.dataset.obstructions = obstructions.map((/** @type {any} */ o) => shortH3(o.h3)).join('|');
   }
 
   // Execute-mode follow-cam: keep the live vehicle comfortably on screen (esp. when zoomed
   // in) without fighting the user — only recenter once the ghost drifts into the outer
   // margin of the viewport, and preserve the current zoom (pan only).
-  function keepInView(lng, lat) {
+  function keepInView(/** @type {number} */ lng, /** @type {number} */ lat) {
     let b;
     try { b = map.getBounds(); } catch { return; }        // viewport not ready yet
     const mx = (b.getEast() - b.getWest()) * 0.2;
@@ -162,7 +166,7 @@ export function makeMap(el, baseline, ao, places) {
     }
   }
 
-  function render(opts = {}) {
+  function render(/** @type {any} */ opts = {}) {
     lastOpts = opts;
     overlay.setProps({ layers: buildLayers(opts) });   // deck overlay renders above the basemap
     setData(opts);
@@ -198,6 +202,6 @@ export function makeMap(el, baseline, ao, places) {
 
   return {
     render,
-    onCellClick(fn) { clickFn = fn; },
+    onCellClick(/** @type {(cell: {h3: string, id: number}) => void} */ fn) { clickFn = fn; },
   };
 }

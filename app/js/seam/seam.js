@@ -23,6 +23,7 @@ export function createSeamServer({ objects, logs, planHandful }) {
    * @param {any} [body]
    */
   return async function route(method, path, body) {
+    /** @param {string} code @param {string} message */
     const err = (code, message) => ({ error: { code, message } });
 
     let m;
@@ -102,9 +103,14 @@ export class SeamClient {
     return res;
   }
 
+  /** @param {string} type @param {any} body */
   putObject(type, body) { return this.call('PUT', '/objects', { type, body }); }
+  /** @param {string} id */
   getObject(id) { return this.call('GET', `/objects/${id}`); }
+  /** @param {any} body */
   planHandful(body) { return this.call('POST', '/plan/handful', body); }
+  /** @param {string} missionId @param {any} entry */
   appendLog(missionId, entry) { return this.call('POST', `/logs/${missionId}/append`, entry); }
+  /** @param {string} missionId */
   getLog(missionId) { return this.call('GET', `/logs/${missionId}`); }
 }
