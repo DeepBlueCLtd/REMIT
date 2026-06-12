@@ -606,3 +606,28 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   golden's schedule/wait assertions moved. The window-hold (arriving early to be *in position*
   before the observation window) is kept — only the *tidal* wait is deferred. The wingman's
   in-flight re-routes still hold at the bank (you cannot retro-delay a departure mid-mission).
+
+## ADR-0024 (2026-06-12) — Enforce the JSDoc type-checking the app already declares (checkJs + strict in CI); stay on JS, don't convert to TypeScript
+
+- **Context:** every `app/js` file already carried `// @ts-check` and rich JSDoc types,
+  but nothing *enforced* them — no `tsconfig`, no `typescript` dep, no CI step — so the
+  directives were editor-only best-effort and type drift accumulated silently (442 errors,
+  including stale pre-hex annotations in `wingman.js` and a real schema/code divergence).
+  The maintainer wants TypeScript's type-safety without converting the source to `.ts`.
+- **Decision:** keep the app as plain ES-module JavaScript and **enforce** the existing
+  `// @ts-check`. Added a root `tsconfig.json` (`allowJs`+`checkJs`, `strict`, `noEmit`,
+  `types: []`, `lib` DOM, `moduleResolution: bundler`), pinned `typescript` as a devDep,
+  exposed `npm run typecheck` (`tsc -p tsconfig.json`), and gate it in CI (`typecheck.yml`,
+  PR + push-to-main). Drove the app **442 → 0** type errors.
+- **Options considered:** (a) convert `app/js` to TypeScript — adds a transpile step and
+  churns every file for no extra safety the JSDoc didn't already give; rejected. (b) enforce
+  the existing JSDoc via `tsc --checkJs --strict` — **chosen**. (c) leave `// @ts-check` as
+  editor-only — the status quo that let the drift accumulate.
+- **Consequences:** type drift now fails the build; no source migrated to `.ts`, no runtime
+  build step added (Vite bundles the same JS). Fixes are JSDoc annotations + type-only casts
+  with **zero `@ts-ignore`/`@ts-nocheck`** (the codebase stays suppression-free). Opaque
+  serialisable blobs (`plan`/`requirement`/log entries/viz data) stay `any` per the
+  data-model carve-out (ADR-0012); DOM, primitives and shared shapes are precisely typed
+  (new typedefs incl. `HexAO`, `Strat`/`Leg`/`RerouteOpts`, `Entity`/`Aspect`). `app/hexviz.js`
+  (a standalone evidence page) is outside `include`; type-checking the Node-side tooling
+  (`test`/`e2e`/`run-playwright.mjs`) is a possible follow-up under a second, Node-lib config.

@@ -61,14 +61,23 @@ const RIVER_LNG = -3.103;
 const BRIDGE_LAT = 54.928;
 const FORD_LATS = [54.945, 54.962, 54.978];
 
-/** Is hex `id` on the east (RV) bank of the river? */
+/** Is hex `id` on the east (RV) bank of the river?
+ *  @param {import('./hexgrid.js').HexAO} ao @param {number} id */
 export function isEastOfRiver(ao, id) {
   return ao.centers[id][1] > RIVER_LNG;
 }
 
 // --- terrain painters (hex space) ------------------------------------------------
+/** @param {number} lat @param {number} lng */
 const cellOf = (lat, lng) => latLngToCell(lat, lng, H3_RES);
 
+/**
+ * Stamp `kind` along the hex path between two lat/lng anchors (optionally widened by a
+ * gridDisk radius), restricted to cells currently of `onlyOver` when given.
+ * @param {string[]} cells @param {import('./hexgrid.js').HexAO} ao
+ * @param {[number, number]} a @param {[number, number]} b
+ * @param {string} kind @param {number} widen @param {string} [onlyOver]
+ */
 function paintPath(cells, ao, a, b, kind, widen, onlyOver) {
   let path;
   try { path = gridPathCells(cellOf(a[0], a[1]), cellOf(b[0], b[1])); }
@@ -83,6 +92,12 @@ function paintPath(cells, ao, a, b, kind, widen, onlyOver) {
   }
 }
 
+/**
+ * Stamp `kind` over a gridDisk of radius `k` centred on a lat/lng anchor, restricted to
+ * cells currently of `onlyOver` when given.
+ * @param {string[]} cells @param {import('./hexgrid.js').HexAO} ao
+ * @param {[number, number]} c @param {number} k @param {string} kind @param {string} [onlyOver]
+ */
 function paintDisk(cells, ao, c, k, kind, onlyOver) {
   for (const hh of gridDisk(cellOf(c[0], c[1]), k)) {
     const id = ao.idOf.get(hh);
@@ -98,17 +113,22 @@ function paintDisk(cells, ao, c, k, kind, onlyOver) {
  * @returns {string[]} terrain kind per cell id (length ao.N)
  */
 /** A passable band carved across the estuary at a latitude (over water cells only),
- *  spanning the AO width so it connects the west and east banks. */
+ *  spanning the AO width so it connects the west and east banks.
+ *  @param {string[]} cells @param {import('./hexgrid.js').HexAO} ao
+ *  @param {number} lat @param {string} kind @param {number} [widen] */
 function paintBand(cells, ao, lat, kind, widen = 1) {
   paintPath(cells, ao, [lat, -3.210], [lat, -2.990], kind, widen, 'water');
 }
 
 /** Genuinely dry land: not open water, and not a tidal ford band (which sits *over*
- *  water and is only conditionally passable). Land places must anchor here. */
+ *  water and is only conditionally passable). Land places must anchor here.
+ *  @param {string} kind */
 const isDry = (kind) => kind !== 'water' && kind !== 'ford';
 
 /** BFS from the cell at (lat,lng) to the nearest dry cell — anchors land places so they
- *  never sit in the estuary or on a tidal ford band (DEC-44 / issue: routes wading water). */
+ *  never sit in the estuary or on a tidal ford band (DEC-44 / issue: routes wading water).
+ *  @param {import('./hexgrid.js').HexAO} ao @param {string[]} terr
+ *  @param {number} lat @param {number} lng */
 function nearestDry(ao, terr, lat, lng) {
   const start = ao.idOf.get(cellOf(lat, lng));
   if (start === undefined || isDry(terr[start])) return start;
@@ -127,13 +147,15 @@ function nearestDry(ao, terr, lat, lng) {
   return start;
 }
 
+/** @param {import('./hexgrid.js').HexAO} ao */
 function buildTerrain(ao) {
   // Base terrain sampled offline from the Carto Positron basemap (tools/sample-terrain.mjs),
   // baked to terrain-sampled.json so the hex shading matches the real Solway estuary while
   // the kernel stays deterministic (NF3 — no live fetch). The sampled classes are
   // water / open / forest / rough; a few designed set-pieces are then painted *over* land
   // or *over* water as marked, so they refine but never fight the sampled coastline.
-  const cells = ao.indexes.map((h3) => sampledTerrain[h3] ?? 'open');
+  const sampled = /** @type {Record<string, string>} */ (sampledTerrain);
+  const cells = ao.indexes.map((h3) => sampled[h3] ?? 'open');
 
   // Cover & broken ground on the banks (Positron landuse is sparse) — gives the "covered"
   // strategy somewhere to hide. Painted over open land only.
@@ -183,20 +205,23 @@ export const TIDE = {
   open_half_width_min: 180,   // fords passable within ±3 h of low tide
 };
 
-/** Are the fords wadeable at mission-minute t? */
+/** Are the fords wadeable at mission-minute t?
+ *  @param {number} t */
 export function fordOpenAt(t, tide = TIDE) {
   const ph = ((t - tide.low_tide_min) % tide.period_min + tide.period_min) % tide.period_min;
   return ph <= tide.open_half_width_min || ph >= tide.period_min - tide.open_half_width_min;
 }
 
-/** Earliest minute ≥ t at which the fords are wadeable (t itself if open now). */
+/** Earliest minute ≥ t at which the fords are wadeable (t itself if open now).
+ *  @param {number} t */
 export function nextFordOpen(t, tide = TIDE) {
   if (fordOpenAt(t, tide)) return t;
   const ph = ((t - tide.low_tide_min) % tide.period_min + tide.period_min) % tide.period_min;
   return t + (tide.period_min - tide.open_half_width_min - ph);
 }
 
-/** Ford open/close transitions in [t0, t1] — the baseline's forecast changepoints. */
+/** Ford open/close transitions in [t0, t1] — the baseline's forecast changepoints.
+ *  @param {number} t0 @param {number} t1 */
 export function fordTransitions(t0, t1, tide = TIDE) {
   const out = [];
   const k0 = Math.floor((t0 - tide.low_tide_min) / tide.period_min) - 1;
@@ -211,7 +236,9 @@ export function fordTransitions(t0, t1, tide = TIDE) {
   return out;
 }
 
-/** Resolve a {lat,lng,...} place to {...place, h3, id}. */
+/** Resolve a {lat,lng,...} place to {...place, h3, id} (the input fields are preserved).
+ *  @template {{ lat: number, lng: number }} P
+ *  @param {import('./hexgrid.js').HexAO} ao @param {P} p */
 function resolvePlace(ao, p) {
   const h3 = cellOf(p.lat, p.lng);
   return { ...p, h3, id: ao.idOf.get(h3) };
@@ -221,17 +248,20 @@ function resolvePlace(ao, p) {
 export function buildWorld() {
   const ao = buildHexAO();
   const terrain = buildTerrain(ao);
-  const cells = terrain.map((kind) => ({
-    terrain: kind,
-    mobility: TERRAIN[kind].mobility,
-    cover: TERRAIN[kind].cover,
-  }));
+  const cells = terrain.map((kind) => {
+    const k = /** @type {keyof typeof TERRAIN} */ (kind);
+    return { terrain: kind, mobility: TERRAIN[k].mobility, cover: TERRAIN[k].cover };
+  });
 
   // Land places (base / RV / OPs) snap to the nearest dry cell of the sampled terrain, so
   // they never land in the real estuary or on a tidal ford band; fords and the bridge keep
   // their carved-crossing cell.
+  /**
+   * @template {{ lat: number, lng: number }} P
+   * @param {P} p
+   */
   const landPlace = (p) => {
-    const id = nearestDry(ao, terrain, p.lat, p.lng);
+    const id = /** @type {number} */ (nearestDry(ao, terrain, p.lat, p.lng));
     const [lat, lng] = ao.centers[id];
     return { ...p, h3: ao.indexes[id], id, lat, lng };
   };

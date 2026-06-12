@@ -66,14 +66,14 @@ const state = {
 // --- projection surface (map + timeline + playhead) ------------------------
 const mapEl = /** @type {HTMLElement} */ (document.getElementById('map'));
 const map = makeMap(mapEl, world.baseline, world.ao, world.places);
-let mapTarget = null;
-let mapRv = null;
-let mapCandidates = null;   // candidate OPs shown on the map during Capture
-let mapHighlight = null;    // the OP currently picked in Capture (live)
-let mapObstructions = [];   // mid-mission obstruction markers (Execute)
-let mapBlocked = [];        // mid-mission blocked cells that forced a re-route (Execute)
-let mapNogo = [];           // operator no-go cells (Plan steering)
-let mapOnCellClick = null;  // active map-click handler (set by Plan in no-go mode)
+/** @type {any} */ let mapTarget = null;
+/** @type {any} */ let mapRv = null;
+/** @type {any} */ let mapCandidates = null;   // candidate OPs shown on the map during Capture
+/** @type {any} */ let mapHighlight = null;    // the OP currently picked in Capture (live)
+/** @type {any[]} */ let mapObstructions = [];   // mid-mission obstruction markers (Execute)
+/** @type {any[]} */ let mapBlocked = [];        // mid-mission blocked cells that forced a re-route (Execute)
+/** @type {{h3: string}[]} */ let mapNogo = [];           // operator no-go cells (Plan steering)
+/** @type {((cell: {h3: string, id: number}) => void) | null} */ let mapOnCellClick = null;  // active map-click handler (set by Plan in no-go mode)
 const syncHost = /** @type {HTMLElement} */ (document.getElementById('sync-matrix-host'));
 const syncMatrix = makeSyncMatrix(syncHost, playhead);
 const entities = buildEntities();
@@ -83,7 +83,8 @@ const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhea
 const readout = /** @type {HTMLElement} */ (document.getElementById('projection-readout'));
 
 let worldProvisioned = false;
-/** Set by the wingman while mounted; lets a slider grab pause live playback. */
+/** Set by the wingman while mounted; lets a slider grab pause live playback.
+ *  @type {(() => void) | null} */
 let pausePlayback = null;
 
 function renderProjection() {
@@ -137,7 +138,7 @@ function renderProjection() {
     // kernel's evaluator (NF1) — scrub to race the ghosts.
     const rows = state.handful.map((p) => {
       const m = measuresAt(p, playhead.t);
-      const c = STRAT_COLORS[p.strategy.key] ?? '#e6edf3';
+      const c = STRAT_COLORS[/** @type {keyof typeof STRAT_COLORS} */ (p.strategy.key)] ?? '#e6edf3';
       if (!m) {
         return `<tr><td><i class="dot" style="background:${c}"></i><b style="color:${c}">${p.strategy.label}</b></td>
           <td colspan="5" class="muted">no traversable route</td></tr>`;
@@ -161,7 +162,7 @@ function renderProjection() {
   }
 }
 
-playhead.on((t) => {
+playhead.on((/** @type {number} */ t) => {
   slider.value = String(t);
   renderProjection();
 });
@@ -181,18 +182,18 @@ function refreshDrawers() {
   storeList.innerHTML = objs.length
     ? objs.map((o) => `<li><code class="hash">${shortId(o.id)}</code> <b>${o.type}</b> <span class="muted">${o.bytes} B canonical</span></li>`).join('')
     : '<li class="muted">empty — nothing committed yet</li>';
-  document.getElementById('store-count').textContent = String(objs.length);
+  /** @type {HTMLElement} */ (document.getElementById('store-count')).textContent = String(objs.length);
 }
 seam.onTraffic((traffic) => {
   trafficList.innerHTML = traffic.slice(-14).map((t) =>
     `<li><span class="muted">#${t.n}</span> <b>${t.method}</b> ${t.path} <span class="muted">${t.note}</span></li>`).join('');
-  document.getElementById('seam-count').textContent = String(traffic.length);
+  /** @type {HTMLElement} */ (document.getElementById('seam-count')).textContent = String(traffic.length);
   refreshDrawers();
 });
 refreshDrawers();
 
 // --- hash chips -------------------------------------------------------------
-function chip(label, id) {
+function chip(/** @type {string} */ label, /** @type {string} */ id) {
   return id ? `<span class="idchip">${label} <code class="hash">${shortId(id)}</code></span>` : '';
 }
 function refreshChips() {
@@ -201,9 +202,9 @@ function refreshChips() {
     ['config-core', state.configCoreHash], ['stamp', state.ids.stamp],
     ['plan', state.selectedPlan ? state.selectedPlan.id : ''],
   ];
-  document.getElementById('chips').innerHTML =
+  /** @type {HTMLElement} */ (document.getElementById('chips')).innerHTML =
     ids.map(([label, id]) => chip(label, id)).join('') || '<span class="muted">nothing committed yet</span>';
-  document.getElementById('chips-count').textContent = String(ids.filter(([, id]) => id).length);
+  /** @type {HTMLElement} */ (document.getElementById('chips-count')).textContent = String(ids.filter(([, id]) => id).length);
 }
 
 // --- stage rail + gating -----------------------------------------------------
@@ -223,10 +224,10 @@ function renderRail() {
       <span>${s.label}</span><span class="hat">${s.hat}</span></button>`;
   }).join('');
   rail.querySelectorAll('[data-stage]').forEach((b) =>
-    b.addEventListener('click', () => showStage(/** @type {HTMLElement} */ (b).dataset.stage)));
+    b.addEventListener('click', () => showStage(/** @type {string} */ (/** @type {HTMLElement} */ (b).dataset.stage))));
 }
 
-function showStage(key) {
+function showStage(/** @type {string} */ key) {
   if (!state.unlocked.has(key)) return;
   state.stage = key;
   if (state.nextHint === key) state.nextHint = null;
@@ -237,7 +238,7 @@ function showStage(key) {
 }
 
 /** Surface a failure in the banner — nothing fails silently. */
-function showFault(msg) {
+function showFault(/** @type {string} */ msg) {
   /** @type {any} */ (window).__remitFault?.(msg);
 }
 
@@ -248,7 +249,7 @@ function showFault(msg) {
  * proved too subtle), and it is injected *before* the next stage mounts so a
  * mount failure can never strand the user without a path or an error.
  */
-function advance(fromKey) {
+function advance(/** @type {string} */ fromKey) {
   state.done.add(fromKey);
   const i = STAGES.findIndex((s) => s.key === fromKey);
   const next = STAGES[i + 1];
@@ -270,7 +271,7 @@ function advance(fromKey) {
     try {
       mountStage(next.key);
     } catch (err) {
-      showFault(`mounting ${next.label}: ${err?.message ?? err}`);
+      showFault(`mounting ${next.label}: ${err instanceof Error ? err.message : err}`);
       console.error(err);
     }
   }
@@ -278,10 +279,10 @@ function advance(fromKey) {
   refreshChips();
 }
 
-const panel = (key) => /** @type {HTMLElement} */ (document.querySelector(`[data-panel="${key}"] .panel-body`));
+const panel = (/** @type {string} */ key) => /** @type {HTMLElement} */ (document.querySelector(`[data-panel="${key}"] .panel-body`));
 
 // --- stage mounting -----------------------------------------------------------
-function mountStage(key) {
+function mountStage(/** @type {string} */ key) {
   if (key === 'world') mountWorld();
   if (key === 'capture') mountCaptureStage();
   if (key === 'plan') mountPlan();
@@ -433,7 +434,12 @@ function shareSteering() {
   /** @type {import('../../schema/gen/remit').SteeringDelta} */
   const delta = {
     scope: 'steering',
-    constraints: cells.length ? [{ type: 'no-go', cells }] : [],
+    // Schema drift (DEC-57): the app moved to hex H3 ids, but the generated
+    // Constraint.cells is still square-grid Waypoint{x,y}. Cast until the LinkML
+    // schema grows a hex cell type and is regenerated.
+    constraints: cells.length
+      ? [{ type: 'no-go', cells: /** @type {import('../../schema/gen/remit').Waypoint[]} */ (/** @type {unknown} */ (cells)) }]
+      : [],
     by: 'operator',
     role: 'duty-officer-plans',
     at: new Date().toISOString(),
@@ -442,7 +448,7 @@ function shareSteering() {
 }
 function scheduleShareSteering() {
   clearTimeout(steeringShareTimer);
-  steeringShareTimer = setTimeout(shareSteering, 450);
+  steeringShareTimer = /** @type {any} */ (setTimeout(shareSteering, 450));
 }
 
 function mountPlan() {
@@ -470,7 +476,7 @@ function mountPlan() {
   const updateCount = () => { countEl.textContent = `${mapNogo.length} cells`; };
   updateCount();
 
-  const toggleCell = (cell) => {
+  const toggleCell = (/** @type {{h3: string, id: number}} */ cell) => {
     const i = mapNogo.findIndex((c) => c.h3 === cell.h3);
     if (i >= 0) mapNogo.splice(i, 1); else mapNogo.push({ h3: cell.h3 });
     updateCount();
@@ -516,11 +522,11 @@ function mountPlan() {
 
     const cards = /** @type {HTMLElement} */ (el.querySelector('#plan-cards'));
     cards.innerHTML = state.handful.map((p) => {
-      const obs = p.scores.satisfaction.find((s) => s.label === 'Observe OP');
-      const exf = p.scores.satisfaction.find((s) => s.label === 'Exfil E');
-      const rv = p.materialisation?.schedule.findLast((s) => s.kind === 'exfil');
+      const obs = p.scores.satisfaction.find((/** @type {any} */ s) => s.label === 'Observe OP');
+      const exf = p.scores.satisfaction.find((/** @type {any} */ s) => s.label === 'Exfil E');
+      const rv = p.materialisation?.schedule.findLast((/** @type {any} */ s) => s.kind === 'exfil');
       return `<div class="plan-card" data-testid="plan-card-${p.strategy.key}">
-        <h4 style="color:${STRAT_COLORS[p.strategy.key]}">${p.strategy.label}</h4>
+        <h4 style="color:${STRAT_COLORS[/** @type {keyof typeof STRAT_COLORS} */ (p.strategy.key)]}">${p.strategy.label}</h4>
         <div class="muted">${p.strategy.blurb}</div>
         ${p.tide_decision ? `<div class="tide-note" data-testid="tide-${p.strategy.key}">≋ ${p.tide_decision.narrative}</div>` : ''}
         <div>observe <span class="band band-${obs.margin_band}">${obs.margin_band} ${obs.margin_min}m</span></div>

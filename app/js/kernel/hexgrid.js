@@ -9,11 +9,22 @@ import {
   gridDisk, gridDistance,
 } from 'h3-js';
 
+/**
+ * The hex AO built by `buildHexAO` — stable sorted ids, frozen bearing-sorted adjacency,
+ * and per-cell geometry. The serialisable spatial core every kernel surface routes over.
+ * @typedef {{
+ *   indexes: string[], idOf: Map<string,number>, N: number,
+ *   centers: [number,number][], boundaries: [number,number][][],
+ *   adj: number[][], stepM: number
+ * }} HexAO
+ */
+
 /** Base resolution: res 9 ≈ 0.105 km² hexes, ~344 m centre-to-centre. */
 export const H3_RES = 9;
 
-/** AO polygon (outer ring, [lat,lng]) — Solway Firth head (Esk–Eden delta), ~14.7×9.1 km.
- *  Anchored to real lat/lon so cells are genuine H3 indexes (abstract-now / geo-later). */
+/** AO polygon (outer ring, [lat,lng] pairs) — Solway Firth head (Esk–Eden delta), ~14.7×9.1 km.
+ *  Anchored to real lat/lon so cells are genuine H3 indexes (abstract-now / geo-later).
+ *  @type {[number, number][]} */
 export const AO_RING = [
   [54.918, -3.215],
   [54.918, -2.985],
@@ -25,7 +36,8 @@ export const AO_RING = [
 const R_EARTH_M = 6371000;
 const toRad = Math.PI / 180;
 
-/** Great-circle distance in metres. */
+/** Great-circle distance in metres.
+ *  @param {number} lat1 @param {number} lng1 @param {number} lat2 @param {number} lng2 */
 export function haversineM(lat1, lng1, lat2, lng2) {
   const dLat = (lat2 - lat1) * toRad;
   const dLng = (lng2 - lng1) * toRad;
@@ -34,7 +46,8 @@ export function haversineM(lat1, lng1, lat2, lng2) {
   return 2 * R_EARTH_M * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-/** Initial bearing A->B in degrees, [0,360). Used only to order neighbours. */
+/** Initial bearing A->B in degrees, [0,360). Used only to order neighbours.
+ *  @param {number} lat1 @param {number} lng1 @param {number} lat2 @param {number} lng2 */
 export function bearingDeg(lat1, lng1, lat2, lng2) {
   const p1 = lat1 * toRad, p2 = lat2 * toRad, dl = (lng2 - lng1) * toRad;
   const y = Math.sin(dl) * Math.cos(p2);
@@ -42,7 +55,8 @@ export function bearingDeg(lat1, lng1, lat2, lng2) {
   return (Math.atan2(y, x) / toRad + 360) % 360;
 }
 
-/** Even-odd point-in-ring test (ring is [lat,lng] pairs); for synthetic terrain authoring. */
+/** Even-odd point-in-ring test (ring is [lat,lng] pairs); for synthetic terrain authoring.
+ *  @param {number} lat @param {number} lng @param {[number, number][]} ring */
 export function pointInRing(lat, lng, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -61,21 +75,19 @@ export function pointInRing(lat, lng, ring) {
  * neighbours — handled naturally by the in-AO filter.
  * @param {[number,number][]} [ring]
  * @param {number} [res]
- * @returns {{
- *   indexes: string[], idOf: Map<string,number>, N: number,
- *   centers: [number,number][], boundaries: [number,number][][],
- *   adj: number[][], stepM: number
- * }}
+ * @returns {HexAO}
  */
 export function buildHexAO(ring = AO_RING, res = H3_RES) {
   const indexes = polygonToCells([ring], res).sort();
   const N = indexes.length;
+  /** @type {Map<string, number>} */
   const idOf = new Map();
   for (let i = 0; i < N; i++) idOf.set(indexes[i], i);
 
   const centers = indexes.map((h) => /** @type {[number,number]} */ (cellToLatLng(h)));
   const boundaries = indexes.map((h) => /** @type {[number,number][]} */ (cellToBoundary(h)));
 
+  /** @type {number[][]} */
   const adj = new Array(N);
   let stepSum = 0, stepCount = 0;
   for (let id = 0; id < N; id++) {
@@ -97,12 +109,16 @@ export function buildHexAO(ring = AO_RING, res = H3_RES) {
   return { indexes, idOf, N, centers, boundaries, adj, stepM: stepCount ? stepSum / stepCount : 344 };
 }
 
+/** @param {HexAO} ao @param {number} id */
 export const idToH3 = (ao, id) => ao.indexes[id];
+/** @param {HexAO} ao @param {string} h3 */
 export const h3ToId = (ao, h3) => ao.idOf.get(h3);
+/** @param {HexAO} ao @param {number} lat @param {number} lng */
 export const latLngToId = (ao, lat, lng) => ao.idOf.get(latLngToCell(lat, lng, H3_RES));
 
 /** Hex-step distance to `b` (admissible heuristic basis). Falls back to a centroid
- *  estimate only on the -1 that h3 returns for huge / pentagon-spanning pairs. */
+ *  estimate only on the -1 that h3 returns for huge / pentagon-spanning pairs.
+ *  @param {HexAO} ao @param {number} a @param {number} b */
 export function hexDistance(ao, a, b) {
   const d = gridDistance(ao.indexes[a], ao.indexes[b]);
   if (d >= 0) return d;

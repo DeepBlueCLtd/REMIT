@@ -9,6 +9,7 @@
 
 import { roles } from './roles.js';
 
+/** @param {string} m */
 const fault = (m) => /** @type {any} */ (window).__remitFault?.(m);
 
 export function boot() {

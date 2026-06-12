@@ -16,7 +16,14 @@ const PW = W - LBL - PAD_R;
 
 const PROV_COLOR = { self: '#4493f8', forecast: '#7ec8e3', provider: '#bc8cff' };
 const PHASE_COLOR = { transit: '#4493f8', hold: '#6e7681', visit: '#38d39f', exfil: '#e3b341' };
+/** @param {string} s */
 const esc = (s) => String(s).replace(/[<&]/g, (c) => (c === '<' ? '&lt;' : '&amp;'));
+
+/** One Sync-Matrix catalogue row (CONFIG, DEC-53) — see `syncCatalogue()`. */
+/** @typedef {{ key: string, entity: string, aspect: string, render: string, label: string, needsPlan?: boolean }} CatalogueRow */
+
+/** An advisory coincidence window (see `coincidenceWindows()`). */
+/** @typedef {import('../entities/entities.js').CoincidenceWindow} CoincidenceWindow */
 
 /**
  * @param {HTMLElement} host
@@ -31,18 +38,19 @@ export function makeSyncMatrix(host, playhead) {
   return {
     /**
      * @param {{sel: any, commitment: any, exfilCommitment: any,
-     *          horizonMin: number, entities: any, catalogue: any[],
-     *          coincidences?: any[]}} opts
+     *          horizonMin: number, entities: any, catalogue: CatalogueRow[],
+     *          coincidences?: CoincidenceWindow[]}} opts
      */
     render({ sel, commitment, exfilCommitment, horizonMin, entities, catalogue, coincidences = [] }) {
       const horizon = horizonMin || 180;
+      /** @param {number} t */
       const tx = (t) => LBL + (Math.max(0, Math.min(horizon, t)) / horizon) * PW;
 
       // Rebuild only when the *content* changes (not on every playhead tick).
       const sig = JSON.stringify([
         sel?.id ?? null, horizon, catalogue.map((r) => r.key),
         commitment?.activity?.when?.window, exfilCommitment?.activity?.when?.before_min,
-        sel?.materialisation?.schedule?.map((s) => `${s.kind}:${s.start_min}-${s.end_min}`),
+        sel?.materialisation?.schedule?.map((/** @type {{kind: string, start_min: number, end_min: number}} */ s) => `${s.kind}:${s.start_min}-${s.end_min}`),
         coincidences.map((c) => `${c.id}:${c.start}-${c.end}`),
       ]);
       if (sig !== lastSig) {
@@ -51,12 +59,14 @@ export function makeSyncMatrix(host, playhead) {
         cursor = host.querySelector('#sm-cursor');
         tracksBottom = Number(svg.dataset.tracksBottom);
         txFn = tx;
+        /** @param {number} clientX */
         const toT = (clientX) => {
           const r = svg.getBoundingClientRect();
           const localX = ((clientX - r.left) / r.width) * W;
           if (localX < LBL) return null;                       // ignore the label gutter
           return Math.max(0, Math.min(horizon, ((localX - LBL) / PW) * horizon));
         };
+        /** @param {PointerEvent} e */
         const scrub = (e) => { const t = toT(e.clientX); if (t != null) playhead.set(t); };
         svg.addEventListener('pointerdown', (e) => { dragging = true; scrub(e); });
         svg.addEventListener('pointermove', (e) => { if (dragging) scrub(e); });
@@ -74,6 +84,11 @@ export function makeSyncMatrix(host, playhead) {
   };
 }
 
+/**
+ * @param {{sel: any, commitment: any, exfilCommitment: any, horizon: number,
+ *          entities: any, catalogue: CatalogueRow[], coincidences: CoincidenceWindow[],
+ *          tx: (t: number) => number}} args
+ */
 function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalogue, coincidences, tx }) {
   const dataBottom = TOP + (catalogue.length - 1) * (TH + GAP) + TH;
 
@@ -96,7 +111,7 @@ function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalog
     body += renderTrack(row, { sel, commitment, entities, yTop, tx, horizon });
     return `<g>
       <text x="4" y="${yTop + 13}" class="sm-label">${esc(row.label)}</text>
-      <text x="4" y="${yTop + 25}" class="sm-prov" fill="${PROV_COLOR[prov.kind]}">${esc(provText)}</text>
+      <text x="4" y="${yTop + 25}" class="sm-prov" fill="${PROV_COLOR[/** @type {keyof typeof PROV_COLOR} */ (prov.kind)]}">${esc(provText)}</text>
       ${body}</g>`;
   }).join('');
 
@@ -144,11 +159,17 @@ function buildSvg({ sel, commitment, exfilCommitment, horizon, entities, catalog
     ${guides}${rows}${advisory}${overlays}${axis}${cursor}</svg>`;
 }
 
-/** Project one catalogue row to SVG, dispatched by its render type. */
+/**
+ * Project one catalogue row to SVG, dispatched by its render type.
+ * @param {CatalogueRow} row
+ * @param {{sel: any, commitment: any, entities: any, yTop: number,
+ *          tx: (t: number) => number, horizon: number}} ctx
+ */
 function renderTrack(row, { sel, commitment, entities, yTop, tx, horizon }) {
   const ent = entities[row.entity];
   const asp = ent.aspects[row.aspect];
   const mid = yTop + TH / 2;
+  /** @param {string} msg */
   const empty = (msg) =>
     `<text x="${LBL + PW / 2}" y="${mid + 3}" text-anchor="middle" class="sm-empty">${esc(msg)}</text>`;
 
@@ -164,7 +185,7 @@ function renderTrack(row, { sel, commitment, entities, yTop, tx, horizon }) {
     if (!sel) return s + empty('select a COA to project own-force tracks');
     for (const leg of asp.segments(sel)) {
       const x = tx(leg.start_min), w = Math.max(2, tx(leg.end_min) - x);
-      s += `<rect x="${x}" y="${mid - 7}" width="${w}" height="14" rx="3" fill="${PHASE_COLOR[leg.kind]}">
+      s += `<rect x="${x}" y="${mid - 7}" width="${w}" height="14" rx="3" fill="${PHASE_COLOR[/** @type {keyof typeof PHASE_COLOR} */ (leg.kind)]}">
           <title>${esc(leg.label)} · H+${leg.start_min}–${leg.end_min}</title></rect>`;
       if (w > 22) s += `<text x="${x + 3}" y="${mid + 3}" class="sm-seg">${leg.kind[0].toUpperCase()}</text>`;
     }

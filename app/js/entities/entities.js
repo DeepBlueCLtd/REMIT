@@ -19,18 +19,54 @@
 import { stateAt } from '../kernel/kernel.js';
 import { TIDE, fordOpenAt } from '../kernel/world.js';
 
+/** A tidal-parameter set (the shape of {@link TIDE}). */
+/** @typedef {{ period_min: number, low_tide_min: number, open_half_width_min: number }} Tide */
+
+/** A satellite ephemeris parameter set (the shape of {@link SAT}). */
+/** @typedef {{ period_min: number, pass_min: number, first_center_min: number, name: string }} Sat */
+
+/** A time window [start,end] centred on `center`, all in mission-minutes. */
+/** @typedef {{ start: number, end: number, center: number }} Window */
+
+/**
+ * A typed time-function aspect of an entity (scalar | window | status | cell).
+ * Members vary by `type`; all are optional here so the union covers each variant.
+ * @typedef {object} Aspect
+ * @property {string} type
+ * @property {(plan: any, t: number) => any} [at]
+ * @property {(plan: any) => any[]} [segments]
+ * @property {(t: number) => boolean} [open]
+ * @property {(horizon: number) => Window[]} [windows]
+ * @property {string} [unit]
+ * @property {[number, number]} [domain]
+ */
+
+/** A located thing with identity, provenance, and typed aspects (DEC-52). */
+/** @typedef {{ id: string, label: string, provenance: { kind: string, confidence?: string, freshness?: string }, aspects: Record<string, Aspect> }} Entity */
+
+/** The set of entities projected by the Sync Matrix, keyed by short name. */
+/** @typedef {Record<string, Entity>} Entities */
+
+/** A coincidence rule: a declared conjunction over entity aspects (CONFIG). */
+/** @typedef {{ id: string, label: string, color: string, hint: string, tracks: string[], holds: (ctx: { entities: Entities, sel?: any, t: number }) => boolean }} CoincidenceRule */
+
+/** A materialised coincidence window: a rule's conjunction holding over [start,end]. */
+/** @typedef {{ id: string, label: string, hint: string, color: string, tracks: string[], start: number, end: number }} CoincidenceWindow */
+
 /** Mock ephemeris for one recce satellite (a PROVIDER entity, DEC-49): an
  *  overhead pass every ~95 min, 18 min wide, first centred at H+60 — so the
  *  first pass falls across the default OP dwell, a coincidence to spot. */
 export const SAT = { period_min: 95, pass_min: 18, first_center_min: 60, name: 'IKAROS-3' };
 
 /** Tide height 0 (low water → ford wadeable) … 1 (high), from the same params
- *  the kernel crosses against. */
+ *  the kernel crosses against.
+ *  @param {number} t @param {Tide} [tide] */
 export function tideHeight(t, tide = TIDE) {
   return 0.5 - 0.5 * Math.cos((2 * Math.PI * (t - tide.low_tide_min)) / tide.period_min);
 }
 
-/** Open crossing windows [start,end] (ford wadeable) within [0, horizon]. */
+/** Open crossing windows [start,end] (ford wadeable) within [0, horizon].
+ *  @param {number} horizon @param {Tide} [tide] */
 export function crossingWindows(horizon, tide = TIDE) {
   const out = [];
   const k0 = Math.floor((0 - tide.low_tide_min) / tide.period_min) - 1;
@@ -44,7 +80,8 @@ export function crossingWindows(horizon, tide = TIDE) {
   return out;
 }
 
-/** Satellite overhead-pass windows within [0, horizon] (the PROVIDER track). */
+/** Satellite overhead-pass windows within [0, horizon] (the PROVIDER track).
+ *  @param {number} horizon @param {Sat} [sat] */
 export function satPasses(horizon, sat = SAT) {
   const out = [];
   for (let c = sat.first_center_min; c - sat.pass_min / 2 <= horizon; c += sat.period_min) {
@@ -54,7 +91,8 @@ export function satPasses(horizon, sat = SAT) {
   return out;
 }
 
-/** Is the satellite overhead at minute t? */
+/** Is the satellite overhead at minute t?
+ *  @param {number} t @param {Sat} [sat] */
 export function satOverhead(t, sat = SAT) {
   const ph = ((t - sat.first_center_min) % sat.period_min + sat.period_min) % sat.period_min;
   return Math.min(ph, sat.period_min - ph) <= sat.pass_min / 2;
@@ -64,6 +102,7 @@ export function satOverhead(t, sat = SAT) {
  * Build the entity set projected by the Sync Matrix (display-only, DEC-52/53
  * v1). Aspects are typed time-functions; `at(plan, t)` is the single read used
  * by both the track renderer and the cursor readout (NF1).
+ * @returns {Entities}
  */
 export function buildEntities() {
   return {
@@ -72,20 +111,20 @@ export function buildEntities() {
       provenance: { kind: 'self' },
       aspects: {
         phase: { type: 'status',
-                 at: (plan, t) => (plan ? stateAt(plan, t)?.phase : null),
-                 segments: (plan) => plan?.materialisation?.schedule ?? [] },
-        fuel:  { type: 'scalar', unit: '%', domain: [0, 100],
-                 at: (plan, t) => (plan ? stateAt(plan, t)?.fuel_pct : null) },
+                 at: (/** @type {any} */ plan, /** @type {number} */ t) => (plan ? stateAt(plan, t)?.phase : null),
+                 segments: (/** @type {any} */ plan) => plan?.materialisation?.schedule ?? [] },
+        fuel:  { type: 'scalar', unit: '%', domain: /** @type {[number, number]} */ ([0, 100]),
+                 at: (/** @type {any} */ plan, /** @type {number} */ t) => (plan ? stateAt(plan, t)?.fuel_pct : null) },
       },
     },
     tide: {
       id: 'ent-tide', label: 'Tide · K-7 ford',
       provenance: { kind: 'forecast', confidence: 'high', freshness: 'provisioned' },
       aspects: {
-        height: { type: 'scalar', unit: '', domain: [0, 1],
-                  at: (_plan, t) => tideHeight(t),
-                  open: (t) => fordOpenAt(t),
-                  windows: (h) => crossingWindows(h) },
+        height: { type: 'scalar', unit: '', domain: /** @type {[number, number]} */ ([0, 1]),
+                  at: (/** @type {any} */ _plan, /** @type {number} */ t) => tideHeight(t),
+                  open: (/** @type {number} */ t) => fordOpenAt(t),
+                  windows: (/** @type {number} */ h) => crossingWindows(h) },
       },
     },
     sat: {
@@ -93,8 +132,8 @@ export function buildEntities() {
       provenance: { kind: 'provider', confidence: 'high', freshness: 'ephemeris' },
       aspects: {
         pass: { type: 'window',
-                at: (_plan, t) => satOverhead(t),
-                windows: (h) => satPasses(h) },
+                at: (/** @type {any} */ _plan, /** @type {number} */ t) => satOverhead(t),
+                windows: (/** @type {number} */ h) => satPasses(h) },
       },
     },
   };
@@ -124,45 +163,53 @@ export function syncCatalogue() {
 // discipline, DEC-32): it surfaces an opportunity the operator may exploit.
 // (First-class coincidence objects, exploitable by the kernel, are H3.)
 
-/** Coincidence rules (CONFIG) — each a conjunction over entity aspects. */
+/** Coincidence rules (CONFIG) — each a conjunction over entity aspects.
+ *  @returns {CoincidenceRule[]} */
 export function coincidenceRules() {
   return [
     { id: 'imagery', label: 'Imagery window', color: '#f0b429',
       hint: 'recce satellite overhead during the OP observation',
       tracks: ['self.phase', 'sat.pass'],
       holds: ({ entities, sel, t }) =>
-        entities.self.aspects.phase.at(sel, t) === 'visit' &&
-        entities.sat.aspects.pass.at(null, t) === true },
+        entities.self.aspects.phase.at?.(sel, t) === 'visit' &&
+        entities.sat.aspects.pass.at?.(null, t) === true },
     { id: 'dry-crossing', label: 'Tide-aligned crossing', color: '#38d39f',
       hint: 'crossing K-7 while the low-tide window is open',
       tracks: ['self.phase', 'tide.height'],
       holds: ({ entities, sel, t }) =>
-        entities.self.aspects.phase.at(sel, t) === 'exfil' &&
-        entities.tide.aspects.height.open(t) === true },
+        entities.self.aspects.phase.at?.(sel, t) === 'exfil' &&
+        entities.tide.aspects.height.open?.(t) === true },
     // Pure forecast × provider — no own-force term, so this one surfaces from the
     // World step before any COA exists (advisory coincidence is not plan-coupled).
     { id: 'open-ford-pass', label: 'Overpass · open ford', color: '#5aa9e6',
       hint: 'recce satellite overhead while the K-7 ford is open — image a live crossing',
       tracks: ['tide.height', 'sat.pass'],
       holds: ({ entities, t }) =>
-        entities.tide.aspects.height.open(t) === true &&
-        entities.sat.aspects.pass.at(null, t) === true },
+        entities.tide.aspects.height.open?.(t) === true &&
+        entities.sat.aspects.pass.at?.(null, t) === true },
   ];
 }
 
 /**
  * Maximal time intervals in [0, horizon] where a rule's conjunction holds.
  * Pure scan at `step`-minute resolution (advisory, so coarse is fine).
- * @returns {{id:string,label:string,hint:string,color:string,tracks:string[],start:number,end:number}[]}
+ * @param {CoincidenceRule[]} rules
+ * @param {Entities} entities
+ * @param {any} sel  the selected plan/COA (opaque serialisable blob)
+ * @param {number} horizon
+ * @param {number} [step]
+ * @returns {CoincidenceWindow[]}
  */
 export function coincidenceWindows(rules, entities, sel, horizon, step = 1) {
   const out = [];
   for (const rule of rules) {
-    let start = null, prev = false;
+    /** @type {number | null} */ let start = null;
+    let prev = false;
     for (let t = 0; t <= horizon + 1e-6; t += step) {
       const on = !!rule.holds({ entities, sel, t });
       if (on && !prev) start = t;
-      if (!on && prev) { out.push(win(rule, start, t - step)); start = null; }
+      // `prev` only flips true after `start` is set, so it is a number here.
+      if (!on && prev) { out.push(win(rule, /** @type {number} */ (start), t - step)); start = null; }
       prev = on;
     }
     if (prev && start != null) out.push(win(rule, start, horizon));
@@ -170,6 +217,12 @@ export function coincidenceWindows(rules, entities, sel, horizon, step = 1) {
   return out;
 }
 
+/**
+ * @param {CoincidenceRule} rule
+ * @param {number} start
+ * @param {number} end
+ * @returns {CoincidenceWindow}
+ */
 const win = (rule, start, end) => ({
   id: rule.id, label: rule.label, hint: rule.hint, color: rule.color,
   tracks: rule.tracks, start: Math.round(start * 10) / 10, end: Math.round(end * 10) / 10,

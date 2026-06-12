@@ -10,11 +10,16 @@
 import { roles, STUB_BLURB } from './roles.js';
 import { context } from './context.js';
 
+/** @typedef {import('./roles.js').RoleTab} RoleTab */
+
 const HASH_RE = /tab=([\w-]+)/;
 const hashTab = () => location.hash.match(HASH_RE)?.[1] ?? null;
+/** @param {string} id */
 const setHash = (id) => history.replaceState(null, '', `#tab=${id}`);
+/** @param {string} m */
 const fault = (m) => /** @type {any} */ (window).__remitFault?.(m);
-const msg = (err) => (err && err.message ? err.message : String(err));
+/** @param {unknown} err */
+const msg = (err) => (err && /** @type {any} */ (err).message ? /** @type {any} */ (err).message : String(err));
 
 const defs = roles();
 const mounted = new Set();
@@ -35,6 +40,7 @@ export function boot() {
   activate(hashTab() ?? 'overview', false);
 }
 
+/** @param {RoleTab} r */
 function buildTab(r) {
   const wrap = document.createElement('span');
   wrap.className = 'tab-wrap';
@@ -81,15 +87,17 @@ function buildTab(r) {
   }
 }
 
+/** @param {RoleTab} r */
 function stubPane(r) {
   return `<div class="stub-pane" data-testid="stub-${r.id}">
     <h2>${r.label} <span class="chip">coming soon</span></h2>
-    <p class="muted">${STUB_BLURB[r.id] ?? 'Role surface to be built.'}</p>
+    <p class="muted">${/** @type {Record<string, string>} */ (STUB_BLURB)[r.id] ?? 'Role surface to be built.'}</p>
     <p class="muted">A config-declared view over the shared store — read via projections,
        write only via scoped stamped deltas (DEC-61).</p>
   </div>`;
 }
 
+/** @param {string} id @param {boolean} viaUser */
 async function activate(id, viaUser) {
   const r = defs.find((d) => d.id === id) ?? defs[0];
   for (const d of defs) {
@@ -111,6 +119,7 @@ async function activate(id, viaUser) {
   }
 }
 
+/** @param {KeyboardEvent} e */
 function onKeydown(e) {
   const order = defs.map((d) => d.id);
   const cur = order.findIndex((id) =>
@@ -128,6 +137,7 @@ function onKeydown(e) {
 
 // --- pop-out / pop-in -------------------------------------------------------
 
+/** @param {string} id */
 function popOut(id) {
   const existing = poppedOut.get(id);
   if (existing && !existing.closed) { existing.focus(); return; }
@@ -154,6 +164,7 @@ function popOut(id) {
   activate('overview', true);   // free the main window to drive the mission
 }
 
+/** @param {string} id */
 function poppedPlaceholder(id) {
   const r = defs.find((d) => d.id === id);
   return `<div class="popped-placeholder" data-testid="popped-${id}">

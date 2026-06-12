@@ -14,7 +14,7 @@
  *          missionId: string,
  *          ids: {requirement: string, baseline: string, profile: string, rationale: string},
  *          world: any, selectedPlan: any, handful: any[],
- *          appetites: Record<string,string>, strategySeed: number,
+ *          appetites: Record<string,string>, steering: any, strategySeed: number,
  *          configCoreHash: string,
  *          execSummary: any}} ctx
  */
@@ -31,11 +31,13 @@ export async function mountLearn(el, ctx) {
   const rationale = ratRes.body;
   const plan = ctx.selectedPlan;
   const plannedArrival = plan.materialisation.schedule[0].end_min;
-  const plannedRv = plan.materialisation.schedule.findLast((s) => s.kind === 'exfil')?.end_min;
-  const obsSat = plan.scores.satisfaction.find((s) => s.label === 'Observe OP');
-  const exfSat = plan.scores.satisfaction.find((s) => s.label === 'Exfil E');
+  const plannedRv = plan.materialisation.schedule.findLast((/** @type {any} */ s) => s.kind === 'exfil')?.end_min;
+  const obsSat = plan.scores.satisfaction.find((/** @type {any} */ s) => s.label === 'Observe OP');
+  const exfSat = plan.scores.satisfaction.find((/** @type {any} */ s) => s.label === 'Exfil E');
 
+  /** @param {string} v */
   const verdictCell = (v) => `<span class="${v}">${v}</span>`;
+  /** @param {string} k @param {string} planned @param {string} actual */
   const row = (k, planned, actual) =>
     `<tr><td>${k}</td><td>${planned}</td><td>${actual}</td></tr>`;
 
@@ -48,7 +50,7 @@ export async function mountLearn(el, ctx) {
       <div class="card">
         <h3>The decision</h3>
         <p>chosen <code class="hash">${rationale.chosen.slice(7, 15)}</code>
-           over ${rationale.beaten.map((b) => `<code class="hash">${b.slice(7, 15)}</code>`).join(' ')}</p>
+           over ${rationale.beaten.map((/** @type {string} */ b) => `<code class="hash">${b.slice(7, 15)}</code>`).join(' ')}</p>
         <p>deciding axis: <b>${rationale.deciding_axis}</b> — “${rationale.note}”</p>
         <p class="muted">appetites: tempo ${rationale.appetites?.tempo ?? '—'}, exposure ${rationale.appetites?.exposure ?? '—'}${rationale.mitigations?.length ? ` · mitigations: <b>${rationale.mitigations.join(', ')}</b>` : ''}</p>
         <p class="muted">by ${rationale.by} (${rationale.role} hat), ${rationale.at}</p>
@@ -69,7 +71,7 @@ export async function mountLearn(el, ctx) {
     </div>
     <h3>Execution log (${log.length} entries)</h3>
     <ol class="exec-log">
-      ${log.map((e) => `<li><span class="log-at">H+${e.at}</span> <b>${e.kind}</b> ·
+      ${log.map((/** @type {any} */ e) => `<li><span class="log-at">H+${e.at}</span> <b>${e.kind}</b> ·
         ${e.kind === 'Alert' ? `${e.cause.from} → ${e.cause.to}` : e.fact_delta?.note ?? ''}</li>`).join('')}
     </ol>
     <div class="card replay-card">
@@ -93,8 +95,8 @@ export async function mountLearn(el, ctx) {
       appetites: ctx.appetites, steering: ctx.steering ?? [], strategy_seed: ctx.strategySeed,
       ao: ctx.world.ao,
     });
-    const before = ctx.handful.map((p) => p.id);
-    const after = rerun.plans.map((p) => p.id);
+    const before = ctx.handful.map((/** @type {any} */ p) => p.id);
+    const after = rerun.plans.map((/** @type {any} */ p) => p.id);
     const identical = before.length === after.length && before.every((id, i) => id === after[i]);
     /** @type {HTMLElement} */ (el.querySelector('#aa-replay-result')).innerHTML = identical
       ? '<span class="ok">✓ identical decision — same stamp, same plans, same ids</span>'

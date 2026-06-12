@@ -18,23 +18,54 @@ import { contentId } from '../shapes/canonical.js';
 
 export const KERNEL_VERSION = 'mock-0.2';
 
-/** DEC-22 v1 strategy axes (the fan-out that makes a handful). */
+/**
+ * The hex AO built by `buildHexAO` (hexgrid.js) — stable ids, frozen adjacency, geometry.
+ * @typedef {{
+ *   indexes: string[], idOf: Map<string,number>, N: number,
+ *   centers: [number,number][], boundaries: [number,number][][],
+ *   adj: number[][], stepM: number
+ * }} Ao
+ */
+
+/** One baseline cell (world.js `buildWorld`): terrain kind + its movement attributes. */
+/** @typedef {{ terrain: string, mobility: number, cover: number }} Cell */
+
+/** Own-force profile — only the land speed is read by the kernel. */
+/** @typedef {{ speed_by_medium: { land_kph: number } }} Profile */
+
+/** A scheduled leg in a plan's materialisation (schedule entry / exfil leg). */
+/** @typedef {{ kind: string, label?: string, start_min: number, end_min: number, commitment_id?: string }} Leg */
+
+/** A trajectory sample: the hex identity (`h3`) + centroid lat/lng, plot time `t`, fuel. */
+/** @typedef {{ h3: string, lat: number, lng: number, t: number, fuel_pct: number }} TrajPoint */
+
+/** One strategy bias axis (DEC-22). `key` drives both the search warp and the band maps. */
+/** @typedef {{ key: 'direct' | 'tracked' | 'covered', label: string, axis: string, blurb: string }} Strat */
+
+/** DEC-22 v1 strategy axes (the fan-out that makes a handful).
+ *  @type {Strat[]} */
 const STRATEGIES = [
   { key: 'direct',  label: 'Direct',  axis: 'time/speed',   blurb: 'shortest time, cuts cross-country' },
   { key: 'tracked', label: 'Tracked', axis: 'completeness', blurb: 'hugs roads — predictable, fast, exposed' },
   { key: 'covered', label: 'Covered', axis: 'exposure',     blurb: 'maximises cover — slow, concealed' },
 ];
 
+/** @param {number} n */
 const round1 = (n) => Math.round(n * 10) / 10;
+/** @param {Cell[]} cells @param {number} id */
 const isFord = (cells, id) => cells[id].terrain === 'ford';
+/** @param {Cell[]} cells @param {Ao} ao @param {number} id */
 const isBank = (cells, ao, id) =>
   !isFord(cells, id) && cells[id].mobility > 0 && ao.adj[id].some((n) => isFord(cells, n));
-/** Trajectory point for a hex id: the H3 string (identity) + centroid lat/lng (render/interp). */
+/** Trajectory point for a hex id: the H3 string (identity) + centroid lat/lng (render/interp).
+ *  @param {Ao} ao @param {number} id */
 const pt = (ao, id) => ({ h3: ao.indexes[id], lat: ao.centers[id][0], lng: ao.centers[id][1] });
 
 /**
  * Minutes to traverse between two adjacent hexes (uniform parametric MovementModel:
  * speed = profile speed × mean mobility; one isotropic hex step, no diagonal).
+ * @param {Cell[]} cells @param {Profile} profile @param {Ao} ao
+ * @param {number} from @param {number} to
  */
 function edgeMinutes(cells, profile, ao, from, to) {
   if (cells[from].mobility === 0 || cells[to].mobility === 0) return Infinity;
@@ -44,9 +75,13 @@ function edgeMinutes(cells, profile, ao, from, to) {
 
 /** Strategy-biased search cost (minute-equivalents). The bias warps the SEARCH metric only;
  *  materialised time always uses the real movement model. `nogo` is the set of operator
- *  no-go hex ids (steering, DEC-24): impassable to the search. */
+ *  no-go hex ids (steering, DEC-24): impassable to the search.
+ *  @param {string} strategy @param {Cell[]} cells @param {Profile} profile
+ *  @param {Ao} ao @param {Set<number>} nogo */
 function strategyCost(strategy, cells, profile, ao, nogo) {
+  /** @param {Cell} c */
   const roadlike = (c) => c.terrain === 'road' || c.terrain === 'track';
+  /** @param {number} from @param {number} to */
   return (from, to) => {
     if (nogo.has(to) || nogo.has(from)) return Infinity;
     const t = edgeMinutes(cells, profile, ao, from, to);
@@ -60,7 +95,8 @@ function strategyCost(strategy, cells, profile, ao, nogo) {
   };
 }
 
-/** Margin band from a slack in minutes (NF10 vocabulary). */
+/** Margin band from a slack in minutes (NF10 vocabulary).
+ *  @param {number} slackMin @param {number} unit */
 export function bandFor(slackMin, unit) {
   if (slackMin < 0) return 'violated';
   if (slackMin >= 2 * unit) return 'robust';
@@ -78,8 +114,12 @@ export function bandFor(slackMin, unit) {
 /**
  * Materialise the exfil from `fromId` to `rvId` departing at `departMin` with the real
  * movement model and tide. Returns null only if there is no crossing at all.
+ * @param {Cell[]} cells @param {Ao} ao @param {Profile} profile
+ * @param {number} fromId @param {number} rvId @param {number} departMin @param {number} fuel0
+ * @param {(from:number, to:number) => number} cost @param {string} [suffix]
  */
 function materialiseExfil(cells, ao, profile, fromId, rvId, departMin, fuel0, cost, suffix = '') {
+  /** @param {number} a @param {number} b */
   const edgeMin = (a, b) => edgeMinutes(cells, profile, ao, a, b);
   const stepMin = (ao.stepM / 1000 / profile.speed_by_medium.land_kph) * 60;
   const res = findPathTimed(ao, fromId, rvId, departMin, {
@@ -135,7 +175,10 @@ function materialiseExfil(cells, ao, profile, fromId, rvId, departMin, fuel0, co
 /**
  * The kernel call behind POST /plan/handful. Pure function of its inputs: same body →
  * same plans, ids included (NF3, decision-level). `input.ao` is the hex AO (by reference;
- * not part of the content-addressed baseline).
+ * not part of the content-addressed baseline). `input` is the opaque serialisable POST
+ * body (the seam types it `any`); its runtime waypoint/state shapes carry `h3`, diverging
+ * from the square-grid generated schema, so it stays `any` rather than mistyped.
+ * @param {any} input
  */
 export async function planHandful(input) {
   const { baseline, profile, state, ao } = input;
@@ -186,9 +229,11 @@ export async function planHandful(input) {
     // The approach is genuinely overland: tidal fords are impassable on the way IN (the
     // river is crossed only at exfil, tide-gated). Without this the static search wades
     // the fords — which span the sampled estuary — instead of driving the bank around it.
+    /** @param {number} from @param {number} to */
     const approachCost = (from, to) => (isFord(cells, from) || isFord(cells, to)) ? Infinity : cost(from, to);
     const hScale = stepMin * (strat.key === 'tracked' ? 0.65 : 1);
-    const hTo = (goal) => (id) => hexDistance(ao, id, goal) * hScale;
+    /** @param {number} goal */
+    const hTo = (goal) => /** @param {number} id */ (id) => hexDistance(ao, id, goal) * hScale;
     const leg1 = findPath(ao, startId, opId, approachCost, hTo(opId));    // base → OP (overland)
 
     if (leg1 === null) {
@@ -207,6 +252,7 @@ export async function planHandful(input) {
     // the clock shifts. A point at the OP at dwellEnd makes the position stand still through
     // the visit before the time-dependent exfil runs; a point at base at departMin does the
     // same for a delayed departure.
+    /** @param {number} departMin */
     const materialise = (departMin) => {
       let t = departMin, f = state.endurance_fuel_pct;
       const traj = [{ ...pt(ao, startId), t: round1(state.clock_min), fuel_pct: round1(f) }];
@@ -239,7 +285,8 @@ export async function planHandful(input) {
     // departures stagger (you watch two vehicles move at different times, not one overlapping
     // marker). The drive-the-road COA keeps its early departure; only a tidal wait is deferred.
     if (m.exfil && m.exfil.wait_min > 0) {
-      const bankHold = m.exfil.legs.find((l) => l.kind === 'hold');
+      // wait_min > 0 ⟹ materialiseExfil emitted a 'hold' leg, so this find always hits.
+      const bankHold = /** @type {Leg} */ (m.exfil.legs.find((l) => l.kind === 'hold'));
       const tApproach = m.arrival - state.clock_min;
       const tFord = bankHold ? bankHold.start_min - m.dwellEnd : 0;          // OP → bank time
       const depart = round1(bankHold.end_min - tFord - duration - tApproach); // just-in-time
@@ -286,12 +333,26 @@ export async function planHandful(input) {
   return { plans, kernel_version: KERNEL_VERSION };
 }
 
+/**
+ * Scoring/assembly context for one plan. The commitments (`visitC`/`exfilC`) are slices of
+ * the opaque requirement blob — only their `id` is read here.
+ * @typedef {{
+ *   visitC: any, exfilC: any, unit: number,
+ *   latestOkArrival: number, arrival?: number,
+ *   exfilDeadline: number | null, rvArrival?: number | null,
+ *   conflicts?: any[], tideDecision?: any
+ * }} PlanCtx
+ */
+
 /** Assemble Plan with id = hash({stamp, strategy}) and banded scores over every
- *  commitment (visit + optional exfil). */
+ *  commitment (visit + optional exfil). `stamp` / `materialisation` are the opaque
+ *  serialisable plan blobs (stamp is content-hashed; materialisation may be null).
+ *  @param {any} stamp @param {Strat} strat @param {any} materialisation @param {PlanCtx} ctx */
 async function finalisePlan(stamp, strat, materialisation, ctx) {
   const { visitC, exfilC, unit, latestOkArrival, arrival, exfilDeadline, rvArrival } = ctx;
   const infeasible = !materialisation;
 
+  /** @param {number} margin */
   const score = (margin) => {
     const band = bandFor(margin, unit);
     return { margin_min: margin, margin_band: band === 'violated' ? 'crossed' : band,
@@ -299,11 +360,11 @@ async function finalisePlan(stamp, strat, materialisation, ctx) {
   };
 
   const satisfaction = [];
-  const vMargin = infeasible ? -1 : round1(latestOkArrival - arrival);
+  const vMargin = infeasible ? -1 : round1(latestOkArrival - /** @type {number} */ (arrival));
   satisfaction.push({ commitment_id: visitC.id, label: 'Observe OP', ...score(vMargin) });
   let eVerdict = null;
   if (exfilC) {
-    const eMargin = infeasible || rvArrival == null ? -1 : round1(exfilDeadline - rvArrival);
+    const eMargin = infeasible || rvArrival == null ? -1 : round1(/** @type {number} */ (exfilDeadline) - rvArrival);
     const s = score(eMargin);
     eVerdict = s.verdict;
     satisfaction.push({ commitment_id: exfilC.id, label: 'Exfil E', ...s });
@@ -381,10 +442,11 @@ export function stateAt(plan, tau) {
 export function measuresAt(plan, t) {
   const m = plan.materialisation;
   if (!m) return null;
-  const st = stateAt(plan, t);
+  // m is truthy ⟹ stateAt sees the same materialisation and returns non-null here.
+  const st = /** @type {NonNullable<ReturnType<typeof stateAt>>} */ (stateAt(plan, t));
   const traj = m.trajectory;
-  const visit = m.schedule.find((s) => s.kind === 'visit');
-  const exfil = m.schedule.findLast((s) => s.kind === 'exfil');
+  const visit = m.schedule.find(/** @param {Leg} s */ (s) => s.kind === 'visit');
+  const exfil = m.schedule.findLast(/** @param {Leg} s */ (s) => s.kind === 'exfil');
 
   let dist = 0;
   for (let i = 1; i < traj.length; i++) {
@@ -398,7 +460,7 @@ export function measuresAt(plan, t) {
   let milestone;
   if (st.phase === 'transit') milestone = `OP in ${Math.round(Math.max(0, visit.start_min - t))} min`;
   else if (st.phase === 'hold') {
-    const leg = m.schedule.find((s) => s.kind === 'hold' && t >= s.start_min && t < s.end_min);
+    const leg = m.schedule.find(/** @param {Leg} s */ (s) => s.kind === 'hold' && t >= s.start_min && t < s.end_min);
     if (leg?.label?.includes('tide') || leg?.label?.includes('wath')) milestone = `awaiting low tide · waths open in ${Math.round(Math.max(0, leg.end_min - t))} min`;
     else if (leg?.label?.startsWith('Obstruction')) milestone = `track blocked · clears in ${Math.round(Math.max(0, leg.end_min - t))} min`;
     else milestone = 'holding — window not open';
@@ -413,6 +475,9 @@ export function measuresAt(plan, t) {
 
 /**
  * Live margin assessment of the OBSERVE commitment under an accumulated delay (NF1).
+ * `commitment` is a slice of the opaque requirement blob (its nested timing fields are
+ * optional in the generated schema), so it stays `any`.
+ * @param {any} plan @param {any} commitment @param {number} unit @param {number} [delayMin]
  */
 export function assess(plan, commitment, unit, delayMin = 0) {
   if (!plan.materialisation) {
@@ -420,16 +485,18 @@ export function assess(plan, commitment, unit, delayMin = 0) {
   }
   const window = commitment.activity.when.window;
   const duration = commitment.activity.duration.min_min;
-  const plannedArrival = plan.materialisation.schedule.findLast((s) => s.kind === 'transit').end_min;
+  const plannedArrival = plan.materialisation.schedule.findLast(/** @param {Leg} s */ (s) => s.kind === 'transit').end_min;
   const projected = round1(plannedArrival + delayMin);
   const margin = round1((window.end_min - duration) - projected);
   const band = bandFor(margin, unit);
   return { projected_arrival: projected, margin, band, verdict: margin < 0 ? 'violated' : 'satisfied' };
 }
 
-/** Margin assessment of the EXFIL commitment (deadline at RV East) under a delay. */
+/** Margin assessment of the EXFIL commitment (deadline at RV East) under a delay.
+ *  `commitment` is a slice of the opaque requirement blob, so it stays `any`.
+ *  @param {any} plan @param {any} commitment @param {number} unit @param {number} [delayMin] */
 export function assessExfil(plan, commitment, unit, delayMin = 0) {
-  const exfil = plan.materialisation?.schedule?.findLast((s) => s.kind === 'exfil');
+  const exfil = plan.materialisation?.schedule?.findLast(/** @param {Leg} s */ (s) => s.kind === 'exfil');
   if (!exfil) return { projected_arrival: null, margin: -1, band: 'violated', verdict: 'violated' };
   const deadline = commitment.activity.when.before_min;
   const projected = round1(exfil.end_min + delayMin);
@@ -442,12 +509,25 @@ export function assessExfil(plan, commitment, unit, delayMin = 0) {
 // Mid-mission re-routing (DEC-24/25): the operator blocks a hex ahead, and the wingman
 // re-plans locally from where the vehicle IS to the remaining objective.
 
-/** Spatial A* leg between hexes avoiding `blocked` (set of hex ids), real cost. */
+/** Spatial A* leg between hexes avoiding `blocked` (set of hex ids), real cost.
+ *  @param {Cell[]} cells @param {Ao} ao @param {Profile} profile
+ *  @param {number} fromId @param {number} toId @param {Set<number>} blocked */
 export function routeLeg(cells, ao, profile, fromId, toId, blocked) {
+  /** @param {number} a @param {number} b */
   const cost = (a, b) => (blocked.has(a) || blocked.has(b)) ? Infinity : edgeMinutes(cells, profile, ao, a, b);
   const stepMin = (ao.stepM / 1000 / profile.speed_by_medium.land_kph) * 60;
-  return findPath(ao, fromId, toId, cost, (id) => hexDistance(ao, id, toId) * stepMin);
+  return findPath(ao, fromId, toId, cost, /** @param {number} id */ (id) => hexDistance(ao, id, toId) * stepMin);
 }
+
+/**
+ * Re-routing options. `opId` is the OP hex (always routed to); `rvId` is the RV hex (null
+ * when there is no exfil); the rest are the clock/steering inputs and the hold to splice in.
+ * @typedef {{
+ *   cells: Cell[], ao: Ao, profile: Profile, tau: number, blocked: Set<number>,
+ *   opId: number, rvId: number | null, dwellMin: number, windowStart: number,
+ *   holdMin?: number, holdLabel?: string
+ * }} RerouteOpts
+ */
 
 /**
  * Re-route / re-time the in-flight plan from the vehicle's current hex to the remaining
@@ -455,25 +535,29 @@ export function routeLeg(cells, ao, profile, fromId, toId, blocked) {
  * a hold of `holdMin`, then splices a fresh, re-timed tail; the exfil goes through the same
  * time-dependent crossing search as planning. Mutates `plan.materialisation`. Returns true,
  * or false if the vehicle is blocked in.
+ * @param {any} plan @param {RerouteOpts} opts
  * @returns {boolean}
  */
 export function rerouteExecution(plan, opts) {
   const { cells, ao, profile, tau, blocked, opId, rvId, dwellMin, windowStart,
           holdMin = 0, holdLabel = 'Obstruction — track blocked' } = opts;
   const m = plan.materialisation;
-  const visit = m.schedule.find((s) => s.kind === 'visit');
-  const exfilCid = m.schedule.find((s) => s.kind === 'exfil')?.commitment_id;
+  const visit = m.schedule.find(/** @param {Leg} s */ (s) => s.kind === 'visit');
+  const exfilCid = m.schedule.find(/** @param {Leg} s */ (s) => s.kind === 'exfil')?.commitment_id;
   const reachedOP = tau >= visit.start_min;
-  const cur = stateAt(plan, tau);
-  const curId = ao.idOf.get(cur.h3);
+  // Reroute only runs on a live, materialised plan, so the vehicle has a position here.
+  const cur = /** @type {NonNullable<ReturnType<typeof stateAt>>} */ (stateAt(plan, tau));
+  const curId = /** @type {number} */ (ao.idOf.get(cur.h3)); // current hex is always in the AO
 
+  /** @param {number} a @param {number} b */
   const cost = (a, b) => (blocked.has(a) || blocked.has(b)) ? Infinity : edgeMinutes(cells, profile, ao, a, b);
 
   const t0 = round1(tau + holdMin);
   let t = t0, fuel = cur.fuel_pct;
-  const traj = m.trajectory.filter((p) => p.t < tau);
+  const traj = m.trajectory.filter(/** @param {TrajPoint} p */ (p) => p.t < tau);
   traj.push({ ...pt(ao, curId), t: round1(tau), fuel_pct: round1(fuel) });
   if (holdMin > 0) traj.push({ ...pt(ao, curId), t: t0, fuel_pct: round1(fuel) });
+  /** @param {number[]} path */
   const advance = (path) => {
     for (let i = 1; i < path.length; i++) {
       t += edgeMinutes(cells, profile, ao, path[i - 1], path[i]);
@@ -493,8 +577,11 @@ export function rerouteExecution(plan, opts) {
   }
   if (holdMin > 0) schedule.push({ kind: 'hold', label: holdLabel, start_min: round1(tau), end_min: t0 });
 
+  // spliceExfil is only reached when an exfil exists (rvId non-null): the !reachedOP branch
+  // guards with `rvId != null`; the reachedOP branch runs only for plans that carry an exfil.
+  /** @param {number} fromId @param {number} departMin */
   const spliceExfil = (fromId, departMin) => {
-    const ex = materialiseExfil(cells, ao, profile, fromId, rvId, departMin, fuel, cost, ' (re-routed)');
+    const ex = materialiseExfil(cells, ao, profile, fromId, /** @type {number} */ (rvId), departMin, fuel, cost, ' (re-routed)');
     if (!ex) return false;
     traj.push(...ex.points);
     for (const leg of ex.legs) schedule.push({ ...leg, commitment_id: exfilCid });

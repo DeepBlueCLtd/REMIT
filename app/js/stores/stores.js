@@ -80,7 +80,7 @@ export class LogStore {
 
   /**
    * @param {string} missionId
-   * @param {number} [after]  — return entries with at > after (sim minutes)
+   * @param {number} [after]  - return entries with at > after (sim minutes)
    */
   get(missionId, after) {
     const list = this.logs.get(missionId) ?? [];

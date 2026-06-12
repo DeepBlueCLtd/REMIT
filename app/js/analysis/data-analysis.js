@@ -28,7 +28,18 @@ const KNOWN_REFS = new Set([
 ]);
 const REF_ARRAYS = new Set(['excursions', 'parties', 'beaten']);
 
-/** Tiny hyperscript helper. */
+/** A name/value substring match surfaced by the search (see `matchObject`). */
+/** @typedef {{ key: string, value: string }} DaMatch */
+
+/** An index row from `objects.list()`, annotated with a transient search hint. */
+/** @typedef {{ id: string, type: string, bytes: number, _hint?: DaMatch | null }} DaRow */
+
+/**
+ * Tiny hyperscript helper.
+ * @param {string} tag
+ * @param {Record<string, string> | null} [attrs]
+ * @param {...(Node | string | null | undefined)} kids
+ */
 function h(tag, attrs, ...kids) {
   const e = document.createElement(tag);
   if (attrs) for (const k in attrs) {
@@ -37,7 +48,7 @@ function h(tag, attrs, ...kids) {
   }
   for (const kid of kids) {
     if (kid == null) continue;
-    e.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    e.append(typeof kid !== 'string' && kid.nodeType ? kid : document.createTextNode(String(kid)));
   }
   return e;
 }
@@ -71,6 +82,7 @@ export function mountDataAnalysis(container, ctx) {
   const currentId = () => (trail.length ? trail[trail.length - 1].id : null);
 
   // --- index pane ----------------------------------------------------------
+  /** @param {DaRow} rec */
   function rowLabel(rec) {
     const b = objects.get(rec.id)?.body ?? {};
     const s = b.name || b.strategy?.label || b.intent || b.id || '';
@@ -79,15 +91,16 @@ export function mountDataAnalysis(container, ctx) {
 
   function renderIndex() {
     indexEl.replaceChildren();
-    const list = objects.list();
+    /** @type {DaRow[]} */ const list = objects.list();
     if (!list.length) { indexEl.append(emptyState()); renderDetail(); return; }
 
-    /** @type {Map<string, any[]>} */ const groups = new Map();
+    /** @type {Map<string, DaRow[]>} */ const groups = new Map();
     for (const rec of list) {
       if (query) { const m = matchObject(rec, query); if (!m) continue; rec._hint = m; }
       else rec._hint = null;
-      if (!groups.has(rec.type)) groups.set(rec.type, []);
-      groups.get(rec.type).push(rec);
+      let bucket = groups.get(rec.type);
+      if (!bucket) groups.set(rec.type, bucket = []);
+      bucket.push(rec);
     }
     if (query && groups.size === 0) {
       indexEl.append(h('p', { class: 'muted' }, `No object matches “${query}”.`));
@@ -122,14 +135,15 @@ export function mountDataAnalysis(container, ctx) {
         'The shared store fills as you play the lifecycle. Switch to the Overview tab and run '
         + 'World → Capture → Plan to commit the first objects — or provision the area-of-operations objects now:'),
     );
-    const btn = h('button', { class: 'primary', type: 'button', 'data-testid': 'da-provision' },
-      'Provision area-of-operations objects');
+    const btn = /** @type {HTMLButtonElement} */ (h('button', { class: 'primary', type: 'button', 'data-testid': 'da-provision' },
+      'Provision area-of-operations objects'));
     btn.addEventListener('click', () => provision(btn));
     wrap.append(h('div', { class: 'row' }, btn),
       h('p', { class: 'muted' }, 'Same objects the World stage commits — content-addressed and idempotent.'));
     return wrap;
   }
 
+  /** @param {HTMLButtonElement} btn */
   async function provision(btn) {
     btn.disabled = true;
     try {
@@ -139,7 +153,8 @@ export function mountDataAnalysis(container, ctx) {
         seam.putObject('ConfigCore', world.configCore),
       ]);
     } catch (err) {
-      /** @type {any} */ (window).__remitFault?.(`provisioning: ${err?.message ?? err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      /** @type {any} */ (window).__remitFault?.(`provisioning: ${msg}`);
     }
     refresh();
   }
@@ -156,10 +171,12 @@ export function mountDataAnalysis(container, ctx) {
     for (const k of Object.keys(rec.body)) detailEl.append(fieldNode(k, rec.body[k], 0));
   }
 
+  /** @param {string} key @param {any} value */
   function isRef(key, value) {
     return typeof value === 'string' && (KNOWN_REFS.has(key) || value.startsWith('sha256:'));
   }
 
+  /** @param {string} value  a content-id reference @param {string} viaKey */
   function refChip(value, viaKey) {
     const target = objects.get(value);
     if (target) {
@@ -173,16 +190,19 @@ export function mountDataAnalysis(container, ctx) {
       shortId(value));
   }
 
+  /** @param {string} key @param {any} value */
   function valueInline(key, value) {
     if (isRef(key, value)) return refChip(value, key);
     if (BAND_FIELDS.has(key)) return h('span', { class: `band band-${value}` }, String(value));
     return h('span', { class: 'da-val' }, String(value));
   }
 
+  /** @param {string} key @param {Node} valueNode */
   function leaf(key, valueNode) {
     return h('div', { class: 'da-leaf' }, h('span', { class: 'da-key' }, `${key}: `), valueNode);
   }
 
+  /** @param {string} key @param {any} value @param {number} depth */
   function fieldNode(key, value, depth) {
     if (Array.isArray(value)) {
       const allRefs = value.length > 0 && value.every((v) => isRef('', v) || (typeof v === 'string' && v.startsWith('sha256:')));
@@ -211,8 +231,11 @@ export function mountDataAnalysis(container, ctx) {
   }
 
   // --- navigation ----------------------------------------------------------
+  /** @param {string} id */
   function openObject(id) { trail = [{ id, key: null }]; renderDetail(); renderCrumbs(); markSelected(); }
+  /** @param {string} id @param {string} viaKey */
   function drillTo(id, viaKey) { trail.push({ id, key: viaKey }); renderDetail(); renderCrumbs(); markSelected(); }
+  /** @param {number} i */
   function gotoCrumb(i) { trail = trail.slice(0, i + 1); renderDetail(); renderCrumbs(); markSelected(); }
 
   function markSelected() {
@@ -237,13 +260,18 @@ export function mountDataAnalysis(container, ctx) {
   }
 
   // --- search --------------------------------------------------------------
-  /** Deep-walk an object collecting a name/value substring match. */
+  /**
+   * Deep-walk an object collecting a name/value substring match.
+   * @param {DaRow} rec @param {string} q
+   * @returns {DaMatch | null}
+   */
   function matchObject(rec, q) {
     if (rec.type.toLowerCase().includes(q)) return { key: 'type', value: rec.type };
     if (shortId(rec.id).includes(q)) return { key: 'id', value: shortId(rec.id) };
     const full = objects.get(rec.id);
     if (!full) return null;
-    let hit = null;
+    /** @type {DaMatch | null} */ let hit = null;
+    /** @param {any} value @param {string} path */
     const walk = (value, path) => {
       if (hit || value == null) return;
       const t = typeof value;
@@ -271,14 +299,15 @@ export function mountDataAnalysis(container, ctx) {
   // change replaces it (left in place, not faded). Rapid successive writes — one
   // "generate" commits a Stamp + several Plans as separate calls — are coalesced
   // into a single batch via a short burst window so they light up together.
-  let glowingIds = new Set();
-  let glowBurst = null;
+  /** @type {Set<string>} */ let glowingIds = new Set();
+  /** @type {ReturnType<typeof setTimeout> | null} */ let glowBurst = null;
 
+  /** @param {string[]} added */
   function noteChange(added) {
     if (!added.length) return;
     if (glowBurst === null) glowingIds = new Set(added);   // new batch → clears the old glow
     else for (const id of added) glowingIds.add(id);       // within a burst → accumulate
-    clearTimeout(glowBurst);
+    clearTimeout(/** @type {ReturnType<typeof setTimeout>} */ (glowBurst));  // no-op when null
     glowBurst = setTimeout(() => { glowBurst = null; }, 600);
   }
 
@@ -292,7 +321,7 @@ export function mountDataAnalysis(container, ctx) {
   }
 
   function refresh() {
-    const cur = new Set(objects.list().map((o) => o.id));
+    const cur = new Set(objects.list().map((/** @type {DaRow} */ o) => o.id));
     if (!firstRefresh) noteChange([...cur].filter((id) => !seenIds.has(id)));
     firstRefresh = false;
     seenIds = cur;

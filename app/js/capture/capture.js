@@ -13,7 +13,8 @@ const EXFIL_DEADLINE_MIN = 180;   // command-fixed: be across the river by H+180
 /**
  * @param {HTMLElement} el
  * @param {{seam: import('../seam/seam.js').SeamClient,
- *          onPick?: (op: {x: number, y: number, key: string}) => void,
+ *          places: { ops: {key: string, name: string, h3: string}[], rvEast: {name: string, h3: string} },
+ *          onPick?: (op: {key: string, name: string, h3: string}) => void,
  *          onCommitted: (req: any, id: string) => void}} ctx
  */
 export function mountCapture(el, ctx) {
@@ -72,7 +73,8 @@ export function mountCapture(el, ctx) {
   const audit = /** @type {HTMLElement} */ (el.querySelector('#cap-audit'));
   const echo = /** @type {HTMLElement} */ (el.querySelector('#cap-echo'));
 
-  const opFor = (key) => PLACES.ops.find((o) => o.key === key);
+  const opFor = (/** @type {string} */ key) =>
+    /** @type {{key: string, name: string, h3: string}} */ (PLACES.ops.find((o) => o.key === key));
   const echoText = () => {
     const op = opFor(slots.where.value);
     return `ROVER-1 will VISIT ${op.name}, arriving not before `
@@ -93,10 +95,11 @@ export function mountCapture(el, ctx) {
 
   el.querySelectorAll('[data-slot]').forEach((input) => {
     input.addEventListener('change', () => {
-      const k = /** @type {HTMLElement} */ (input).dataset.slot;
+      const k = /** @type {keyof typeof slots} */ (/** @type {HTMLElement} */ (input).dataset.slot);
       const raw = /** @type {HTMLInputElement} */ (input).value;
-      slots[k].value = k === 'where' ? raw : Number(raw);
-      slots[k].status = 'confirmed';
+      const slot = /** @type {{value: string | number, status: string}} */ (slots[k]);
+      slot.value = k === 'where' ? raw : Number(raw);
+      slot.status = 'confirmed';
       renderLive();
     });
   });
