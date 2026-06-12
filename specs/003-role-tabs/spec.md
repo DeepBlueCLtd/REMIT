@@ -61,10 +61,12 @@ Asserted by `e2e/shell.spec.ts`, captured in `evidence/screenshots/`:
 - **First write — live steering (maintainer-directed extension).** Denying cells in Plan is
   the *application of intel*, so it is shared across the system: a `SteeringDelta`
   (`{scope, constraints: Constraint[], provenance}`) is written to the store on each no-go
-  change (debounced) and surfaces in the monitor like any other object. The `constraints`
-  payload is the schema's `Constraint` (DEC-24); the delta envelope (scope + attribution) is
-  the DEC-61 stamped-delta scaffolding — a first-class `Delta` + write-scope model follows in
-  the writes phase. Risk appetites stay **local** (a ranking lens), by the maintainer's call.
+  change (debounced) and surfaces in the monitor like any other object. The shape is
+  **LinkML-modeled, not hand-shaped** (ADR-0011/0012): `Delta` (abstract) + `SteeringDelta`
+  in `schema/records.yaml`, generated to `schema/gen/remit.{ts,schema.json}` and the HTML
+  reference; the payload reuses the schema's `Constraint` (DEC-24). Write-scope *enforcement*
+  (which role may write what) still follows in the writes phase. Risk appetites stay **local**
+  (a ranking lens), by the maintainer's call.
 - **Pop-out shares the opener's in-memory store** (same-origin `window.opener.__remit`): it
   lives only while the main window is open and does not survive a main-window reload (the
   child shows a recovery message). The future-proof path for feeds/multi-window writes is a

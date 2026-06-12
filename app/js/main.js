@@ -417,10 +417,15 @@ function shareSteering() {
   const key = cells.map((c) => `${c.x},${c.y}`).sort().join('|');
   if (key === lastSharedNogoKey) return;   // nothing net-new since the last share
   lastSharedNogoKey = key;
+  // Shape is the LinkML-generated SteeringDelta (records.yaml → schema/gen/remit.ts),
+  // not hand-shaped: scope + Constraint[] payload + flat attribution (by/role/at).
+  /** @type {import('../../schema/gen/remit').SteeringDelta} */
   const delta = {
     scope: 'steering',
     constraints: cells.length ? [{ type: 'no-go', cells }] : [],
-    provenance: { role: 'duty-officer-plans', by: 'operator', at: new Date().toISOString() },
+    by: 'operator',
+    role: 'duty-officer-plans',
+    at: new Date().toISOString(),
   };
   seam.putObject('SteeringDelta', delta).catch((err) => showFault(`sharing steering: ${err?.message ?? err}`));
 }

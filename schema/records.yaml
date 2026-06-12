@@ -133,3 +133,25 @@ classes:
       rationale_ref:
         range: SelectionRationale
         inlined: false
+  Delta:
+    abstract: true
+    description: 'A stamped cross-role write to the shared store (DEC-61): a role''s contribution is an attributed delta — the same write path that serialises over `/sync` later (DEC-25), so going multi-node is transport, not re-architecture. Base of the concrete delta kinds; v1 emits SteeringDelta. Write-scope *enforcement* is designed-for — the delta is attributed (NF2) but not yet scope-checked.'
+    attributes:
+      scope:
+        description: '"the write-scope this delta falls under — e.g. steering"'
+      by:
+        description: the contributing author
+      role:
+        description: '"the contributing role-hat — e.g. duty-officer-plans"'
+      at:
+        range: datetime
+        description: when it was contributed (DEC-15, NF2)
+  SteeringDelta:
+    is_a: Delta
+    description: 'The first DEC-61 write built in v1: an operator''s *applied intel* — denied (no-go) cells — shared to the store as steering constraints, where every surface (e.g. the Data Analysis monitor, including a popped-out one) sees it land. Risk appetites, by contrast, stay local (a ranking lens). Identity is content (DEC-35): the store keys it by the hash of its canonical form.'
+    attributes:
+      constraints:
+        range: Constraint
+        multivalued: true
+        inlined_as_list: true
+        description: the interpreted steering gestures shared (DEC-24) — e.g. no-go regions

@@ -378,8 +378,11 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   (`{scope:'steering', constraints: Constraint[], provenance}`) to the shared store (debounced
   ~450 ms, deduped on the cell set), where every surface — including a popped-out monitor —
   sees it land. Risk **appetites stay local** (a ranking lens), the explicit contrast. The
-  `constraints` payload rides the schema's `Constraint` (DEC-24); the delta envelope (scope +
-  attribution) is the DEC-61 stamped-delta *scaffolding* — a first-class `Delta` type and
-  **write-scope enforcement** (the write is attributed but not yet scope-checked) follow in the
-  proper writes phase. This makes the surface no longer strictly read-only, but holds NF1/NF2:
-  reads still project, and the write is attributed (role + author + time).
+  delta is **LinkML-modeled, not hand-shaped** (ADR-0011/0012): `Delta` (abstract) +
+  `SteeringDelta` in `schema/records.yaml` — following the `LogEntry` subtype and
+  `SelectionRationale` attribution patterns — generated to `schema/gen/remit.{ts,schema.json}`
+  and the HTML reference; the payload reuses the schema's `Constraint` (DEC-24), and `main.js`
+  references the generated `SteeringDelta` type. Only **write-scope enforcement** (the write is
+  attributed but not yet scope-checked) still follows in the writes phase. This makes the
+  surface no longer strictly read-only, but holds NF1/NF2: reads still project, and the write
+  is attributed (role + author + time).

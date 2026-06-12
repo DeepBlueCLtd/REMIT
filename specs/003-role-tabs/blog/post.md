@@ -60,9 +60,10 @@ Four moves, all read-only this phase:
 It stays honest to the architecture: surfaces **read via projections** (NF1), and the first
 DEC-61 **write** is now wired — denying cells in Plan is the *application of intel*, so it's
 shared to the store as an attributed `SteeringDelta` and shows up live in the monitor (risk
-appetites stay local — that's a ranking lens, not shared intel). No LinkML schema changed: the
-roles list is UI-only config (ADR-0012 §2) and the steering payload reuses the schema's
-`Constraint`.
+appetites stay local — that's a ranking lens, not shared intel). The roles list stays UI-only
+config (ADR-0012 §2), but the shared `SteeringDelta` is **modeled in LinkML** (`Delta` +
+`SteeringDelta`, generated to TypeScript / JSON Schema / the HTML reference) — data types
+belong in the source of truth (ADR-0011), not hand-shaped.
 
 ## Screenshots
 
