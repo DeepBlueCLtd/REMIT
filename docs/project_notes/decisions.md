@@ -372,3 +372,14 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   five non-Overview roles are labelled placeholders; their surfaces, and DEC-61 stamped-delta
   writes + write-scope enforcement, are the next phases. The entry module is now
   `js/shell/shell.js`.
+- **Addendum (2026-06-12) — first DEC-61 write: live steering.** On the maintainer's call,
+  denying cells in Plan is treated as the *application of intel* and shared across the system
+  rather than kept local: each no-go change writes a `SteeringDelta`
+  (`{scope:'steering', constraints: Constraint[], provenance}`) to the shared store (debounced
+  ~450 ms, deduped on the cell set), where every surface — including a popped-out monitor —
+  sees it land. Risk **appetites stay local** (a ranking lens), the explicit contrast. The
+  `constraints` payload rides the schema's `Constraint` (DEC-24); the delta envelope (scope +
+  attribution) is the DEC-61 stamped-delta *scaffolding* — a first-class `Delta` type and
+  **write-scope enforcement** (the write is attributed but not yet scope-checked) follow in the
+  proper writes phase. This makes the surface no longer strictly read-only, but holds NF1/NF2:
+  reads still project, and the write is attributed (role + author + time).

@@ -57,9 +57,12 @@ Four moves, all read-only this phase:
 - **Pop-out**: open the monitor in its own window, sharing the main window's live store. Drive
   the mission on the left, watch objects land and glow on the right.
 
-It stays honest to the architecture: surfaces **read via projections** (NF1) and the place
-where DEC-61 stamped-delta *writes* will hook in is marked but not built. No LinkML schema
-changed — the roles list is UI-only config (ADR-0012 §2).
+It stays honest to the architecture: surfaces **read via projections** (NF1), and the first
+DEC-61 **write** is now wired — denying cells in Plan is the *application of intel*, so it's
+shared to the store as an attributed `SteeringDelta` and shows up live in the monitor (risk
+appetites stay local — that's a ranking lens, not shared intel). No LinkML schema changed: the
+roles list is UI-only config (ADR-0012 §2) and the steering payload reuses the schema's
+`Constraint`.
 
 ## Screenshots
 

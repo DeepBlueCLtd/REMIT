@@ -136,6 +136,35 @@ test('data analysis: new objects glow, the glow persists, and a later change mov
   await expect(page.locator('#fault')).toBeHidden();
 });
 
+test('plan steering is shared to the store as a delta (first DEC-61 write)', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('world-provision').click();
+  await page.getByTestId('continue-capture').click();
+  await page.getByTestId('cap-commit').click();
+  await page.getByTestId('continue-plan').click();
+
+  // Enter no-go paint mode and deny a cell — the application of intel.
+  await page.getByTestId('plan-nogo').click();
+  const box = (await page.getByTestId('map').boundingBox())!;
+  await page.getByTestId('map').click({ position: { x: (23.5 / 28) * box.width, y: (5.5 / 18) * box.height } });
+  await expect.poll(() => page.getByTestId('map').getAttribute('data-nogo')).toContain('23,5');
+
+  // The denial is written to the shared store as a SteeringDelta (debounced),
+  // carrying the no-go constraint with the painted cell.
+  await expect.poll(() => page.evaluate(() => {
+    const rec = (window as any).__remit.objects.list().reverse().find((o: any) => o.type === 'SteeringDelta');
+    return rec ? (window as any).__remit.objects.get(rec.id).body.constraints[0].cells : [];
+  })).toContainEqual({ x: 23, y: 5 });
+
+  // And it surfaces in the Data Analysis monitor like any other shared object.
+  await page.getByTestId('tab-data-analysis').click();
+  await expect(page.getByTestId('da-index')).toContainText('SteeringDelta');
+  await page.locator('.da-group[data-group="SteeringDelta"] .da-row').first().click();
+  await expect(page.getByTestId('da-detail')).toContainText('no-go');
+  await shot(page, '05-steering-delta');
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
 test('pop-out: a separate window shares the same live store', async ({ page, context }) => {
   await page.goto('/#tab=data-analysis');
   await page.getByTestId('da-provision').click();

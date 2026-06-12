@@ -13,7 +13,8 @@ ADR-0012 (schema source-of-truth + UI-only exemption).
 
 ## Scope
 
-A read-only realisation of DEC-61's "config-declared role surfaces over one shared store":
+A v1 realisation of DEC-61's "config-declared role surfaces over one shared store" — read-only
+projections plus the first shared *write* (live steering):
 
 | Piece | What | Where |
 |---|---|---|
@@ -47,16 +48,23 @@ Asserted by `e2e/shell.spec.ts`, captured in `evidence/screenshots/`:
    closing it pops the view back in. `04-popout-main.png`
 5. **Search + glow** — the search box filters the index by entity name or value; newly
    committed objects glow yellow (row + type-group header). (asserted in-suite)
-6. **No regression** — the full `e2e/skeleton.spec.ts` lap passes unchanged (Overview is the
+6. **Live steering write** — denying a cell in Plan writes a `SteeringDelta` (with the no-go
+   `Constraint` and `provenance`) to the shared store, which surfaces in the monitor.
+   `05-steering-delta.png`
+7. **No regression** — the full `e2e/skeleton.spec.ts` lap passes unchanged (Overview is the
    default tab; `window.__remit.state/seam/objects` preserved).
 
 ## Notes & deviations
 
 - **No schema change (ADR-0012 §2).** The roles list is UI-only discrete config; the
   Operation/Scheme/Role/Delta LinkML classes remain designed-for (DEC-59/60/61), not built.
-- **Read-only this phase.** DEC-61's stamped-delta writes, write-scopes, allegiance, the
-  Operation→Scheme apex, registered bespoke surfaces and live source-provider ingress are
-  out of scope; the surface marks where `seam.putObject('Delta', …)` writes would hook in.
+- **First write — live steering (maintainer-directed extension).** Denying cells in Plan is
+  the *application of intel*, so it is shared across the system: a `SteeringDelta`
+  (`{scope, constraints: Constraint[], provenance}`) is written to the store on each no-go
+  change (debounced) and surfaces in the monitor like any other object. The `constraints`
+  payload is the schema's `Constraint` (DEC-24); the delta envelope (scope + attribution) is
+  the DEC-61 stamped-delta scaffolding — a first-class `Delta` + write-scope model follows in
+  the writes phase. Risk appetites stay **local** (a ranking lens), by the maintainer's call.
 - **Pop-out shares the opener's in-memory store** (same-origin `window.opener.__remit`): it
   lives only while the main window is open and does not survive a main-window reload (the
   child shows a recovery message). The future-proof path for feeds/multi-window writes is a
@@ -68,6 +76,7 @@ Asserted by `e2e/shell.spec.ts`, captured in `evidence/screenshots/`:
 
 ## Out of scope (this phase)
 
-The five role surfaces' actual content; stamped-delta writes + write-scope enforcement;
-allegiance (blue/red/green); Operation/End-State/Scheme; registered bespoke render-components;
+The five role surfaces' actual content; **write-scope enforcement** (the steering write is
+attributed but not yet scope-checked) and a first-class `Delta` type; allegiance
+(blue/red/green); Operation/End-State/Scheme; registered bespoke render-components;
 source-provider ingress / live feeds; multi-node distribution.
