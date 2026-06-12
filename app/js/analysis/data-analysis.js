@@ -111,6 +111,7 @@ export function mountDataAnalysis(container, ctx) {
       }
       indexEl.append(g);
     }
+    applyGlow();
   }
 
   function emptyState() {
@@ -266,27 +267,37 @@ export function mountDataAnalysis(container, ctx) {
   searchEl.addEventListener('input', () => { query = searchEl.value.trim().toLowerCase(); renderIndex(); });
 
   // --- change glow + live refresh -----------------------------------------
-  function flash(el, soft) {
-    if (!el) return;
-    const cls = soft ? 'glow-soft' : 'glow';
-    el.classList.remove(cls);
-    void (/** @type {HTMLElement} */ (el).offsetWidth);   // reflow → restart animation
-    el.classList.add(cls);
-    el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+  // The glow is persistent: the most-recent change set stays lit until the next
+  // change replaces it (left in place, not faded). Rapid successive writes — one
+  // "generate" commits a Stamp + several Plans as separate calls — are coalesced
+  // into a single batch via a short burst window so they light up together.
+  let glowingIds = new Set();
+  let glowBurst = null;
+
+  function noteChange(added) {
+    if (!added.length) return;
+    if (glowBurst === null) glowingIds = new Set(added);   // new batch → clears the old glow
+    else for (const id of added) glowingIds.add(id);       // within a burst → accumulate
+    clearTimeout(glowBurst);
+    glowBurst = setTimeout(() => { glowBurst = null; }, 600);
+  }
+
+  /** Re-apply the persistent glow after each index rebuild. */
+  function applyGlow() {
+    for (const id of glowingIds) {
+      indexEl.querySelector(`[data-testid="da-row-${shortId(id)}"]`)?.classList.add('glow');
+      const type = objects.get(id)?.type;
+      if (type) indexEl.querySelector(`.da-group[data-group="${type}"] > h3`)?.classList.add('glow-soft');
+    }
   }
 
   function refresh() {
-    renderIndex();
-    markSelected();
     const cur = new Set(objects.list().map((o) => o.id));
-    if (firstRefresh) { firstRefresh = false; seenIds = cur; return; }
-    for (const id of cur) {
-      if (seenIds.has(id)) continue;
-      flash(indexEl.querySelector(`[data-testid="da-row-${shortId(id)}"]`), false);
-      const type = objects.get(id)?.type;
-      if (type) flash(indexEl.querySelector(`.da-group[data-group="${type}"] > h3`), true);
-    }
+    if (!firstRefresh) noteChange([...cur].filter((id) => !seenIds.has(id)));
+    firstRefresh = false;
     seenIds = cur;
+    renderIndex();   // re-applies the persistent glow via applyGlow()
+    markSelected();
   }
 
   // Repaint only while actually visible: the tab-view is active, or we're in a

@@ -111,7 +111,7 @@ test('data analysis: search filters by name or value', async ({ page }) => {
   await expect(page.locator('#fault')).toBeHidden();
 });
 
-test('data analysis: new objects glow when they land', async ({ page }) => {
+test('data analysis: new objects glow, the glow persists, and a later change moves it', async ({ page }) => {
   await page.goto('/#tab=data-analysis');
   await page.getByTestId('da-provision').click();        // seeds the baseline (no glow)
   await expect(page.getByTestId('da-index')).toContainText('Baseline');
@@ -119,9 +119,20 @@ test('data analysis: new objects glow when they land', async ({ page }) => {
   // Commit a new object into the shared store while the monitor is visible: it
   // appears and glows (the same hook future mock feeds will fire).
   await page.evaluate(() =>
-    (window as any).__remit.seam.putObject('Requirement', { id: 'probe-1', intent: 'glow probe' }));
-  await expect(page.getByTestId('da-index')).toContainText('glow probe');
-  await expect(page.locator('.da-row.glow').first()).toBeVisible();   // caught within the ~1.8s animation
+    (window as any).__remit.seam.putObject('Requirement', { id: 'probe-1', intent: 'glow probe one' }));
+  const probe1 = page.locator('.da-row', { hasText: 'glow probe one' });
+  await expect(probe1).toHaveClass(/glow/);
+
+  // It stays lit well past the old ~1.8s fade (persistent until the next change).
+  await page.waitForTimeout(2200);
+  await expect(probe1).toHaveClass(/glow/);
+
+  // A later change moves the glow: the new object lights up, the previous one stops.
+  await page.evaluate(() =>
+    (window as any).__remit.seam.putObject('Requirement', { id: 'probe-2', intent: 'glow probe two' }));
+  const probe2 = page.locator('.da-row', { hasText: 'glow probe two' });
+  await expect(probe2).toHaveClass(/glow/);
+  await expect(probe1).not.toHaveClass(/glow/);
   await expect(page.locator('#fault')).toBeHidden();
 });
 
