@@ -155,3 +155,27 @@ classes:
         multivalued: true
         inlined_as_list: true
         description: the interpreted steering gestures shared (DEC-24) — e.g. no-go regions
+  ExecutionDelta:
+    is_a: Delta
+    description: 'An in-flight operator perturbation during Execute (issue #7): an obstruction (a +N min hold at the vehicle''s current cell) or a blocked cell forcing a re-route. Previously these survived only as a prose Observation note; capturing them as a typed, content-addressed store object preserves their structured inputs for inspection (the Data Analysis monitor) and replay (NF3), and re-uses the DEC-61 attributed-delta write path. Identity is content (DEC-35).'
+    attributes:
+      event:
+        range: ExecutionEventKind
+        required: true
+        description: which perturbation — obstruction or block
+      at_min:
+        range: integer
+        description: mission minutes when applied (sim-time ≡ plan-time, ADR-0007)
+      cell:
+        range: HexCell
+        inlined: true
+        description: where the perturbation bites — the vehicle's cell for an obstruction, the blocked cell for a block
+      delay_min:
+        range: float
+        description: the hold added by an obstruction (absent for a block)
+      rv_min:
+        range: float
+        description: the re-planned RV / mission-end after the perturbation
+      absorbed_min:
+        range: float
+        description: minutes the downstream holds absorbed, so the RV slipped less than delay_min (ADR-0007)

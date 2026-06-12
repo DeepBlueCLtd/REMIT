@@ -631,3 +631,33 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   (new typedefs incl. `HexAO`, `Strat`/`Leg`/`RerouteOpts`, `Entity`/`Aspect`). `app/hexviz.js`
   (a standalone evidence page) is outside `include`; type-checking the Node-side tooling
   (`test`/`e2e`/`run-playwright.mjs`) is a possible follow-up under a second, Node-lib config.
+
+## ADR-0025 (2026-06-12) — Capture execution-phase perturbations as typed `ExecutionDelta` store objects (issue #7)
+
+- **Context:** the Execute phase lets the operator perturb a live run — an obstruction
+  (`+5`/`+25 min` hold) or a blocked cell forcing a re-route. Both appended a prose
+  `Observation` to the append-only execution log, but their *structured* inputs (cell,
+  minutes, resulting RV) lived only in transient wingman UI state. Nothing reached the
+  content-addressed object store, so — unlike `SteeringDelta` (the first DEC-61 write) — the
+  perturbations were invisible to the Data Analysis monitor and carried no structured inputs
+  for replay (NF3). The maintainer raised this as issue #7: *"they aren't captured in the
+  model. Should they be?"*
+- **Decision:** **Yes.** Model the perturbation in LinkML and write it via the existing
+  DEC-61 attributed-delta path. Added `ExecutionEventKind` (`obstruction`|`block`) + a
+  `HexCell` value object (`h3` + optional `lat`/`lng`, the hex successor to `Waypoint`) to
+  `common`, and a concrete `ExecutionDelta (is_a: Delta)` to `records` (`event`, `at_min`,
+  `cell`, `delay_min`, `rv_min`, `absorbed_min`); regenerated `schema/gen/` + the HTML
+  reference. The wingman calls `seam.putObject('ExecutionDelta', …)` on each edit, attributed
+  to the operator wearing the **Ops** hat (`role: 'duty-officer-ops'`).
+- **Options considered:** (a) pack the fields into the prose log entry — still invisible to
+  the store-backed monitor/replay; rejected. (b) a hand-written wingman UI-state object —
+  violates the LinkML one-source-of-truth rule (ADR-0012) the moment it crosses into the
+  shared store; rejected. (c) a generated typed delta mirroring `SteeringDelta` — **chosen**.
+- **Consequences:** in-flight edits now appear in Data Analysis (with change-glow) and are
+  structurally preserved for replay. The prose log entry is **kept** (it reads well in the
+  after-action record) — the delta is its structured sibling, not a replacement; the share is
+  **non-fatal** (a failed write never breaks the live loop, since the log already recorded
+  the event). **Not done:** re-running a stamp does not yet *re-apply* the captured
+  perturbations (they're exogenous operator acts) — capturing the inputs is the prerequisite,
+  automatic re-application is the follow-up. `HexCell` is now the natural type to migrate the
+  documented square-vs-hex `Constraint.cells` drift in `SteeringDelta` onto (bugs.md).

@@ -1290,6 +1290,98 @@
             "title": "Excursion",
             "type": "object"
         },
+        "ExecutionDelta": {
+            "additionalProperties": false,
+            "description": "An in-flight operator perturbation during Execute (issue #7): an obstruction (a +N min hold at the vehicle's current cell) or a blocked cell forcing a re-route. Previously these survived only as a prose Observation note; capturing them as a typed, content-addressed store object preserves their structured inputs for inspection (the Data Analysis monitor) and replay (NF3), and re-uses the DEC-61 attributed-delta write path. Identity is content (DEC-35).",
+            "properties": {
+                "absorbed_min": {
+                    "description": "minutes the downstream holds absorbed, so the RV slipped less than delay_min (ADR-0007)",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "at": {
+                    "description": "when it was contributed (DEC-15, NF2)",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "at_min": {
+                    "description": "mission minutes when applied (sim-time \u2261 plan-time, ADR-0007)",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "by": {
+                    "description": "the contributing author",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "cell": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/HexCell"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "where the perturbation bites \u2014 the vehicle's cell for an obstruction, the blocked cell for a block"
+                },
+                "delay_min": {
+                    "description": "the hold added by an obstruction (absent for a block)",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "event": {
+                    "$ref": "#/$defs/ExecutionEventKind",
+                    "description": "which perturbation \u2014 obstruction or block"
+                },
+                "role": {
+                    "description": "\"the contributing role-hat \u2014 e.g. duty-officer-plans\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "rv_min": {
+                    "description": "the re-planned RV / mission-end after the perturbation",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "scope": {
+                    "description": "\"the write-scope this delta falls under \u2014 e.g. steering\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "event"
+            ],
+            "title": "ExecutionDelta",
+            "type": "object"
+        },
+        "ExecutionEventKind": {
+            "description": "The kind of in-flight operator perturbation applied during Execute (issue",
+            "enum": [
+                "obstruction",
+                "block"
+            ],
+            "title": "ExecutionEventKind",
+            "type": "string"
+        },
         "ExecutionLog": {
             "additionalProperties": false,
             "description": "The append-only live history of a mission (DEC-23/25/26): alerts when a band is crossed, observations that update truth, waivers, and replans \u2014 never overwritten. Together with rationales and stamps it gives a complete after-action record with perfect replay (F1).",
@@ -1368,6 +1460,35 @@
                 "h"
             ],
             "title": "Grid2D",
+            "type": "object"
+        },
+        "HexCell": {
+            "additionalProperties": false,
+            "description": "A single H3 hex location \u2014 the hex-grid successor to Waypoint (ADR-0014). Identified by its H3 index, with an optional lat/lng centre for rendering.",
+            "properties": {
+                "h3": {
+                    "description": "the H3 cell index (res 9)",
+                    "type": "string"
+                },
+                "lat": {
+                    "description": "cell-centre latitude",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "lng": {
+                    "description": "cell-centre longitude",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "h3"
+            ],
+            "title": "HexCell",
             "type": "object"
         },
         "Lineage": {

@@ -230,6 +230,25 @@ export function mountWingman(el, ctx) {
       `<div class="alert" data-testid="wx-tide-alert">≋ H+${Math.round(exec.simT)} — tide re-assessed: <b>${oldMode} → ${cur.mode}</b> · ${cur.narrative}</div>`;
   }
 
+  // Capture an in-flight perturbation as a typed, content-addressed store object
+  // (issue #7), not just a prose log note: structured inputs that survive for the
+  // Data Analysis monitor and replay (NF3). Re-uses the DEC-61 attributed-delta
+  // write path (cf. SteeringDelta) — operator wearing the Ops hat. Non-fatal: the
+  // append-only log entry already records the event, so a failed share never
+  // breaks the live loop.
+  async function shareExecutionDelta(/** @type {Partial<import('../../../schema/gen/remit').ExecutionDelta>} */ fields) {
+    /** @type {import('../../../schema/gen/remit').ExecutionDelta} */
+    const delta = {
+      scope: 'execution', by: 'operator', role: 'duty-officer-ops',
+      at: new Date().toISOString(),
+      event: 'obstruction',
+      ...fields,
+    };
+    await ctx.seam.putObject('ExecutionDelta', delta).catch((/** @type {any} */ err) =>
+      $('#wx-alerts').innerHTML +=
+        `<div class="alert"><span class="muted">could not share execution delta (logged locally): ${err?.message ?? err}</span></div>`);
+  }
+
   async function addObstruction(/** @type {number} */ mins) {
     if (exec.complete || !world) return;
     const tau = exec.lastTau;
@@ -274,6 +293,14 @@ export function mountWingman(el, ctx) {
       },
       source: 'operator', confidence: 'reported',
     });
+    await shareExecutionDelta({
+      event: 'obstruction',
+      at_min: Math.round(exec.simT),
+      cell: { h3: cell.h3, lat: cell.lat, lng: cell.lng },
+      delay_min: mins,
+      rv_min: missionEnd,
+      absorbed_min: absorbed > 0 ? absorbed : 0,
+    });
     await maybeTideAlert(oldMode);
     await refreshLog();
     await tick(0);
@@ -317,6 +344,12 @@ export function mountWingman(el, ctx) {
       kind: 'Observation', at: Math.round(exec.simT),
       fact_delta: { note: `Cell ${shortH3(next.h3)} blocked — re-routed in flight`, tag: 'track-state' },
       source: 'operator', confidence: 'reported',
+    });
+    await shareExecutionDelta({
+      event: 'block',
+      at_min: Math.round(exec.simT),
+      cell: { h3: next.h3, lat: next.lat, lng: next.lng },
+      rv_min: missionEnd,
     });
     await maybeTideAlert(oldMode);
     await refreshLog();
