@@ -465,7 +465,8 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   and 15-min dwells — so the tidal "wait vs. cross" drama is muted relative to ADR-0017 (the
   price of a workable geometry on this terrain; the northern waths that gave that drama are
   the unreachable ones). Golden fixtures + e2e COA counts regenerated; the OP names became
-  positional (the wath-overlook labels no longer applied).
+  positional (the wath-overlook labels no longer applied). **The muted drama is restored by
+  ADR-0020** (the OP positions here are superseded).
 
 ## ADR-0019 (2026-06-12) — Drop the standalone "Views" stage; Compare previews the projections live
 
@@ -481,3 +482,31 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
 - **Consequences:** `main.js` (STAGES, `mountStage`, removed `mountViews`), `app/index.html`
   (panel + renumbered headings) and the e2e (the Views assertions folded into Compare,
   screenshots renumbered `05-execute` / `06-learn`) updated. One fewer click to execution.
+
+## ADR-0020 (2026-06-12) — Relocate the mission to the north head to restore the tide drama (refines ADR-0018)
+
+- **Context:** ADR-0018 moved the OPs to the south-shore arc to stop the approach wading the
+  estuary — but that arc *is* the all-tide causeway, with a free land walk-around at the river
+  mouth, so the exfil always detoured and the tidal "hold for low water" drama vanished. That
+  drama (the optimiser handling a *temporal* obstruction, scheduling a hold at the bank) is
+  the most valuable thing the demo shows, and the maintainer asked for it back. Investigation
+  (ASCII terrain maps + fan-out probes) showed the sampled estuary is **widest exactly where
+  the historic waths are** (the middle is all water/ford), so the only dry, base-reachable
+  land *adjacent to a wath* is the **north head**, beside Bowness Wath — and, like the south
+  head, it has a free walk-around.
+- **Decision:** relocate base + the three OPs onto the **north-head land overlooking Bowness
+  Wath** (dry approach, 8–14 ford-free steps), and **close the north-head walk-around** with a
+  designed water fill (extend the estuary to the northern shore, *east* of the OPs — west of
+  −3.107, the OPs and their approach, is untouched). The exfil must then hold at the bank for
+  low water and ford the wath; the all-tide causeway stays at 54.928 as the (now far, ~5 km)
+  alternative the optimiser weighs and rejects.
+- **Consequences:** both the 45- and 15-min dwells now **wait** — the schedule splits
+  `exfil → hold (await low tide) → exfil`, and because the tide (waths open H+88) bounds the
+  crossing, a shorter visit just means a **longer hold** for the **same RV** (≈H+102): the
+  tide, not the dwell, sets the exfil. ADR-0018's wading fix is preserved (approaches are dry
+  and ford-free); the cordon test reverts to exfil-infeasibility (the OP is no longer inside
+  the cordon band). Golden fixtures, e2e, and evidence regenerated; OP names became
+  Bowness-Wath overlooks. **Trade-off:** the all-tide detour is never the cheaper option here,
+  so the COAs no longer *split* wait-vs-detour the way ADR-0016 did — the demo shows a clean,
+  unanimous tidal hold instead (the Goldilocks wath that would split them, Sandywath, sits in
+  the unreachable mid-estuary water).

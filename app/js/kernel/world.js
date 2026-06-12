@@ -35,7 +35,7 @@ export const TERRAIN = {
  *  The river runs ~N-S near lng -3.103, splitting the AO into a west (start) bank and
  *  an east (RV) bank, crossed by the bridge and the tidal waths. */
 export const PLACES = {
-  base:   { lat: 54.958, lng: -3.185, name: 'Patrol base SPARROW' },
+  base:   { lat: 54.997, lng: -3.180, name: 'Patrol base SPARROW' },
   rvEast: { lat: 54.958, lng: -3.022, name: 'RV EAST (east bank)' },
   bridge: { lat: 54.928, lng: -3.103, name: 'Solway road causeway (all-tide)' },
   fords: [
@@ -43,13 +43,13 @@ export const PLACES = {
     { key: 'Sandywath',    lat: 54.962, lng: -3.103, name: 'Sandywath (tidal ford)' },
     { key: 'Bowness Wath', lat: 54.978, lng: -3.103, name: 'Bowness Wath (tidal ford)' },
   ],
-  // OPs sit on the contiguous south-shore arc (the northern waths are on water-isolated
-  // ground that no west-bank approach reaches without looping the whole estuary), spread
-  // along the river mouth so the dry approach stays short and the exfil crosses east.
+  // OPs sit on the north-head land overlooking Bowness Wath, reachable dry from the base
+  // along the north shore. The exfil must cross the tidal wath (wait for low water) or
+  // detour ~5 km south to the all-tide causeway — restoring the tide drama (ADR-0020).
   ops: [
-    { key: 'OP-A', lat: 54.932, lng: -3.108, name: 'OP-A — forward overlook at the wath mouth' },
-    { key: 'OP-B', lat: 54.934, lng: -3.160, name: 'OP-B — western flank overlook' },
-    { key: 'OP-C', lat: 54.931, lng: -3.124, name: 'OP-C — central overlook above the crossing' },
+    { key: 'OP-A', lat: 54.978, lng: -3.128, name: 'OP-A — overlook above Bowness Wath' },
+    { key: 'OP-B', lat: 54.990, lng: -3.150, name: 'OP-B — north flank overlook' },
+    { key: 'OP-C', lat: 54.976, lng: -3.140, name: 'OP-C — west overlook above Bowness Wath' },
   ],
 };
 
@@ -152,6 +152,16 @@ function buildTerrain(ao) {
   // Tidal fords (the historic "waths"): bands wadeable across the estuary only within the
   // low-tide window (TIDE below); outside it the kernel treats them as water.
   for (const lat of FORD_LATS) paintBand(cells, ao, lat, 'ford');
+
+  // Close the north-head walk-around: fill the channel north of Bowness Wath (east of the
+  // OPs) with water, so the estuary reaches the northern shore. The OP's exfil must then
+  // cross the tidal wath (wait for low water) or detour ~5 km south to the all-tide
+  // causeway — the dwell-dependent choice that is the tide drama (ADR-0020). West of -3.107
+  // (the OPs and their dry north-shore approach) is untouched.
+  for (let id = 0; id < ao.N; id++) {
+    const [lat, lng] = ao.centers[id];
+    if (lat >= 54.979 && lng >= -3.107 && lng <= -3.083) cells[id] = 'water';
+  }
 
   return cells;
 }

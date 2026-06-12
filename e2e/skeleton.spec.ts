@@ -54,7 +54,7 @@ test('the lap walks end-to-end on the H3 hex grid', async ({ page }) => {
   await page.getByTestId('plan-run').click();
   await expect(page.getByTestId('plan-stampid')).toBeVisible();
   await expect(page.locator('.plan-card')).toHaveCount(2);
-  for (const s of ['direct', 'tracked']) await expect(page.getByTestId(`plan-card-${s}`)).toBeVisible();
+  for (const s of ['direct', 'covered']) await expect(page.getByTestId(`plan-card-${s}`)).toBeVisible();
   const shape = await page.evaluate(() => {
     const h = (window as any).__remit.state.handful;
     return { count: h.length, sats: h.map((p: any) => p.scores.satisfaction.length),
@@ -160,8 +160,9 @@ test('execute: blocking the next hex re-routes in flight', async ({ page }) => {
   await page.getByTestId('cmp-commit').click();
   await page.getByTestId('continue-execute').click();
 
-  // Step into the exfil (after the visit ends at H+75, RV at ~H+90), then block the next hex.
-  for (let i = 0; i < 8; i++) await page.getByTestId('wx-step10').click();
+  // Step past the visit and the await-low-tide hold into the wath crossing (H+88–102),
+  // then block the next hex on the route.
+  for (let i = 0; i < 9; i++) await page.getByTestId('wx-step10').click();
   const cells = () => page.evaluate(() => (window as any).__remit.state.execPlan.materialisation.trajectory.map((p: any) => p.h3));
   const before = await cells();
   await page.getByTestId('wx-block').click();
