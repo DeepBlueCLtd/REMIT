@@ -1,4 +1,4 @@
-# Specification Quality Checklist: ORBAT — add & tune red and green assets
+# Specification Quality Checklist: ORBAT — add & tune blue, red, and green assets
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-06-12
@@ -31,8 +31,10 @@
 
 ## Notes
 
-- Scope is deliberately bounded to the **red and green** sides of the ORBAT and to **display-only**
-  authoring scaffolding (DEC-56 horizon split, NF9 honest floor); reactive-adversary and
+- Scope covers all three allegiances — **blue, red, and green** — at the **display-only** authoring
+  scaffolding level (DEC-56 horizon split, NF9 honest floor). Blue is included for *one ontology,
+  three stances* symmetry but does **not** drive routing (the existing planned own-force is
+  reconciled, not re-implemented); reactive-adversary, capability-matched allocation, and
   constraint/objective emission are called out as deferred, not in scope.
 - The exact per-allegiance parameter field list is left to planning/design (the spec fixes the
   shape, not field names) — a candidate for `/speckit-clarify` if the maintainer wants it pinned

@@ -59,8 +59,24 @@ classes:
       label:      { description: human label; need not be unique }
       position:   { range: Waypoint, inlined: true, description: AO location (H3 cell / lat-lon) }
       extent_m:   { range: float, description: reach/footprint radius in metres }
+      blue:       { range: BlueParams, inlined: true, description: present iff allegiance = blue }
       red:        { range: RedParams, inlined: true, description: present iff allegiance = red }
       green:      { range: GreenParams, inlined: true, description: present iff allegiance = green }
+      canonical_own_force:
+        range: boolean
+        description: >-
+          true on the single blue asset reconciled from the existing planned own-force (ROVER-1);
+          it drives the plan via the existing machinery and is protected from removal.
+
+  BlueParams:
+    description: >-
+      Own-force pool member (capability-matched ALLOCATION deferred to H2; display-only in v1 — does
+      not drive routing). The capability vocabulary is the seam a future Scheme matches to a
+      requirement's activity needs (DEC-59/60).
+    attributes:
+      availability: { range: string, description: '"available | down" (own State mirror, DEC-52)' }
+      capabilities: { range: string, multivalued: true,
+                      description: capability tags a future Scheme matches to activity needs (stub) }
 
   RedParams:
     description: Hostile threat picture (threat SOURCE only in v1; reactive behaviour deferred, DEC-51).
@@ -95,20 +111,25 @@ enums:
 | Entity | Key fields | Relationships | Notes |
 |---|---|---|---|
 | **Orbat** | `id`, `version`, `assets[]`, `lineage` | contains `Asset[]` | versioned/immutable when committed; working draft in localStorage |
-| **Asset** | `id`, `allegiance`, `label`, `position`, `extent_m` | `red` xor `green` params | first-class Entity (DEC-52); display-only |
+| **Asset** | `id`, `allegiance`, `label`, `position`, `extent_m`, `canonical_own_force?` | one of `blue`/`red`/`green` params | first-class Entity (DEC-52); display-only |
+| **BlueParams** | `availability`, `capabilities[]` | — | force-pool member; allocation deferred (H2); does not drive routing (NF9) |
 | **RedParams** | `severity`, `active_windows[]` | `TimeWindow[]` | threat source only (NF9) |
 | **GreenParams** | `sensitivity`, `protection` | `Protection` enum | inert in v1 (DEC-60 J3) |
 
 ## Validation rules (from the spec)
 
-- **FR-001/003**: an Asset MUST have `allegiance ∈ {red, green}` (blue is out of scope here),
-  a `position` inside the AO, and the parameter group matching its allegiance.
+- **FR-001/003**: an Asset MUST have `allegiance ∈ {blue, red, green}`, a `position` inside the AO,
+  and the parameter group matching its allegiance.
 - **FR-002**: `id` is unique per instance and never reused; duplicating mints a fresh `id`.
 - **FR-004**: `extent_m`, `severity`, `sensitivity` are clamped to their declared bounds; an
   `active_window` MUST satisfy `start_min ≤ end_min` (rejected/clamped with feedback otherwise).
+- **FR-012 — own-force reconciliation**: exactly one blue asset may carry `canonical_own_force = true`
+  (the existing planned ROVER-1, surfaced not duplicated); it is protected from removal so the plan
+  stays valid.
 - **Edge — out-of-bounds position**: rejected or clamped to the AO with feedback (never silently lost).
 - **Edge — duplicate labels**: permitted; identity is `id`, not `label`.
-- **FR-008/NF9**: no field drives kernel behaviour; all are display inputs only.
+- **FR-008/NF9**: no field drives kernel behaviour — including blue `availability`/`capabilities`,
+  which do **not** alter routing in v1; all are display inputs only.
 
 ## Lifecycle / state
 
@@ -125,6 +146,10 @@ enums:
 ## App adapter (display-only, hand-written — carve-out)
 
 `app/js/orbat/orbat.js` maps each committed/draft `Asset` → an `Entity` for `buildEntities()`:
-`{ id, label, allegiance, provenance:{kind:'actor'}, aspects }`. Red assets with `active_windows`
-expose a `window`-type aspect (reusing the satellite-pass render path) so they appear as Sync-Matrix
-tracks; position feeds the map marker. No `at()` closure references the kernel or alters a plan.
+`{ id, label, allegiance, provenance:{kind}, aspects }` (`kind` = `self` for the canonical own-force
+blue asset, else `actor`). Red assets with `active_windows` — and any asset given a time-varying
+aspect (e.g. a blue asset's availability window) — expose a `window`-type aspect (reusing the
+satellite-pass render path) so they appear as Sync-Matrix tracks; position feeds the map marker. The
+canonical own-force blue asset reuses the existing planned `self` entity (reconciled, not duplicated)
+and is the *only* asset already wired to the kernel via the pre-existing machinery; no `assetToEntity`
+closure references the kernel or alters a plan.

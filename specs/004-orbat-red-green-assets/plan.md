@@ -1,4 +1,4 @@
-# Implementation Plan: ORBAT — add & tune red and green assets
+# Implementation Plan: ORBAT — add & tune blue, red, and green assets
 
 **Branch**: `claude/fervent-feynman-5g4dpb` (spec dir `004-orbat-red-green-assets`) | **Date**: 2026-06-12 | **Spec**: [spec.md](./spec.md)
 
@@ -6,15 +6,18 @@
 
 ## Summary
 
-Bring the **red** and **green** sides of the ORBAT (DEC-60) forward into the app as
-**display-only authoring scaffolding** (DEC-56 horizon split, NF9 honest floor). A planner can add,
-duplicate, tune, and remove **multiple independent instances** of hostile (red) and neutral (green)
-assets; each is a first-class **Entity** (DEC-52) carrying an **allegiance**, projected onto the map
-(allegiance-coloured markers) and onto the Sync Matrix (a track when it carries a time-varying
-aspect). The serialisable shape — the `Allegiance` enum, the asset parameters, and the `Orbat`
-container — is added to the **LinkML schema** (Principle I, non-negotiable) and regenerated; the
-app imports the generated types and reuses the existing entity/projection plumbing
-(`buildEntities` → map + `sync-matrix`). The authored ORBAT persists across sessions.
+Bring all three sides of the ORBAT (DEC-60) — **blue** (own force), **red** (hostile), **green**
+(neutral) — forward into the app as **display-only authoring scaffolding** (DEC-56 horizon split,
+NF9 honest floor). A planner can add, duplicate, tune, and remove **multiple independent instances**
+of each allegiance; each is a first-class **Entity** (DEC-52) carrying an **allegiance**, projected
+onto the map (allegiance-coloured markers) and onto the Sync Matrix (a track when it carries a
+time-varying aspect). Authoring/tuning never changes kernel routing in v1: the existing planned
+own-force (ROVER-1) is reconciled as the canonical blue asset and keeps driving the plan unchanged;
+blue pool assets seed the future Scheme allocation (the deferred capability). The serialisable shape
+— the `Allegiance` enum, the per-allegiance asset parameters, and the `Orbat` container — is added to
+the **LinkML schema** (Principle I, non-negotiable) and regenerated; the app imports the generated
+types and reuses the existing entity/projection plumbing (`buildEntities` → map + `sync-matrix`). The
+authored ORBAT persists across sessions.
 
 ## Technical Context
 
@@ -44,8 +47,9 @@ frame); legible roster at ≥ 10 instances per allegiance (SC-002).
 identical plans/projections; honest floor (NF9) — no fabricated adversary behaviour; additive to the
 data model (allegiance attribute + asset params only, DEC-60); no new build machinery.
 
-**Scale/Scope**: one ORBAT per scenario; tens of asset instances; two new allegiances authorable
-(red, green) — blue/own-force is the existing entity, out of scope.
+**Scale/Scope**: one ORBAT per scenario; tens of asset instances; **three** allegiances authorable
+(blue, red, green) at the display-only level — the existing planned own-force is reconciled as the
+canonical blue asset and is unaffected by pool authoring.
 
 ## Constitution Check
 
@@ -56,7 +60,7 @@ data model (allegiance attribute + asset params only, DEC-60); no new build mach
 | **I. LinkML is the data-model source of truth** (NON-NEGOTIABLE) | ✅ PASS (gated) | The persisted ORBAT/asset shape is serialisable object-core, so it is **schema-defined and regenerated**, never hand-authored: add `Allegiance` enum + `Asset`/`Orbat` to the schema modules, run `schema/generate.sh`, import the generated TS in `app/js`. **Display-only render closures** (aspect `at()` functions, the catalogue rows) stay hand-written — the documented carve-out for behaviour + UI-only shapes. |
 | **II. No-build static app** | ✅ PASS | Stays in `app/js` ES modules + `// @ts-check`; **no new build machinery**. (Vite already adopted under ADR-0014 — a recorded deviation; this feature adds nothing new.) |
 | **III. Spec-driven workflow + blog** | ✅ PASS | Following spec → plan → tasks → implement; blog post sketched in Phase 2 and authored at implement. |
-| **IV. Durable project memory** | ✅ PASS | New ADR for "ORBAT red/green authoring scaffolding" in `decisions.md`; `issues.md` work-log entry; `key_facts.md` for the allegiance palette/persistence key — recorded at implement. |
+| **IV. Durable project memory** | ✅ PASS | New ADR for "ORBAT blue/red/green authoring scaffolding" in `decisions.md`; `issues.md` work-log entry; `key_facts.md` for the allegiance palette/persistence key — recorded at implement. |
 | **V. Repo canonical + immutability** | ✅ PASS | Committed ORBAT versions are immutable with lineage (the working draft is the editable surface; commit mints a new version). |
 
 **No violations** → Complexity Tracking left empty.
@@ -88,7 +92,7 @@ schema/
 ├── common.yaml          # + Allegiance enum (blue|red|green)
 ├── entities.yaml        # + allegiance attribute on Entity
 ├── force.yaml           # (reference; Profile/State unchanged)
-├── orbat.yaml           # NEW module: Orbat container + Asset (+ RedParams/GreenParams)
+├── orbat.yaml           # NEW module: Orbat container + Asset (+ Blue/Red/GreenParams)
 ├── remit.yaml           # entry schema: import the new orbat module
 └── gen/                 # REGENERATED (remit.schema.json, remit.ts) — do not hand-edit
 
@@ -122,20 +126,22 @@ than adding a parallel rendering path.
 Planning only (authored at `/speckit-implement` into `specs/004-orbat-red-green-assets/blog/post.md`,
 from `docs/blog-post-template.md`):
 
-- **At a glance**: **"The ORBAT grows a red and green side — drop in as many threats and protected
-  places as a scenario needs, and tune each one."** Featured screenshot: the map with several
-  red threat rings and green no-strike markers placed, plus the roster panel open.
-- **The problem**: the entity catalogue was fixed in config and seeded only own force; a planner
-  could not express the adversary/neutral picture of a scenario.
+- **At a glance**: **"The ORBAT grows all three sides — drop in as many own-force, threat, and
+  protected-place assets as a scenario needs, and tune each one."** Featured screenshot: the map with
+  blue own-force, red threat rings, and green no-strike markers placed, plus the roster panel open.
+- **The problem**: the entity catalogue was fixed in config and seeded only a single own force; a
+  planner could not express the own-force pool, the adversary, or the neutral picture of a scenario.
 - **Options**: (a) bespoke per-allegiance asset objects vs (b) reuse the allegiance-typed Entity +
   config catalogue; (c) free-form map drawing vs (d) a tunable parameter roster; (e) where the data
-  lives — hand-written app type vs LinkML-generated.
+  lives — hand-written app type vs LinkML-generated; (f) blue display-only vs wired into the planner.
 - **The strategy**: reuse Entity + allegiance (DEC-60), schema-define the serialisable shape and
-  regenerate (Principle I), keep it display-only under the DEC-56 guard / NF9 honest floor, project
-  through the existing map + Sync-Matrix.
-- **The results**: add/duplicate/tune/remove multiple instances; allegiance-coloured map markers;
-  Sync-Matrix tracks for time-windowed assets; persistence across reload; determinism preserved.
+  regenerate (Principle I), keep all three allegiances display-only under the DEC-56 guard / NF9
+  honest floor (blue does not drive routing; own-force reconciled), project through the existing
+  map + Sync-Matrix.
+- **The results**: add/duplicate/tune/remove multiple instances of each allegiance; allegiance-coloured
+  map markers; Sync-Matrix tracks for time-windowed assets; persistence across reload; determinism +
+  unchanged-plan preserved.
 - **Screenshots to capture** (Playwright → `evidence/screenshots/*.png`): empty ORBAT → one red asset
-  placed → multiple red+green assets with extent rings → a tuner adjusting threat extent (before/after)
-  → a time-windowed red asset's track on the Sync Matrix → roster after duplicate/remove → scenario
-  restored after reload.
+  placed → multiple blue+red+green assets with extent rings → a tuner adjusting threat extent
+  (before/after) → a blue tune leaving the route unchanged → a time-windowed asset's track on the
+  Sync Matrix → roster after duplicate/remove → scenario restored after reload.

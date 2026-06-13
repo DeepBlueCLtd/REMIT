@@ -1,4 +1,4 @@
-# Quickstart — validate ORBAT red/green assets
+# Quickstart — validate ORBAT blue/red/green assets
 
 A runnable validation guide proving the feature end-to-end. Details live in
 [data-model.md](./data-model.md) and [contracts/](./contracts/); this is the run/verify path.
@@ -32,12 +32,21 @@ npm run dev        # Vite dev server; open the ORBAT (SME-Intel) tab
    marker renders, distinct from red and own force.
 2. **Add green** again with different params → two independent green rows; tuning one leaves the other unchanged.
 
-### US3 — Manage the roster (P2)
+### US3 — Add & tune blue (own-force) assets (P2)
+1. Open the ORBAT → the existing own-force (ROVER-1) appears in the **Blue** group, marked canonical
+   and with its remove control disabled.
+2. **Add blue**, set location + **availability** + a **capability** stub → a blue marker renders,
+   distinct from red and green.
+3. Tune the blue asset's capability/availability → the roster/depiction updates **and the selected
+   route/plan is unchanged** (display-only proof — no kernel coupling).
+
+### US4 — Manage the roster (P2)
 1. **Duplicate** a red asset → an independent copy (new id) carrying the source's params; tune it separately.
-2. **Remove** a green asset → it disappears from roster and map; the rest are unaffected.
+2. **Remove** a green asset → it disappears from roster and map; the rest are unaffected. Confirm the
+   canonical own-force blue asset cannot be removed.
 3. **Reload the page** → the full roster and every tuned value are restored exactly (localStorage draft).
 
-### US4 — Cross-view projection (P3)
+### US5 — Cross-view projection (P3)
 1. Give a red asset an **active window** (e.g. H+30..H+60) → a track appears on the Sync Matrix.
 2. Scrub the shared playhead → the track and the map marker stay aligned; selecting the row highlights it in both views.
 
@@ -56,4 +65,4 @@ e2e run (empty → one red → many red+green → tune before/after → Sync-Mat
 
 - New asset placed and visible in **< 30 s** (SC-001); ≥ 10 instances per allegiance stay legible/tunable (SC-002).
 - Tuning affects **only** the targeted asset (SC-003); reload restores **100%** of instances/values (SC-004).
-- **Zero** fabricated adversary behaviour (SC-005); re-planning an unchanged ORBAT is **identical** (SC-006).
+- **Zero** fabricated adversary behaviour and the route/plan **unchanged** by any blue/red/green tune (SC-005); re-planning an unchanged ORBAT is **identical** (SC-006).
