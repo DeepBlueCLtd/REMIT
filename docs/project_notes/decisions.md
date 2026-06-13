@@ -661,3 +661,36 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   perturbations (they're exogenous operator acts) — capturing the inputs is the prerequisite,
   automatic re-application is the follow-up. `HexCell` is now the natural type to migrate the
   documented square-vs-hex `Constraint.cells` drift in `SteeringDelta` onto (bugs.md).
+
+## ADR-0026 (2026-06-13) — ORBAT blue/red/green authoring scaffolding (display-only)
+
+- **Context:** the entity catalogue was fixed in config and seeded only a single own
+  force; a planner could not express the own-force *pool*, the adversary, or the neutral
+  picture of a scenario (DEC-60). The serialisable ORBAT/asset shape had to live somewhere.
+- **Decision:** bring all three sides forward as **display-only authoring scaffolding**
+  (DEC-56 horizon split, NF9 honest floor). Each asset is a first-class **Entity** (DEC-52)
+  carrying an `allegiance`, reusing the existing entity → map / Sync-Matrix projection. The
+  serialisable shape is **schema-defined and regenerated** (Principle I): an `Allegiance`
+  enum (`blue|red|green`) on `common`, an optional `allegiance` attribute on `Entity`, and a
+  new `schema/orbat.yaml` module (`Orbat`, `Asset`, `Blue/Red/GreenParams`, `Protection`;
+  reusing `Waypoint`/`Lineage`/`TimeWindow`). The model (`app/js/orbat/orbat.js`) is a pure,
+  deterministic writer (add/duplicate/tune/remove/validate/canonical/commit); the panel
+  (`app/js/shell/orbat-panel.js`, the `sme-int` role-tab) and map read through it.
+- **Blue is display-only:** authoring/tuning **never** changes kernel routing in v1. The
+  existing planned own-force (ROVER-1) is **reconciled** as the single `canonical_own_force`
+  blue asset (protected from removal) and keeps driving the plan via the pre-existing
+  machinery; pool blue assets seed the future Scheme allocation (deferred, H2). The
+  route-unchanged invariant is asserted by an e2e (tune blue → committed Plan ids identical).
+- **Options considered:** (a) a bespoke `ThreatMarker`/`RoeZone` type — rejected, duplicates
+  Entity and breaks one-ontology/three-stances symmetry (DEC-60); (b) a hand-written app
+  typedef for the persisted shape — rejected, violates Principle I (ADR-0012); (c) wiring
+  red into `edgeCost` for a plan-around demo — rejected, that is the deferred avoid-assess
+  capability and would breach NF9. Placement uses a default in-AO position (cross-tab
+  map-click is impractical: the map lives in the Overview tab, the panel in `sme-int`).
+- **Consequences:** add/duplicate/tune/remove multiple instances of each allegiance;
+  allegiance-coloured map markers (+ faint extent ring + label); Sync-Matrix tracks for
+  time-windowed assets; the working draft mirrors to `localStorage` (survives reload),
+  commit mints an immutable content-addressed `Orbat` with lineage. Determinism (NF3):
+  assets are sorted by `id` and canonicalised before identity/projection. **Not done
+  (deferred, NF9):** reactive adversary behaviour (DEC-51), capability-matched blue
+  allocation (H2), live ROE constraint / collateral objective emission (DEC-60 J3).

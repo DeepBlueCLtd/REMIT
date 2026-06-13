@@ -261,6 +261,16 @@
             "title": "AlertCauseType",
             "type": "string"
         },
+        "Allegiance": {
+            "description": "Side typing on an entity (DEC-60). Selects the kernel STANCE \u2014 plan-for (blue) / avoid-assess (red) / respect (green). v1 is display-only (NF9 honest floor).",
+            "enum": [
+                "blue",
+                "red",
+                "green"
+            ],
+            "title": "Allegiance",
+            "type": "string"
+        },
         "Ambiguity": {
             "additionalProperties": false,
             "description": "",
@@ -416,6 +426,90 @@
             "title": "AspectType",
             "type": "string"
         },
+        "Asset": {
+            "additionalProperties": false,
+            "description": "One ORBAT entry \u2014 a first-class located thing (DEC-52) typed by allegiance, with independently-tunable parameters. Display-only in v1.",
+            "properties": {
+                "allegiance": {
+                    "$ref": "#/$defs/Allegiance"
+                },
+                "blue": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/BlueParams"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "present iff allegiance = blue"
+                },
+                "canonical_own_force": {
+                    "description": "true on the single blue asset reconciled from the existing planned own-force (ROVER-1); it drives the plan via the existing machinery and is protected from removal.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "extent_m": {
+                    "description": "reach / footprint radius in metres",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "green": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/GreenParams"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "present iff allegiance = green"
+                },
+                "id": {
+                    "description": "stable per-instance identity (not the label)",
+                    "type": "string"
+                },
+                "label": {
+                    "description": "human label; need not be unique",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "position": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Waypoint"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "AO location (H3 cell / lat-lon)"
+                },
+                "red": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/RedParams"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "present iff allegiance = red"
+                }
+            },
+            "required": [
+                "id",
+                "allegiance"
+            ],
+            "title": "Asset",
+            "type": "object"
+        },
         "Attribution": {
             "additionalProperties": false,
             "description": "Who decided, under what authority, when. Stamped on every committing act \u2014 this is universal rule 2 (DEC-15, NF2).",
@@ -548,6 +642,31 @@
                 "id"
             ],
             "title": "Baseline",
+            "type": "object"
+        },
+        "BlueParams": {
+            "additionalProperties": false,
+            "description": "Own-force pool member (capability-matched ALLOCATION deferred to H2; display-only in v1 \u2014 does not drive routing). The capability vocabulary is the seam a future Scheme matches to a requirement's activity needs (DEC-59/60).",
+            "properties": {
+                "availability": {
+                    "description": "\"available | down\" (own State mirror, DEC-52)",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "capabilities": {
+                    "description": "capability tags a future Scheme matches to activity needs (stub)",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "BlueParams",
             "type": "object"
         },
         "Capture": {
@@ -1205,6 +1324,10 @@
             "additionalProperties": false,
             "description": "Anything located with an identity \u2014 yourself, an actor, a feature, a phenomenon (DEC-52). Where a Channel is a field, an Entity is a thing, projected across synchronised views. To affect the plan it is *cast* to a Channel or Commitment (actor \u2192 moving risk channel; window \u2192 timing commitment); in v1 entities are display-only. Skeleton note: aspects are keyed by name in an object (phase/fuel/height/pass); modelled here as a list of named Aspects.",
             "properties": {
+                "allegiance": {
+                    "$ref": "#/$defs/Allegiance",
+                    "description": "side typing (DEC-60); absent \u21d2 unaligned / own-context as today"
+                },
                 "aspects": {
                     "items": {
                         "$ref": "#/$defs/Aspect"
@@ -1435,6 +1558,25 @@
                 }
             },
             "title": "FactLayer",
+            "type": "object"
+        },
+        "GreenParams": {
+            "additionalProperties": false,
+            "description": "Neutral / collateral picture (ROE & collateral emission deferred; inert in v1, DEC-60 J3).",
+            "properties": {
+                "protection": {
+                    "$ref": "#/$defs/Protection",
+                    "description": "nature of the rule (tagged for the future hard/soft split)"
+                },
+                "sensitivity": {
+                    "description": "graded collateral weight (e.g. 1..5)",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "GreenParams",
             "type": "object"
         },
         "Grid2D": {
@@ -1724,6 +1866,52 @@
             "title": "Observation",
             "type": "object"
         },
+        "Orbat": {
+            "additionalProperties": false,
+            "description": "The roster of participants & potential participants for a scenario \u2014 the authoring root (DEC-60). Versioned & immutable when committed (lineage); the editable working draft mirrors to localStorage. v1 authors the red & green sides; blue is the existing own force.",
+            "properties": {
+                "assets": {
+                    "items": {
+                        "$ref": "#/$defs/Asset"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "content id of the canonical form (DEC-35)",
+                    "type": "string"
+                },
+                "lineage": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Lineage"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "version": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Orbat",
+            "type": "object"
+        },
         "Plan": {
             "additionalProperties": false,
             "description": "A candidate solution whose id IS the hash of its Stamp (DEC-5/22/29). Its materialisation (schedule, trajectory, state curves) is cached and regenerable; its scores and first-class conflicts make it comparable. The skeleton also carries the chosen `strategy` and the `tide_decision` weighing.",
@@ -1880,6 +2068,15 @@
             "title": "Profile",
             "type": "object"
         },
+        "Protection": {
+            "description": "The nature of a green asset's protection rule (tagged for the future DEC-60 J3 hard/soft split).",
+            "enum": [
+                "keep_out",
+                "minimise_effect"
+            ],
+            "title": "Protection",
+            "type": "string"
+        },
         "Realisation": {
             "description": "How a channel or movement model is realised (DEC-49). `provider` = a computed service behind the seam.",
             "enum": [
@@ -1890,6 +2087,31 @@
             ],
             "title": "Realisation",
             "type": "string"
+        },
+        "RedParams": {
+            "additionalProperties": false,
+            "description": "Hostile threat picture (threat SOURCE only in v1; reactive behaviour deferred, DEC-51).",
+            "properties": {
+                "active_windows": {
+                    "description": "mission-minute windows the threat is active (Sync-Matrix track)",
+                    "items": {
+                        "$ref": "#/$defs/TimeWindow"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "severity": {
+                    "description": "graded threat severity (e.g. 1..5)",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "RedParams",
+            "type": "object"
         },
         "Replan": {
             "additionalProperties": false,

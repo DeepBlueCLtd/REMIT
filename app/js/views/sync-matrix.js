@@ -14,13 +14,19 @@
 const W = 720, LBL = 140, PAD_R = 12, TOP = 14, TH = 30, GAP = 10, AX = 22;
 const PW = W - LBL - PAD_R;
 
-const PROV_COLOR = { self: '#4493f8', forecast: '#7ec8e3', provider: '#bc8cff' };
+const PROV_COLOR = { self: '#4493f8', forecast: '#7ec8e3', provider: '#bc8cff', actor: '#ff7b72' };
 const PHASE_COLOR = { transit: '#4493f8', hold: '#6e7681', visit: '#38d39f', exfil: '#e3b341' };
 /** @param {string} s */
 const esc = (s) => String(s).replace(/[<&]/g, (c) => (c === '<' ? '&lt;' : '&amp;'));
 
 /** One Sync-Matrix catalogue row (CONFIG, DEC-53) — see `syncCatalogue()`. */
-/** @typedef {{ key: string, entity: string, aspect: string, render: string, label: string, needsPlan?: boolean }} CatalogueRow */
+/** @typedef {{ key: string, entity: string, aspect: string, render: string, label: string, needsPlan?: boolean, color?: string }} CatalogueRow */
+
+/** Convert a #rrggbb hex to an `rgba(r,g,b,a)` string. */
+const rgba = (/** @type {string} */ hex, /** @type {number} */ a) => {
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+};
 
 /** An advisory coincidence window (see `coincidenceWindows()`). */
 /** @typedef {import('../entities/entities.js').CoincidenceWindow} CoincidenceWindow */
@@ -236,14 +242,19 @@ function renderTrack(row, { sel, commitment, entities, yTop, tx, horizon }) {
     return s;
   }
 
-  if (row.render === 'band') {                                  // window track (sat pass)
+  if (row.render === 'band') {                                  // window track (sat pass / asset)
     let s = '';
+    const tinted = !!row.color;                                 // asset tracks carry an allegiance colour
+    const stroke = row.color ?? '#bc8cff';
+    const fill = tinted ? rgba(row.color ?? '', 0.45) : 'rgba(188,140,255,.45)';
+    const seg = tinted ? '●' : 'pass';
+    const title = tinted ? 'active' : 'overhead pass';
     for (const w of asp.windows(horizon)) {
       const x = tx(w.start), ww = Math.max(3, tx(w.end) - x);
       s += `<rect x="${x}" y="${yTop + 6}" width="${ww}" height="${TH - 12}" rx="3"
-          fill="rgba(188,140,255,.45)" stroke="#bc8cff">
-          <title>overhead pass · H+${Math.round(w.start)}–${Math.round(w.end)}</title></rect>`;
-      if (ww > 30) s += `<text x="${x + ww / 2}" y="${mid + 3}" text-anchor="middle" class="sm-seg">pass</text>`;
+          fill="${fill}" stroke="${stroke}">
+          <title>${title} · H+${Math.round(w.start)}–${Math.round(w.end)}</title></rect>`;
+      if (ww > 30) s += `<text x="${x + ww / 2}" y="${mid + 3}" text-anchor="middle" class="sm-seg">${seg}</text>`;
     }
     return s;
   }

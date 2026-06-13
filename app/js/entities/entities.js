@@ -18,6 +18,7 @@
 
 import { stateAt } from '../kernel/kernel.js';
 import { TIDE, fordOpenAt } from '../kernel/world.js';
+import { assetToEntity, hasTrack, ALLEGIANCE_COLOR } from '../orbat/orbat.js';
 
 /** A tidal-parameter set (the shape of {@link TIDE}). */
 /** @typedef {{ period_min: number, low_tide_min: number, open_half_width_min: number }} Tide */
@@ -101,11 +102,17 @@ export function satOverhead(t, sat = SAT) {
 /**
  * Build the entity set projected by the Sync Matrix (display-only, DEC-52/53
  * v1). Aspects are typed time-functions; `at(plan, t)` is the single read used
- * by both the track renderer and the cursor readout (NF1).
+ * by both the track renderer and the cursor readout (NF1). Authored ORBAT
+ * assets (DEC-60) are folded in as allegiance-typed entities keyed by asset id.
+ * @param {import('../../../schema/gen/remit').Asset[]} [assets]
  * @returns {Entities}
  */
-export function buildEntities() {
+export function buildEntities(assets = []) {
+  /** @type {Entities} */
+  const orbatEntities = {};
+  for (const a of assets) orbatEntities[a.id] = /** @type {any} */ (assetToEntity(a));
   return {
+    ...orbatEntities,
     self: {
       id: 'ent-self', label: 'Own force · ROVER-1',
       provenance: { kind: 'self' },
@@ -146,13 +153,26 @@ export function buildEntities() {
  * the World step on. A fuller build would gate rows by role view-preset
  * (DEC-48/49/50) — here one default preset shows them all.
  */
-export function syncCatalogue() {
-  return [
+/**
+ * @param {import('../../../schema/gen/remit').Asset[]} [assets]
+ * @returns {import('../views/sync-matrix.js').CatalogueRow[]}
+ */
+export function syncCatalogue(assets = []) {
+  /** @type {import('../views/sync-matrix.js').CatalogueRow[]} */
+  const rows = [
     { key: 'self.phase',  entity: 'self', aspect: 'phase',  render: 'status', label: 'Own force · phase',     needsPlan: true },
     { key: 'self.fuel',   entity: 'self', aspect: 'fuel',   render: 'line',   label: 'Own force · fuel %',    needsPlan: true },
     { key: 'tide.height', entity: 'tide', aspect: 'height', render: 'tide',   label: 'Tide · height + window' },
     { key: 'sat.pass',    entity: 'sat',  aspect: 'pass',   render: 'band',   label: `Recce sat · ${SAT.name} pass` },
   ];
+  // Any authored asset carrying a time-varying aspect (a red patrol window, a blue
+  // availability window) projects as a Sync-Matrix track via a catalogue row (DEC-60/US5).
+  for (const a of assets) {
+    if (!hasTrack(a)) continue;
+    rows.push({ key: `${a.id}.active`, entity: a.id, aspect: 'active', render: 'band',
+                label: `${a.allegiance} · ${a.label ?? a.id}`, color: ALLEGIANCE_COLOR[/** @type {keyof typeof ALLEGIANCE_COLOR} */ (a.allegiance)] });
+  }
+  return rows;
 }
 
 // ---------------------------------------------------------------------------
