@@ -776,6 +776,8 @@ export interface BlueParams {
     availability?: string,
     /** capability tags a future Scheme matches to activity needs (stub) */
     capabilities?: string[],
+    /** mission-minute window the asset is available (display-only Sync-Matrix track) */
+    availability_window?: TimeWindow,
 }
 
 

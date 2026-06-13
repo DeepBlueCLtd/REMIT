@@ -84,6 +84,10 @@ classes:
         range: string
         multivalued: true
         description: capability tags a future Scheme matches to activity needs (stub)
+      availability_window:
+        range: TimeWindow
+        inlined: true
+        description: mission-minute window the asset is available (display-only Sync-Matrix track)
   RedParams:
     description: Hostile threat picture (threat SOURCE only in v1; reactive behaviour deferred, DEC-51).
     attributes:

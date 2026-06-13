@@ -158,6 +158,15 @@ export function tuneAsset(orbat, id, patch, opts = {}) {
       if (patch.blue.availability !== undefined) next.blue.availability = String(patch.blue.availability);
       if (patch.blue.capabilities !== undefined)
         next.blue.capabilities = (patch.blue.capabilities ?? []).map(String).filter(Boolean);
+      if ('availability_window' in patch.blue) {
+        const w = /** @type {any} */ (patch.blue).availability_window;
+        if (w && w.start_min != null && w.end_min != null) {
+          const s = Math.round(Number(w.start_min)), e = Math.round(Number(w.end_min));
+          /** @type {any} */ (next.blue).availability_window = { start_min: Math.min(s, e), end_min: Math.max(s, e) };
+        } else {
+          delete (/** @type {any} */ (next.blue).availability_window);
+        }
+      }
     }
     return next;
   });
@@ -364,7 +373,7 @@ function activeWindowsOf(asset) {
   if (asset.allegiance === 'red')
     return (asset.red?.active_windows ?? []).map((w) => ({ start: Number(w.start_min), end: Number(w.end_min) }));
   if (asset.allegiance === 'blue') {
-    const w = /** @type {any} */ (asset.blue)?.window;
+    const w = /** @type {any} */ (asset.blue)?.availability_window;
     if (w && w.start_min != null && w.end_min != null) return [{ start: Number(w.start_min), end: Number(w.end_min) }];
   }
   return [];

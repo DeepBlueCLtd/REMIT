@@ -68,13 +68,13 @@ export function mountOrbatPanel(container, ctx) {
     position: base ? { h3: base.h3, lat: base.lat, lng: base.lng } : undefined,
   }));
 
-  /** Apply an op that returns a new draft, persist+broadcast, then re-render. */
+  /** Apply an op that returns a new draft, persist+broadcast, then re-render. setDraft
+   *  notifies the draft subscription below, which is the single render path (no double render). */
   const apply = (/** @type {() => any} */ fn, /** @type {(HTMLElement|null)} */ msgEl = null) => {
     try {
       const result = fn();
       const next = result && result.orbat ? result.orbat : result;
       setDraft(next);
-      render();
       return result;
     } catch (err) {
       if (msgEl) { msgEl.textContent = `⚠ ${err instanceof Error ? err.message : String(err)}`; msgEl.classList.add('orbat-msg-err'); }
@@ -199,7 +199,7 @@ export function mountOrbatPanel(container, ctx) {
 
   /** @param {any} a */
   function blueTuners(a) {
-    const win = /** @type {any} */ (a.blue)?.window;
+    const win = /** @type {any} */ (a.blue)?.availability_window;
     return `
       <label>availability
         <select data-act="availability" data-testid="orbat-availability-${a.id}">
@@ -262,13 +262,7 @@ export function mountOrbatPanel(container, ctx) {
         return { start_min: Math.min(s, e), end_min: Math.max(s, e) };
       };
       for (const act of ['bluewin-on', 'bluewin-start', 'bluewin-end'])
-        on(act, 'change', () => apply(() => {
-          const draft = getDraft();
-          const asset = (draft.assets ?? []).find((x) => x.id === a.id);
-          const blue = { ...(asset?.blue ?? {}), window: bwin() };
-          if (blue.window === undefined) delete blue.window;
-          return tuneAsset(draft, a.id, { blue });
-        }, msg));
+        on(act, 'change', () => apply(() => tuneAsset(getDraft(), a.id, { blue: { availability_window: bwin() } }), msg));
     }
 
     // Show any standing validation issues (display feedback; never blocks).

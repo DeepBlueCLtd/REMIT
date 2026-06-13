@@ -655,6 +655,17 @@
                         "null"
                     ]
                 },
+                "availability_window": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/TimeWindow"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "mission-minute window the asset is available (display-only Sync-Matrix track)"
+                },
                 "capabilities": {
                     "description": "capability tags a future Scheme matches to activity needs (stub)",
                     "items": {

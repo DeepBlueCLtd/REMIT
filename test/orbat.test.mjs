@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 
 import {
   emptyOrbat, addAsset, tuneAsset, duplicateAsset, removeAsset,
-  reconcileOwnForce, validate, canonical, commit, BOUNDS, OWN_FORCE_ID,
+  reconcileOwnForce, validate, canonical, commit, hasTrack, BOUNDS, OWN_FORCE_ID,
 } from '../app/js/orbat/orbat.js';
 import { ObjectStore } from '../app/js/stores/stores.js';
 
@@ -59,6 +59,7 @@ test('canonical is stable and order-independent (NF3 determinism)', () => {
   // Same content, assets inserted in the opposite order ⇒ identical canonical bytes.
   let b = addAsset(emptyOrbat('s'), { allegiance: 'red', position: pos(1) });
   b = addAsset(b.orbat, { allegiance: 'green', position: pos(2) });
+  // canonical() sorts assets by id, so reversing the array must not change the bytes.
   const reordered = { ...b.orbat, assets: [...b.orbat.assets].reverse() };
   assert.equal(canonical(a.orbat), canonical(reordered));
 });
@@ -90,6 +91,21 @@ test('blue defaults + BlueParams tuning (availability, capabilities)', () => {
   const a = next.assets.find((x) => x.id === id);
   assert.equal(a.blue.availability, 'down');
   assert.deepEqual(a.blue.capabilities, ['recce', 'comms']);
+});
+
+test('blue availability_window persists through tuneAsset and projects a track', () => {
+  let o = addAsset(emptyOrbat('s'), { allegiance: 'blue', position: pos(1) });
+  const id = o.id;
+  assert.equal(hasTrack(o.orbat.assets[0]), false);            // no window yet → no track
+  let next = tuneAsset(o.orbat, id, { blue: { availability_window: { start_min: 60, end_min: 30 } } });
+  const a = next.assets.find((x) => x.id === id);
+  // Window is persisted and normalised to start ≤ end.
+  assert.deepEqual(a.blue.availability_window, { start_min: 30, end_min: 60 });
+  assert.equal(hasTrack(a), true);
+  // Clearing it removes the field (and the track).
+  next = tuneAsset(next, id, { blue: { availability_window: undefined } });
+  assert.equal(next.assets.find((x) => x.id === id).blue.availability_window, undefined);
+  assert.equal(hasTrack(next.assets.find((x) => x.id === id)), false);
 });
 
 test('reconcileOwnForce is idempotent and yields exactly one canonical own-force (FR-012)', () => {
