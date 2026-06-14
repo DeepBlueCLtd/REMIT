@@ -250,4 +250,23 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
   re-run `schema/generate.sh`, then drop the cast. Enforced type-checking (ADR-0024) now
   catches this class of schema/code drift at build time instead of silently.
 
+## Schema-adherence guard surfaces the full extent of the schema↔code drift (2026-06-14)
+
+- **Symptom:** the new schema-adherence test (ADR-0029, `test/schema-adherence.test.mjs`) validates real
+  instances against the generated JSON Schema and found `Asset.position`, `Stamp.start` and
+  `Materialisation.trajectory` fail `additionalProperties:false` — runtime hex `{h3,lat,lng}` vs the schema's
+  square-grid `Waypoint`/`StartState`/`TrajectoryPoint` `{x,y}`. It also flagged two non-hex drifts: the kernel's
+  `appetites` is a `{axis:setting}` map where the schema models `Appetite[] {axis,setting}`, and `TideDecision`
+  carries runtime fields beyond the schema's.
+- **Root cause:** the same drift as the `SteeringDelta`/`Constraint.cells` entry above — the app moved to H3 hex
+  (ADR-0016) and grew kernel shapes that the LinkML source was never updated to match; the DEC-57 "schema ≡ code"
+  invariant has drifted on these classes too, not just `SteeringDelta`.
+- **Fix (interim):** the adherence test strips these documented fields (its `DRIFT` map) before strict validation,
+  so the guard is green and still catches any NEW drift. The drift stays visible (here + the test's comments),
+  never hidden.
+- **Real fix:** the Waypoint→HexCell migration (add a hex cell type / `Waypoint.h3`; repoint `Asset.position`,
+  `Constraint.cells`, `StartState`, `TrajectoryPoint`), reconcile `appetites`→`Appetite[]` and `TideDecision`,
+  re-run `schema/generate.sh`, then empty the test's `DRIFT` map. The regen-no-diff + adherence checks (ADR-0029)
+  now make this class of drift impossible to reintroduce silently.
+
 <!-- Add new entries above this line. -->

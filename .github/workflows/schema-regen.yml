@@ -1,0 +1,39 @@
+name: schema-regen
+
+# Guards Principle I (LinkML is the one source of truth, DEC-57/ADR-0011): the
+# committed artefacts under schema/gen/ and site/data-model/ are GENERATED, never
+# hand-edited. This regenerates them from the schema and fails if anything drifts,
+# so the generated files can never silently fall out of step with schema/*.yaml.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: schema-regen-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Match the toolchain generate.sh pins (linkml==1.11.1) was verified against,
+      # so regeneration is byte-for-byte reproducible.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Regenerate every derived artefact from the LinkML schema
+        run: bash schema/generate.sh
+
+      - name: Fail if the generated artefacts are stale (schema ≡ generated)
+        run: |
+          if ! git diff --exit-code -- schema/gen site/data-model; then
+            echo "::error::Generated artefacts are out of date. Run 'bash schema/generate.sh' and commit schema/gen/ + site/data-model/index.html."
+            exit 1
+          fi

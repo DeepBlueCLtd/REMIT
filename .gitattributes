@@ -1,0 +1,5 @@
+# Generated artefacts (DEC-57 / ADR-0011): produced by schema/generate.sh from the
+# LinkML schema and enforced by the schema-regen CI check — never hand-edited.
+# Marked generated so GitHub collapses them in diffs and omits them from language stats.
+schema/gen/** linguist-generated=true
+site/data-model/index.html linguist-generated=true
