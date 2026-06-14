@@ -760,3 +760,41 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
 - **Remaining skeleton notes:** World-before-Capture tool-order, mock band-calibration, and the `entities/` vs
   `views/projection/` module placement were reviewed and **held as-is** (no register change); the mid-stream
   coincidence H2→H1-lite edit (ADR-0009/DEC-53) was already reconciled. Closes issue #3.
+
+## ADR-0029 (2026-06-14) — LinkML guardrails: GENERATED banners, regen-no-diff CI, schema-adherence test
+
+- **Context:** ADR-0011/0012 adopted LinkML as the one source of truth (DEC-57) and logged three deferred
+  guardrails to make Principle I *enforceable* rather than aspirational: GENERATED banners on the derived
+  artefacts, a regen-no-diff CI check, and a golden-fixtures adherence test (skeleton instances validate against
+  the generated JSON Schema). This lands all three. (The fourth ADR-0012 note — migrating the app's inline shapes
+  onto the generated TS — remains its own spec.)
+- **Decision:**
+  - **GENERATED banners.** `schema/generate.sh` now stamps every derived file `@generated — DO NOT EDIT` (a `//`
+    block on `remit.ts`, a `$comment` first-key on `remit.schema.json` — textual insert, no reformat — and an HTML
+    comment on `index.html`), plus a `.gitattributes` marking them `linguist-generated`. The banner is re-applied
+    each run, so it survives regeneration.
+  - **regen-no-diff CI** (`.github/workflows/schema-regen.yml`): regenerates from the schema and fails on any diff
+    under `schema/gen/` + `site/data-model/`, so the committed artefacts can never silently fall out of step with
+    `schema/*.yaml`. Reproducibility pinned — `generate.sh` installs `linkml==1.11.1` + `linkml-runtime==1.11.1`,
+    CI uses Python 3.11; verified to reproduce the committed bytes exactly (empty `git diff`).
+  - **Schema-adherence test** (`test/schema-adherence.test.mjs`, `node --test`): builds real instances — a
+    committed `Orbat` (red/green/own-force) and a kernel `Plan` (Stamp/Scores/Materialisation) — and validates
+    them against `schema/gen/remit.schema.json` with **ajv** (dev-only; draft-2019-09). Documented pre-existing
+    drifts are stripped per class (its `DRIFT` map) and the rest validated strictly, so the guard is green yet
+    still fails on any NEW drift (proven by an undeclared-field assertion). Wired into a new **`unit.yml`** CI job
+    (`npm run test:unit`) — which also closes the gap that the unit suite (golden fixtures, ORBAT, routing) had
+    never run in CI, only e2e + typecheck did, so the adherence guard (and all the others) now actually fire on PRs.
+- **The guard earned its keep immediately:** it confirmed the documented `Waypoint` square-vs-hex drift (bugs.md)
+  extends beyond `SteeringDelta` to `Asset.position`, `Stamp.start` and `Materialisation.trajectory`, and surfaced
+  two more — the kernel carries `appetites` as a `{axis:setting}` map where the schema models `Appetite[]`, and
+  `TideDecision` shapes differently. Recorded (bugs.md) and stripped via `DRIFT`; the Waypoint→HexCell migration +
+  appetites/tide reconciliation (then emptying `DRIFT`) is the concrete next follow-up this guard makes visible.
+- **Dependency (ADR-0014):** adds `ajv` as a **dev**-only dependency (test-only; never imported by `app/` or the
+  kernel), maintainer-approved for this guard. No runtime dependency added.
+- **Options considered:** (a) ajv vs a hand-rolled validator — ajv, for faithful draft-2019-09 validation (a
+  hand-rolled check can't honestly resolve `$ref`/`anyOf`/`additionalProperties`); (b) banner via reserialisation
+  vs textual insert — textual, to leave gen-json-schema's bytes untouched (zero churn); (c) fixing the surfaced
+  drift now vs strip-and-track — tracked, to keep this PR a pure guardrail, not a schema migration.
+- **Consequences:** Principle I is now enforced, not just stated — generated files are labelled, drift fails CI
+  two ways (regen + adherence), and the schema's real gaps are visible and tracked. Scope: tooling/CI/test only;
+  the sole schema-output change is the banner text. No `app/`/kernel code changed.

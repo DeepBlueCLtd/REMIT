@@ -1,0 +1,33 @@
+name: unit
+
+# Runs the node --test unit suite in CI. Until now only e2e + typecheck ran on PRs,
+# so the golden kernel fixtures (NF3), ORBAT model, routing/hexgrid and the new
+# schema-adherence guard (ADR-0029) were verified locally only. Build-free.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: unit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm run test:unit
