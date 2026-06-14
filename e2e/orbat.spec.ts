@@ -41,9 +41,10 @@ test('US1 — add & tune red assets; both render, isolated, no fabricated motion
   const reds = d0.assets.filter((a: any) => a.allegiance === 'red');
   const [r1, r2] = reds.map((a: any) => a.id);
 
-  // Tune the FIRST red's extent + severity to their maxima.
-  await page.getByTestId(`orbat-extent-${r1}`).fill('20000');
-  await page.getByTestId(`orbat-extent-${r1}`).dispatchEvent('change');
+  // Tune the FIRST red's detection range + severity to their maxima (red uses the dual-range
+  // control from spec 005, not a single extent).
+  await page.getByTestId(`orbat-detection-${r1}`).fill('20000');
+  await page.getByTestId(`orbat-detection-${r1}`).dispatchEvent('change');
   await page.getByTestId(`orbat-severity-${r1}`).fill('5');
   await page.getByTestId(`orbat-severity-${r1}`).dispatchEvent('change');
 
@@ -52,7 +53,7 @@ test('US1 — add & tune red assets; both render, isolated, no fabricated motion
   const d1 = await draft(page);
   const a1 = d1.assets.find((a: any) => a.id === r1);
   const a2 = d1.assets.find((a: any) => a.id === r2);
-  expect(a1.extent_m).toBe(20000);
+  expect(a1.red.detection_range_m).toBe(20000);
   expect(a1.red.severity).toBe(5);
   expect(JSON.stringify(a2)).toBe(before2);
 
@@ -203,5 +204,107 @@ test('US5 — a red active window projects as a Sync-Matrix track; selection hig
     .toBe(String(tracks0 + 1));
   await expect(page.getByTestId('map')).toHaveAttribute('data-assets', new RegExp(`${red.id}:red`));
   await shot(page, '06-sync-matrix-track');
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
+// --- spec 005 enrichment ---------------------------------------------------
+
+test('US1 (005) — platform kind drives the map symbol; icon override + clear', async ({ page }) => {
+  await provision(page);
+  await openOrbat(page);
+  await page.getByTestId('orbat-add-red').click();
+  const id = (await draft(page)).assets.find((a: any) => a.allegiance === 'red').id;
+
+  // Set kind → the map's data-assets exposes "id:red:emplacement:...".
+  await page.getByTestId(`orbat-kind-${id}`).selectOption('emplacement');
+  await page.getByTestId('tab-overview').click();
+  await expect(page.getByTestId('map')).toHaveAttribute('data-assets', new RegExp(`${id}:red:emplacement`));
+
+  // Icon override then clear (asserted on the persisted draft).
+  await page.getByTestId('tab-sme-int').click();
+  await page.getByTestId(`orbat-symbol-${id}`).fill('★');
+  await page.getByTestId(`orbat-symbol-${id}`).dispatchEvent('change');
+  expect((await draft(page)).assets.find((a: any) => a.id === id).symbol).toBe('★');
+  await page.getByTestId(`orbat-symbol-clear-${id}`).click();
+  expect('symbol' in (await draft(page)).assets.find((a: any) => a.id === id)).toBe(false);
+
+  // Honest floor: authoring created no plan.
+  await page.getByTestId('tab-overview').click();
+  const plans = await page.evaluate(() => (window as any).__remit.objects.list().filter((o: any) => o.type === 'Plan').length);
+  expect(plans).toBe(0);
+  await shot(page, '07-kind-symbols');
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
+test('US2 (005) — intel confidence persists and shows on the map', async ({ page }) => {
+  await provision(page);
+  await openOrbat(page);
+  await page.getByTestId('orbat-add-green').click();
+  const id = (await draft(page)).assets.find((a: any) => a.allegiance === 'green').id;
+
+  await page.getByTestId(`orbat-confidence-${id}`).selectOption('low');
+  expect((await draft(page)).assets.find((a: any) => a.id === id).confidence).toBe('low');
+  await page.getByTestId('tab-overview').click();
+  await expect(page.getByTestId('map')).toHaveAttribute('data-assets', new RegExp(`${id}:green:[^:]*:low`));
+
+  // Persists across reload.
+  await page.reload();
+  expect((await draft(page)).assets.find((a: any) => a.id === id).confidence).toBe('low');
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
+test('US3 (005) — red dual range reconciles engagement ≤ detection; green keeps single extent', async ({ page }) => {
+  await provision(page);
+  await openOrbat(page);
+  await page.getByTestId('orbat-add-red').click();
+  await page.getByTestId('orbat-add-green').click();
+  const d0 = await draft(page);
+  const red = d0.assets.find((a: any) => a.allegiance === 'red');
+  const green = d0.assets.find((a: any) => a.allegiance === 'green');
+
+  // Red shows detection + engagement (not a single extent); green shows a single extent.
+  await expect(page.getByTestId(`orbat-detection-${red.id}`)).toBeVisible();
+  await expect(page.getByTestId(`orbat-engagement-${red.id}`)).toBeVisible();
+  await expect(page.getByTestId(`orbat-extent-${red.id}`)).toHaveCount(0);
+  await expect(page.getByTestId(`orbat-extent-${green.id}`)).toBeVisible();
+
+  // Set detection then an over-large engagement → reconciled to ≤ detection.
+  await page.getByTestId(`orbat-detection-${red.id}`).fill('4000');
+  await page.getByTestId(`orbat-detection-${red.id}`).dispatchEvent('change');
+  await page.getByTestId(`orbat-engagement-${red.id}`).fill('9000');
+  await page.getByTestId(`orbat-engagement-${red.id}`).dispatchEvent('change');
+  const a = (await draft(page)).assets.find((x: any) => x.id === red.id);
+  expect(a.red.detection_range_m).toBe(4000);
+  expect(a.red.engagement_range_m).toBe(4000);          // reconciled ≤ detection
+  await shot(page, '08-red-dual-range');
+  await expect(page.locator('#fault')).toBeHidden();
+});
+
+test('US4 (005) — descriptive fields (strength/notes + threat/category/role) round-trip', async ({ page }) => {
+  await provision(page);
+  await openOrbat(page);
+  await page.getByTestId('orbat-add-red').click();
+  await page.getByTestId('orbat-add-green').click();
+  await page.getByTestId('orbat-add-blue').click();
+  const d0 = await draft(page);
+  const red = d0.assets.find((a: any) => a.allegiance === 'red');
+  const green = d0.assets.find((a: any) => a.allegiance === 'green');
+  const blue = d0.assets.find((a: any) => a.allegiance === 'blue' && !a.canonical_own_force);
+
+  for (const [tid, val] of [[`orbat-strength-${red.id}`, '×2'], [`orbat-notes-${red.id}`, 'dug in'], [`orbat-threat-${red.id}`, 'SAM'], [`orbat-role-${blue.id}`, 'recce']] as const) {
+    await page.getByTestId(tid).fill(val);
+    await page.getByTestId(tid).dispatchEvent('change');
+  }
+  await page.getByTestId(`orbat-category-${green.id}`).selectOption('hospital');
+
+  // Persist across reload, then assert every descriptor survived.
+  await page.reload();
+  const d1 = await draft(page);
+  const r = d1.assets.find((a: any) => a.id === red.id);
+  expect(r.strength).toBe('×2');
+  expect(r.notes).toBe('dug in');
+  expect(r.red.threat_type).toBe('SAM');
+  expect(d1.assets.find((a: any) => a.id === green.id).green.category).toBe('hospital');
+  expect(d1.assets.find((a: any) => a.id === blue.id).blue.role).toBe('recce');
   await expect(page.locator('#fault')).toBeHidden();
 });

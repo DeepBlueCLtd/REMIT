@@ -27,10 +27,10 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 **Purpose**: Extend the LinkML data model with the enriched, serialisable fields and regenerate. Generated artefacts are outputs; never hand-edited.
 
-- [ ] T001 Add `PlatformKind` enum (`infantry|vehicle|aircraft|vessel|sensor|emplacement|structure`) and `GreenCategory` enum (`hospital|school|utility|place_of_worship|residential|other`) to `schema/common.yaml`
-- [ ] T002 Add optional `kind` (range `PlatformKind`), `symbol` (string override), `confidence` (range `ConfidenceLevel`), `strength` (string), and `notes` (string) attributes to `Asset` in `schema/orbat.yaml`
-- [ ] T003 Add `detection_range_m`/`engagement_range_m` (float) + `threat_type` (string) to `RedParams`, `category` (range `GreenCategory`) to `GreenParams`, and `role` (string) to `BlueParams` in `schema/orbat.yaml`
-- [ ] T004 Regenerate artefacts: `bash schema/generate.sh` → verify `schema/gen/remit.ts` + `remit.schema.json` include `PlatformKind`/`GreenCategory`, `Asset.kind/symbol/confidence/strength/notes`, `RedParams.detection_range_m/engagement_range_m/threat_type`, `GreenParams.category`, `BlueParams.role`; do NOT hand-edit generated files
+- [X] T001 Add `PlatformKind` enum (`infantry|vehicle|aircraft|vessel|sensor|emplacement|structure`) and `GreenCategory` enum (`hospital|school|utility|place_of_worship|residential|other`) to `schema/common.yaml`
+- [X] T002 Add optional `kind` (range `PlatformKind`), `symbol` (string override), `confidence` (range `ConfidenceLevel`), `strength` (string), and `notes` (string) attributes to `Asset` in `schema/orbat.yaml`
+- [X] T003 Add `detection_range_m`/`engagement_range_m` (float) + `threat_type` (string) to `RedParams`, `category` (range `GreenCategory`) to `GreenParams`, and `role` (string) to `BlueParams` in `schema/orbat.yaml`
+- [X] T004 Regenerate artefacts: `bash schema/generate.sh` → verify `schema/gen/remit.ts` + `remit.schema.json` include `PlatformKind`/`GreenCategory`, `Asset.kind/symbol/confidence/strength/notes`, `RedParams.detection_range_m/engagement_range_m/threat_type`, `GreenParams.category`, `BlueParams.role`; do NOT hand-edit generated files
 
 **Checkpoint**: schema regenerated; enriched asset shapes available as generated types.
 
@@ -42,9 +42,9 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 **⚠️ CRITICAL**: No user-story work begins until this phase is complete.
 
-- [ ] T005 Implement `normalize(orbat)` — default absent fields and **migrate** spec-004 drafts (red `extent_m` → `detection_range_m`, seed `engagement_range_m ≈ 0.5×` clamped ≤ detection); pure + idempotent; wire it into `loadDraft`/`getDraft` (FR-010) — in `app/js/orbat/orbat.js`
-- [ ] T006 Extend `tuneAsset` to accept `kind`/`symbol`/`confidence`/`strength`/`notes` on the asset, `detection_range_m`/`engagement_range_m`/`threat_type` inside `patch.red` (clamp to `BOUNDS.extent_m`; reconcile `engagement ≤ detection`, FR-006), `category` inside `patch.green`, and `role` inside `patch.blue`; trim free-text + drop empties; extend `addAsset` red defaults and `validate` (kind/confidence/category vocab + range bounds) — in `app/js/orbat/orbat.js`
-- [ ] T007 Add the `SYMBOLS` glyph lookup (`PlatformKind` → Unicode/emoji) + `symbolOf(asset)` (override → kind → generic dot) export (UI/behaviour carve-out, ADR-0012) — in `app/js/orbat/orbat.js`
+- [X] T005 Implement `normalize(orbat)` — default absent fields and **migrate** spec-004 drafts (red `extent_m` → `detection_range_m`, seed `engagement_range_m ≈ 0.5×` clamped ≤ detection); pure + idempotent; wire it into `loadDraft`/`getDraft` (FR-010) — in `app/js/orbat/orbat.js`
+- [X] T006 Extend `tuneAsset` to accept `kind`/`symbol`/`confidence`/`strength`/`notes` on the asset, `detection_range_m`/`engagement_range_m`/`threat_type` inside `patch.red` (clamp to `BOUNDS.extent_m`; reconcile `engagement ≤ detection`, FR-006), `category` inside `patch.green`, and `role` inside `patch.blue`; trim free-text + drop empties; extend `addAsset` red defaults and `validate` (kind/confidence/category vocab + range bounds) — in `app/js/orbat/orbat.js`
+- [X] T007 Add the `SYMBOLS` glyph lookup (`PlatformKind` → Unicode/emoji) + `symbolOf(asset)` (override → kind → generic dot) export (UI/behaviour carve-out, ADR-0012) — in `app/js/orbat/orbat.js`
 
 **Checkpoint**: a spec-004 draft loads + migrates cleanly; enriched fields tune/clamp; `symbolOf` resolves. Stories can begin.
 
@@ -58,13 +58,13 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Unit tests — `symbolOf` (override > kind > generic), `kind`/`symbol` round-trip through `tuneAsset`/`canonical`, determinism — in `test/orbat.test.mjs`
-- [ ] T009 [P] [US1] e2e — set distinct kinds across the three allegiances, assert distinct symbols; override + clear one icon; assert route/plan unchanged (honest floor) — in `e2e/orbat.spec.ts`
+- [X] T008 [P] [US1] Unit tests — `symbolOf` (override > kind > generic), `kind`/`symbol` round-trip through `tuneAsset`/`canonical`, determinism — in `test/orbat.test.mjs`
+- [X] T009 [P] [US1] e2e — set distinct kinds across the three allegiances, assert distinct symbols; override + clear one icon; assert route/plan unchanged (honest floor) — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Render the per-row **kind selector** and **icon/symbol picker** (with a clear-override affordance) in `app/js/shell/orbat-panel.js`
-- [ ] T011 [US1] Draw each asset's symbol glyph (`TextLayer` via `symbolOf`) over the allegiance marker; extend the `data-assets` dataset with kind for the e2e suite; capture evidence screenshots → `specs/005-orbat-asset-enrichment/evidence/screenshots/` — in `app/js/views/map.js`
+- [X] T010 [US1] Render the per-row **kind selector** and **icon/symbol picker** (with a clear-override affordance) in `app/js/shell/orbat-panel.js`
+- [X] T011 [US1] Draw each asset's symbol glyph (`TextLayer` via `symbolOf`) over the allegiance marker; extend the `data-assets` dataset with kind for the e2e suite; capture evidence screenshots → `specs/005-orbat-asset-enrichment/evidence/screenshots/` — in `app/js/views/map.js`
 
 **Checkpoint**: typed allegiance-framed symbols render and are authorable — the MVP.
 
@@ -78,13 +78,13 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 2
 
-- [ ] T012 [P] [US2] Unit tests — `confidence` round-trip + absent-default behaviour, isolation — in `test/orbat.test.mjs`
-- [ ] T013 [P] [US2] e2e — set low vs high confidence, assert map emphasis differs + roster badge + persistence across reload — in `e2e/orbat.spec.ts`
+- [X] T012 [P] [US2] Unit tests — `confidence` round-trip + absent-default behaviour, isolation — in `test/orbat.test.mjs`
+- [X] T013 [P] [US2] e2e — set low vs high confidence, assert map emphasis differs + roster badge + persistence across reload — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Render the per-row **confidence selector** + a roster confidence badge in `app/js/shell/orbat-panel.js`
-- [ ] T015 [US2] Map `confidence` → marker/glyph **opacity** (high≈1.0, medium≈0.6, low≈0.35; absent ⇒ full) in `app/js/views/map.js`
+- [X] T014 [US2] Render the per-row **confidence selector** + a roster confidence badge in `app/js/shell/orbat-panel.js`
+- [X] T015 [US2] Map `confidence` → marker/glyph **opacity** (high≈1.0, medium≈0.6, low≈0.35; absent ⇒ full) in `app/js/views/map.js`
 
 **Checkpoint**: intel confidence is authorable and visible across map + roster.
 
@@ -98,13 +98,13 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Unit tests — dual-range clamp, `engagement ≤ detection` reconciliation, red migration seed, green/blue single-extent unaffected — in `test/orbat.test.mjs`
-- [ ] T017 [P] [US3] e2e — two distinct red rings, engagement>detection reconciled, green/blue single ring, route unchanged — in `e2e/orbat.spec.ts`
+- [X] T016 [P] [US3] Unit tests — dual-range clamp, `engagement ≤ detection` reconciliation, red migration seed, green/blue single-extent unaffected — in `test/orbat.test.mjs`
+- [X] T017 [P] [US3] e2e — two distinct red rings, engagement>detection reconciled, green/blue single ring, route unchanged — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Replace the single extent tuner for **red** rows with **detection** + **engagement** range tuners (single extent stays for green/blue); inline reconcile feedback — in `app/js/shell/orbat-panel.js`
-- [ ] T019 [US3] Draw red assets as a faint outer **detection** ring + a bold inner **engagement** ring (single `extent_m` ring retained for green/blue) in `app/js/views/map.js`
+- [X] T018 [US3] Replace the single extent tuner for **red** rows with **detection** + **engagement** range tuners (single extent stays for green/blue); inline reconcile feedback — in `app/js/shell/orbat-panel.js`
+- [X] T019 [US3] Draw red assets as a faint outer **detection** ring + a bold inner **engagement** ring (single `extent_m` ring retained for green/blue) in `app/js/views/map.js`
 
 **Checkpoint**: the visual enrichments are independently authorable and visible; everything stays display-only.
 
@@ -118,13 +118,13 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 4
 
-- [ ] T020 [P] [US4] Unit tests — `strength`/`notes`/`threat_type`/`category`/`role` round-trip through `tuneAsset`/`canonical`, trim + empty-drop, `category` vocab validation, isolation — in `test/orbat.test.mjs`
-- [ ] T021 [P] [US4] e2e — set strength/notes + red threat-type / green category / blue role, assert roster shows them + persistence across reload + route unchanged — in `e2e/orbat.spec.ts`
+- [X] T020 [P] [US4] Unit tests — `strength`/`notes`/`threat_type`/`category`/`role` round-trip through `tuneAsset`/`canonical`, trim + empty-drop, `category` vocab validation, isolation — in `test/orbat.test.mjs`
+- [X] T021 [P] [US4] e2e — set strength/notes + red threat-type / green category / blue role, assert roster shows them + persistence across reload + route unchanged — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T022 [US4] Render per-row **strength** + **notes** inputs and the per-allegiance descriptor control (red **threat type** text, green **category** select, blue **role** text); omit empty values from the roster display — in `app/js/shell/orbat-panel.js`
-- [ ] T023 [US4] Surface strength/notes/descriptor in the asset marker tooltip/label where natural (optional, display-only) in `app/js/views/map.js`
+- [X] T022 [US4] Render per-row **strength** + **notes** inputs and the per-allegiance descriptor control (red **threat type** text, green **category** select, blue **role** text); omit empty values from the roster display — in `app/js/shell/orbat-panel.js`
+- [X] T023 [US4] Surface strength/notes/descriptor in the asset marker tooltip/label where natural (optional, display-only) in `app/js/views/map.js`
 
 **Checkpoint**: assets are identifiable units — symbol + confidence + ranges + descriptive detail; all display-only.
 
@@ -132,10 +132,10 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T024 [P] Record project memory: new ADR (asset enrichment — kind/symbol/confidence + red dual-range + descriptive fields, display-only) in `docs/project_notes/decisions.md`; platform-kind glyph table + confidence-opacity scale + red range/descriptor fields in `docs/project_notes/key_facts.md`; work-log entry in `docs/project_notes/issues.md`
-- [ ] T025 [P] Author the blog post `specs/005-orbat-asset-enrichment/blog/post.md` from `docs/blog-post-template.md` (problem/options/strategy/results/screenshots + "at a glance") and add `blog/screenshots/`
-- [ ] T026 Run `quickstart.md` end-to-end (incl. the spec-004 draft backward-compat check) and collect evidence screenshots into `specs/005-orbat-asset-enrichment/evidence/screenshots/`
-- [ ] T027 Run `npm run test:unit` + `npm run test:e2e` + `npm run typecheck`; ensure `// @ts-check` is clean across the changed modules
+- [X] T024 [P] Record project memory: new ADR (asset enrichment — kind/symbol/confidence + red dual-range + descriptive fields, display-only) in `docs/project_notes/decisions.md`; platform-kind glyph table + confidence-opacity scale + red range/descriptor fields in `docs/project_notes/key_facts.md`; work-log entry in `docs/project_notes/issues.md`
+- [X] T025 [P] Author the blog post `specs/005-orbat-asset-enrichment/blog/post.md` from `docs/blog-post-template.md` (problem/options/strategy/results/screenshots + "at a glance") and add `blog/screenshots/`
+- [X] T026 Run `quickstart.md` end-to-end (incl. the spec-004 draft backward-compat check) and collect evidence screenshots into `specs/005-orbat-asset-enrichment/evidence/screenshots/`
+- [X] T027 Run `npm run test:unit` + `npm run test:e2e` + `npm run typecheck`; ensure `// @ts-check` is clean across the changed modules
 
 ---
 

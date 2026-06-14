@@ -451,6 +451,10 @@
                         "null"
                     ]
                 },
+                "confidence": {
+                    "$ref": "#/$defs/ConfidenceLevel",
+                    "description": "intel reliability of this asset (DEC-19); rendered as marker emphasis + a roster badge"
+                },
                 "extent_m": {
                     "description": "reach / footprint radius in metres",
                     "type": [
@@ -473,8 +477,19 @@
                     "description": "stable per-instance identity (not the label)",
                     "type": "string"
                 },
+                "kind": {
+                    "$ref": "#/$defs/PlatformKind",
+                    "description": "platform type (DEC-60); drives the map symbol. Absent \u21d2 generic marker."
+                },
                 "label": {
                     "description": "human label; need not be unique",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "notes": {
+                    "description": "free-text operator notes; display-only",
                     "type": [
                         "string",
                         "null"
@@ -501,6 +516,20 @@
                         }
                     ],
                     "description": "present iff allegiance = red"
+                },
+                "strength": {
+                    "description": "free-text strength descriptor (e.g. \"\u00d73\", \"platoon\"); display-only",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "symbol": {
+                    "description": "optional per-asset symbol override (a glyph); absent \u21d2 derived from kind + allegiance",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 }
             },
             "required": [
@@ -673,6 +702,13 @@
                     },
                     "type": [
                         "array",
+                        "null"
+                    ]
+                },
+                "role": {
+                    "description": "free-text own-force role (e.g. recce, C2, fires); display-only",
+                    "type": [
+                        "string",
                         "null"
                     ]
                 }
@@ -1571,10 +1607,27 @@
             "title": "FactLayer",
             "type": "object"
         },
+        "GreenCategory": {
+            "description": "The category of a neutral / green protected place (DEC-60 J3); display-only in v1.",
+            "enum": [
+                "hospital",
+                "school",
+                "utility",
+                "place_of_worship",
+                "residential",
+                "other"
+            ],
+            "title": "GreenCategory",
+            "type": "string"
+        },
         "GreenParams": {
             "additionalProperties": false,
             "description": "Neutral / collateral picture (ROE & collateral emission deferred; inert in v1, DEC-60 J3).",
             "properties": {
+                "category": {
+                    "$ref": "#/$defs/GreenCategory",
+                    "description": "kind of protected place (hospital / school / \u2026); display-only"
+                },
                 "protection": {
                     "$ref": "#/$defs/Protection",
                     "description": "nature of the rule (tagged for the future hard/soft split)"
@@ -2001,6 +2054,20 @@
             "title": "Plan",
             "type": "object"
         },
+        "PlatformKind": {
+            "description": "The platform/type class of an ORBAT asset (DEC-60). Orthogonal to allegiance; drives the map symbol. Display-only in v1 (NF9). v1 set, pluggable like ActivityType (NF7).",
+            "enum": [
+                "infantry",
+                "vehicle",
+                "aircraft",
+                "vessel",
+                "sensor",
+                "emplacement",
+                "structure"
+            ],
+            "title": "PlatformKind",
+            "type": "string"
+        },
         "Predictability": {
             "description": "How predictable a channel is over time (DEC-21) \u2014 drives sampling.",
             "enum": [
@@ -2113,10 +2180,31 @@
                         "null"
                     ]
                 },
+                "detection_range_m": {
+                    "description": "outer reach the threat can DETECT within (metres); the faint outer ring",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "engagement_range_m": {
+                    "description": "inner reach the threat can ENGAGE within (metres); the bold inner ring (\u2264 detection)",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
                 "severity": {
                     "description": "graded threat severity (e.g. 1..5)",
                     "type": [
                         "integer",
+                        "null"
+                    ]
+                },
+                "threat_type": {
+                    "description": "free-text threat / weapon type (e.g. SAM, MG, armour); display-only",
+                    "type": [
+                        "string",
                         "null"
                     ]
                 }

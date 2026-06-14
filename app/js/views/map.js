@@ -13,7 +13,7 @@ import { TERRAIN, fordOpenAt, AO_BOUNDS } from '../kernel/world.js';
 import { stateAt } from '../kernel/kernel.js';
 import { latLngToId } from '../kernel/hexgrid.js';
 import { STRAT_COLORS } from './render.js';
-import { ALLEGIANCE_COLOR } from '../orbat/orbat.js';
+import { ALLEGIANCE_COLOR, symbolOf, confidenceOpacity } from '../orbat/orbat.js';
 
 const ALLEGIANCE_RGB = Object.fromEntries(Object.entries(ALLEGIANCE_COLOR).map(([k, v]) => [k, [parseInt(v.slice(1, 3), 16), parseInt(v.slice(3, 5), 16), parseInt(v.slice(5, 7), 16)]]));
 
@@ -64,7 +64,23 @@ export function makeMap(el, baseline, ao, places) {
   }));
   map.on('error', () => {});
   if (sampling) /** @type {any} */ (window).__map = map;
-  const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
+  // Hovering an ORBAT asset marker surfaces its descriptive detail (spec 005 / T023) — a
+  // display-only readout (kind, confidence, strength, notes, threat-type/category/role).
+  const assetTooltip = (/** @type {any} */ info) => {
+    const a = info?.object?.a;
+    if (!a) return null;
+    const desc = a.red?.threat_type || a.green?.category || a.blue?.role;
+    const lines = [
+      a.label ?? a.id,
+      [a.kind, a.allegiance].filter(Boolean).join(' · '),
+      desc ? `type: ${desc}` : '',
+      a.strength ? `strength: ${a.strength}` : '',
+      a.confidence ? `confidence: ${a.confidence}` : '',
+      a.notes ? `“${a.notes}”` : '',
+    ].filter(Boolean);
+    return { text: lines.join('\n') };
+  };
+  const overlay = new MapboxOverlay({ interleaved: false, layers: [], getTooltip: /** @type {any} */ (assetTooltip) });
   map.addControl(overlay);
 
   /** @type {((cell: {h3: string, id: number}) => void) | null} */
@@ -151,33 +167,55 @@ export function makeMap(el, baseline, ao, places) {
     // Obstruction markers (✕) at lat/lng.
     if (obstructions.length) layers.push(new TextLayer({ id: 'obstructions', data: obstructions, getPosition: (o) => [o.lng, o.lat], getText: () => '✕', getColor: [255, 123, 114], getSize: 22, fontWeight: 700, outlineWidth: 2, outlineColor: [8, 12, 18, 255] }));
 
-    // ORBAT assets (DEC-60) — allegiance-coloured marker + faint extent ring + label, each
-    // visually distinct across the three sides (FR-005). Display-only (NF9): drawn from the
-    // authored roster, never derived. The selected asset's marker is enlarged/ringed.
+    // ORBAT assets (DEC-60 / spec 005) — a kind+allegiance SYMBOL over an allegiance-coloured
+    // marker, range ring(s) (red: faint detection + bold engagement; others: one extent), and a
+    // label. Intel CONFIDENCE sets marker/symbol emphasis (opacity). Display-only (NF9): drawn
+    // from the authored roster, never derived. The selected asset's marker is enlarged/outlined.
     const placed = assets.map((/** @type {any} */ a) => ({ a, pos: assetLngLat(a) })).filter((/** @type {any} */ x) => x.pos);
     if (placed.length) {
       const col = (/** @type {any} */ a) => ALLEGIANCE_RGB[a.allegiance] ?? [200, 210, 220];
+      const alpha = (/** @type {any} */ a, /** @type {number} */ base) => Math.round(base * confidenceOpacity(a));
+
+      // Range rings: red draws an outer (faint) detection ring + an inner (bold) engagement ring;
+      // green/blue draw their single extent ring.
+      const rings = [];
+      for (const { a, pos } of placed) {
+        const c = col(a);
+        if (a.allegiance === 'red' && a.red) {
+          const det = a.red.detection_range_m ?? a.extent_m ?? 1500;
+          const eng = a.red.engagement_range_m ?? Math.round(det * 0.5);
+          rings.push({ pos, radius: det, line: [...c, 90], fill: [...c, 10] });    // detection — outer, faint
+          rings.push({ pos, radius: eng, line: [...c, 210], fill: [...c, 34] });   // engagement — inner, bold
+        } else {
+          rings.push({ pos, radius: a.extent_m ?? 800, line: [...c, 150], fill: [...c, 26] });
+        }
+      }
       layers.push(new ScatterplotLayer({
-        id: 'asset-extents', data: placed, getPosition: (/** @type {any} */ d) => d.pos,
-        getRadius: (/** @type {any} */ d) => d.a.extent_m ?? 800, radiusUnits: 'meters',
-        stroked: true, filled: true,
-        getFillColor: /** @type {any} */ ((/** @type {any} */ d) => [...col(d.a), 26]),
-        getLineColor: /** @type {any} */ ((/** @type {any} */ d) => [...col(d.a), 150]), lineWidthMinPixels: 1.2,
+        id: 'asset-extents', data: rings, getPosition: (/** @type {any} */ d) => d.pos,
+        getRadius: (/** @type {any} */ d) => d.radius, radiusUnits: 'meters', stroked: true, filled: true,
+        getFillColor: /** @type {any} */ ((/** @type {any} */ d) => d.fill),
+        getLineColor: /** @type {any} */ ((/** @type {any} */ d) => d.line), lineWidthMinPixels: 1.2,
         updateTriggers: { getRadius: [assets], getFillColor: [assets], getLineColor: [assets] },
       }));
       layers.push(new ScatterplotLayer({
-        id: 'asset-marks', data: placed, getPosition: (/** @type {any} */ d) => d.pos,
+        id: 'asset-marks', data: placed, pickable: true, getPosition: (/** @type {any} */ d) => d.pos,
         getRadius: (/** @type {any} */ d) => (selectedAsset && d.a.id === selectedAsset ? 150 : 95), radiusUnits: 'meters',
         stroked: true, filled: true,
-        getFillColor: /** @type {any} */ ((/** @type {any} */ d) => col(d.a)),
+        getFillColor: /** @type {any} */ ((/** @type {any} */ d) => [...col(d.a), alpha(d.a, 255)]),
         getLineColor: /** @type {any} */ ((/** @type {any} */ d) => (selectedAsset && d.a.id === selectedAsset ? [240, 246, 252] : [8, 12, 18])),
         lineWidthMinPixels: 1.5,
-        updateTriggers: { getRadius: [selectedAsset, assets], getFillColor: [assets], getLineColor: [selectedAsset] },
+        updateTriggers: { getRadius: [selectedAsset, assets], getFillColor: [assets, selectedAsset], getLineColor: [selectedAsset] },
+      }));
+      layers.push(new TextLayer({
+        id: 'asset-symbols', data: placed, getPosition: (/** @type {any} */ d) => d.pos,
+        getText: (/** @type {any} */ d) => symbolOf(d.a), getColor: /** @type {any} */ ((/** @type {any} */ d) => [245, 248, 252, alpha(d.a, 255)]),
+        getSize: 18, fontWeight: 700, updateTriggers: { getText: [assets], getColor: [assets] },
       }));
       layers.push(new TextLayer({
         id: 'asset-labels', data: placed, getPosition: (/** @type {any} */ d) => d.pos,
         getText: (/** @type {any} */ d) => d.a.label ?? d.a.id, getColor: [235, 240, 245], getSize: 12,
-        getPixelOffset: [0, -16], outlineWidth: 2, outlineColor: [8, 12, 18, 255], fontWeight: 700,
+        getPixelOffset: [0, -18], outlineWidth: 2, outlineColor: [8, 12, 18, 255], fontWeight: 700,
+        updateTriggers: { getText: [assets] },
       }));
     }
 
@@ -187,9 +225,9 @@ export function makeMap(el, baseline, ao, places) {
   function setData(/** @type {any} */ opts) {
     const { selected = null, t = 0, plans = [], highlight = null, nogo = [], blocked = [], obstructions = [], assets = [] } = opts;
     el.dataset.fordState = fordOpenAt(t) ? 'open' : 'closed';
-    // Expose the placed ORBAT roster to the e2e suite: "id:allegiance" per placed asset.
+    // Expose the placed ORBAT roster to the e2e suite: "id:allegiance:kind:confidence" per asset.
     const placedAssets = assets.filter((/** @type {any} */ a) => assetLngLat(a));
-    el.dataset.assets = placedAssets.map((/** @type {any} */ a) => `${a.id}:${a.allegiance}`).join('|');
+    el.dataset.assets = placedAssets.map((/** @type {any} */ a) => `${a.id}:${a.allegiance}:${a.kind ?? ''}:${a.confidence ?? ''}`).join('|');
     el.dataset.assetCount = String(placedAssets.length);
     if (selected) { const g = stateAt(selected, t); el.dataset.ghost = g ? `${g.lng.toFixed(4)},${g.lat.toFixed(4)},${g.phase}` : ''; }
     else el.dataset.ghost = plans.filter((/** @type {any} */ p) => p.materialisation).map((/** @type {any} */ p) => { const g = stateAt(p, t); return g ? `${p.strategy.key}:${g.lng.toFixed(4)},${g.lat.toFixed(4)}` : ''; }).filter(Boolean).join('|');

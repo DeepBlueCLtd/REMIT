@@ -694,3 +694,39 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   assets are sorted by `id` and canonicalised before identity/projection. **Not done
   (deferred, NF9):** reactive adversary behaviour (DEC-51), capability-matched blue
   allocation (H2), live ROE constraint / collateral objective emission (DEC-60 J3).
+
+## ADR-0027 (2026-06-14) — ORBAT asset enrichment: kind/icons/confidence + red dual-range + descriptive fields (display-only)
+
+- **Context:** spec 004 rendered every ORBAT asset as a same-looking allegiance-coloured dot with a
+  single extent ring — no platform type, no intel reliability, a single radius that conflated a
+  threat's detection and weapon reach, and no descriptive detail. The maintainer asked to enrich the
+  SME-Int picture (spec 005).
+- **Decision:** add **display-only, additive** asset attributes (NF9 honest floor) — all schema-defined
+  and regenerated (Principle I): a shared `kind` (`PlatformKind` enum) driving a map **symbol** with a
+  per-asset `symbol` override; an intel `confidence` (reusing `ConfidenceLevel`) shown as marker
+  **opacity**; red **dual range rings** (`detection_range_m`/`engagement_range_m` on `RedParams`,
+  `engagement ≤ detection` enforced) replacing the single extent for red; and lightweight descriptive
+  fields — shared `strength`/`notes`, red `threat_type`, green `category` (`GreenCategory` enum), blue
+  `role`. Green/blue keep the single `extent_m`.
+- **Symbols are TextLayer glyphs, not an icon atlas** (research D1): a hand-written `SYMBOLS` lookup
+  (kind → Unicode/emoji) rendered via the existing deck.gl `TextLayer` over the allegiance marker — no
+  bundled image asset, no new dependency, no build step (Principle II). The glyph lookup + `symbolOf`/
+  `confidenceOpacity` are the documented UI/behaviour carve-out (ADR-0012); only the *data* is schema.
+- **Backward compatibility (FR-010):** a pure, idempotent `normalize()` (wired into `loadDraft`)
+  migrates spec-004 red drafts — `detection_range_m` adopts the prior single `extent_m`, seeding
+  `engagement_range_m ≈ 0.5×` (clamped ≤ detection). Absent kind/confidence default to generic
+  symbol / full emphasis. Canonical bytes/identity are preserved for already-migrated rosters (NF3).
+- **Vocab vs free-text semantics:** controlled-vocabulary fields (kind, confidence, green category)
+  IGNORE an invalid value (keep the last valid one) and clear only on empty (`setVocab`); free-text
+  fields (symbol, strength, notes, threat_type, role) trim and drop-when-empty (`setOrDrop`/`cleanStr`),
+  never stored blank (FR-014).
+- **Options considered:** (a) a NATO APP-6/2525 symbology engine + affiliation frame shapes — rejected
+  for v1 (a lookup table, not an engine; colour framing suffices); (b) deck.gl `IconLayer` with an icon
+  atlas — rejected (needs a bundled image asset); (c) a new numeric confidence scale — rejected (reuse
+  `ConfidenceLevel`); (d) two `Asset.extent`s shared by all allegiances — rejected (green/blue have no
+  detect/engage distinction; ranges live on `RedParams`).
+- **Consequences:** the map reads like a recognised picture — typed allegiance symbols, a confidence
+  wash, red see-it/hit-it rings, hover tooltips with descriptive detail. Everything stays display-only
+  (an e2e re-asserts tune ⇒ committed Plan ids unchanged); spec-004 drafts load intact. **Out of scope
+  (deferred):** a richer place-on-map interaction and true NATO frame shapes (a later slice); any
+  routing/kernel influence (the avoid-assess capability, DEC-51).

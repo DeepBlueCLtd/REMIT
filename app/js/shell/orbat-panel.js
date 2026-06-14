@@ -14,6 +14,7 @@ import {
   getDraft, setDraft, subscribeDraft, reconcileOwnForce,
   addAsset, tuneAsset, duplicateAsset, removeAsset, validate, commit,
   ALLEGIANCES, BOUNDS, PROTECTIONS, ALLEGIANCE_COLOR,
+  PLATFORM_KINDS, GREEN_CATEGORIES, CONFIDENCE_LEVELS, symbolOf,
 } from '../orbat/orbat.js';
 import { latLngToId } from '../kernel/hexgrid.js';
 import { shortId } from '../shapes/canonical.js';
@@ -153,11 +154,8 @@ export function mountOrbatPanel(container, ctx) {
             title="${cano ? 'the canonical own-force cannot be removed' : 'Remove'}" ${cano ? 'disabled' : ''}>✕</button>
         </div>
         <div class="orbat-tuners">
-          <label>extent
-            <input data-act="extent" type="range" min="${BOUNDS.extent_m[0]}" max="${BOUNDS.extent_m[1]}" step="50"
-              value="${a.extent_m ?? 800}" data-testid="orbat-extent-${a.id}" />
-            <span class="orbat-extent-val">${a.extent_m ?? 800} m</span>
-          </label>
+          ${commonTuners(a)}
+          ${a.allegiance === 'red' ? '' : extentTuner(a)}
           ${a.allegiance === 'red' ? redTuners(a) : ''}
           ${a.allegiance === 'green' ? greenTuners(a) : ''}
           ${a.allegiance === 'blue' ? blueTuners(a) : ''}
@@ -166,10 +164,67 @@ export function mountOrbatPanel(container, ctx) {
       </li>`;
   }
 
+  // Shared enrichment (spec 005): kind symbol, icon override, intel confidence, strength, notes.
+  /** @param {any} a */
+  function commonTuners(a) {
+    return `
+      <label>kind
+        <select data-act="kind" data-testid="orbat-kind-${a.id}">
+          <option value="">—</option>
+          ${PLATFORM_KINDS.map((k) => `<option value="${k}" ${a.kind === k ? 'selected' : ''}>${k}</option>`).join('')}
+        </select>
+      </label>
+      <label>icon
+        <input data-act="symbol" class="orbat-icon" type="text" maxlength="3" value="${esc(a.symbol ?? '')}"
+          placeholder="${esc(symbolOf(a))}" data-testid="orbat-symbol-${a.id}" aria-label="icon override" />
+        <button data-act="symbol-clear" title="Clear icon override" data-testid="orbat-symbol-clear-${a.id}">⌫</button>
+      </label>
+      <label>confidence
+        <select data-act="confidence" data-testid="orbat-confidence-${a.id}">
+          <option value="">—</option>
+          ${CONFIDENCE_LEVELS.map((c) => `<option value="${c}" ${a.confidence === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
+      </label>
+      <label>strength
+        <input data-act="strength" type="text" class="orbat-desc" value="${esc(a.strength ?? '')}"
+          placeholder="×3" data-testid="orbat-strength-${a.id}" />
+      </label>
+      <label>notes
+        <input data-act="notes" type="text" class="orbat-notes" value="${esc(a.notes ?? '')}"
+          placeholder="notes" data-testid="orbat-notes-${a.id}" />
+      </label>`;
+  }
+
+  /** The single extent ring tuner (green/blue; red uses dual detection/engagement instead). @param {any} a */
+  function extentTuner(a) {
+    return `
+      <label>extent
+        <input data-act="extent" type="range" min="${BOUNDS.extent_m[0]}" max="${BOUNDS.extent_m[1]}" step="50"
+          value="${a.extent_m ?? 800}" data-testid="orbat-extent-${a.id}" />
+        <span class="orbat-extent-val">${a.extent_m ?? 800} m</span>
+      </label>`;
+  }
+
   /** @param {any} a */
   function redTuners(a) {
     const w = (a.red?.active_windows ?? [])[0];
+    const det = a.red?.detection_range_m ?? 1500;
+    const eng = a.red?.engagement_range_m ?? Math.round(det * 0.5);
     return `
+      <label>detection
+        <input data-act="detection" type="range" min="${BOUNDS.extent_m[0]}" max="${BOUNDS.extent_m[1]}" step="50"
+          value="${det}" data-testid="orbat-detection-${a.id}" />
+        <span class="orbat-det-val">${det} m</span>
+      </label>
+      <label>engagement
+        <input data-act="engagement" type="range" min="${BOUNDS.extent_m[0]}" max="${BOUNDS.extent_m[1]}" step="50"
+          value="${eng}" data-testid="orbat-engagement-${a.id}" />
+        <span class="orbat-eng-val">${eng} m</span>
+      </label>
+      <label>threat type
+        <input data-act="threat" type="text" class="orbat-desc" value="${esc(a.red?.threat_type ?? '')}"
+          placeholder="SAM" data-testid="orbat-threat-${a.id}" />
+      </label>
       <label>severity
         <input data-act="severity" type="range" min="${BOUNDS.severity[0]}" max="${BOUNDS.severity[1]}" step="1"
           value="${a.red?.severity ?? 3}" data-testid="orbat-severity-${a.id}" />
@@ -194,6 +249,12 @@ export function mountOrbatPanel(container, ctx) {
         <select data-act="protection" data-testid="orbat-protection-${a.id}">
           ${PROTECTIONS.map((p) => `<option value="${p}" ${a.green?.protection === p ? 'selected' : ''}>${p}</option>`).join('')}
         </select>
+      </label>
+      <label>category
+        <select data-act="category" data-testid="orbat-category-${a.id}">
+          <option value="">—</option>
+          ${GREEN_CATEGORIES.map((c) => `<option value="${c}" ${a.green?.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
       </label>`;
   }
 
@@ -209,6 +270,10 @@ export function mountOrbatPanel(container, ctx) {
       <label>capabilities
         <input data-act="capabilities" type="text" value="${esc((a.blue?.capabilities ?? []).join(', '))}"
           placeholder="recce, comms" data-testid="orbat-capabilities-${a.id}" />
+      </label>
+      <label>role
+        <input data-act="role" type="text" class="orbat-desc" value="${esc(a.blue?.role ?? '')}"
+          placeholder="recce" data-testid="orbat-role-${a.id}" />
       </label>
       <label class="orbat-window">
         <input data-act="bluewin-on" type="checkbox" ${win ? 'checked' : ''} data-testid="orbat-bluewin-${a.id}" /> availability window
@@ -235,8 +300,19 @@ export function mountOrbatPanel(container, ctx) {
     on('dup', 'click', () => apply(() => duplicateAsset(getDraft(), a.id), msg));
     on('remove', 'click', () => apply(() => removeAsset(getDraft(), a.id), msg));
 
+    // Shared enrichment (spec 005): kind / icon override / confidence / strength / notes.
+    on('kind', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { kind: el.value }), msg));
+    on('symbol', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { symbol: el.value }), msg));
+    row.querySelector('[data-act="symbol-clear"]')?.addEventListener('click', () => apply(() => tuneAsset(getDraft(), a.id, { symbol: '' }), msg));
+    on('confidence', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { confidence: el.value }), msg));
+    on('strength', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { strength: el.value }), msg));
+    on('notes', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { notes: el.value }), msg));
+
     if (a.allegiance === 'red') {
       on('severity', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { red: { severity: Number(el.value) } }), msg));
+      on('detection', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { red: { detection_range_m: Number(el.value) } }), msg));
+      on('engagement', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { red: { engagement_range_m: Number(el.value) } }), msg));
+      on('threat', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { red: { threat_type: el.value } }), msg));
       const winFromRow = () => {
         const onEl = /** @type {HTMLInputElement} */ (row.querySelector('[data-act="redwin-on"]'));
         if (!onEl.checked) return [];
@@ -250,9 +326,11 @@ export function mountOrbatPanel(container, ctx) {
     if (a.allegiance === 'green') {
       on('sensitivity', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { green: { sensitivity: Number(el.value) } }), msg));
       on('protection', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { green: { protection: el.value } }), msg));
+      on('category', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { green: { category: el.value } }), msg));
     }
     if (a.allegiance === 'blue') {
       on('availability', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { blue: { availability: el.value } }), msg));
+      on('role', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { blue: { role: el.value } }), msg));
       on('capabilities', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { blue: { capabilities: el.value.split(',').map((/** @type {string} */ s) => s.trim()).filter(Boolean) } }), msg));
       const bwin = () => {
         const onEl = /** @type {HTMLInputElement} */ (row.querySelector('[data-act="bluewin-on"]'));

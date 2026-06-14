@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 
 import {
   emptyOrbat, addAsset, tuneAsset, duplicateAsset, removeAsset,
-  reconcileOwnForce, validate, canonical, commit, hasTrack, BOUNDS, OWN_FORCE_ID,
+  reconcileOwnForce, validate, canonical, commit, hasTrack, normalize,
+  symbolOf, confidenceOpacity, GENERIC_SYMBOL, SYMBOLS, BOUNDS, OWN_FORCE_ID,
 } from '../app/js/orbat/orbat.js';
 import { ObjectStore } from '../app/js/stores/stores.js';
 
@@ -174,4 +175,97 @@ test('validate flags an out-of-AO position and a malformed window', () => {
   assert.ok(v.issues.some((i) => /start_min/.test(i)));
   const good = { id: 'y', allegiance: 'red', position: { h3: 'in' }, extent_m: 1000, red: { severity: 3, active_windows: [] } };
   assert.equal(validate(good, { inAO }).ok, true);
+});
+
+// --- spec 005 enrichment ---------------------------------------------------
+
+// US1 — kind + symbols
+test('symbolOf resolves override > kind glyph > generic dot (FR-002/003)', () => {
+  assert.equal(symbolOf({ id: 'a', allegiance: 'red' }), GENERIC_SYMBOL);     // unset → generic
+  assert.equal(symbolOf({ id: 'a', allegiance: 'red', kind: 'aircraft' }), SYMBOLS.aircraft);
+  assert.equal(symbolOf({ id: 'a', allegiance: 'red', kind: 'aircraft', symbol: '★' }), '★'); // override wins
+});
+
+test('kind/symbol round-trip through tuneAsset; unknown kind ignored; cleared override drops (FR-014)', () => {
+  let o = addAsset(emptyOrbat('s'), { allegiance: 'red', position: pos(1) });
+  const id = o.id;
+  o = tuneAsset(o.orbat, id, { kind: 'emplacement', symbol: '✷' });
+  let a = o.assets.find((x) => x.id === id);
+  assert.equal(a.kind, 'emplacement');
+  assert.equal(a.symbol, '✷');
+  // unknown kind is rejected (stays the last valid one)
+  o = tuneAsset(o, id, { kind: 'nonsense' });
+  assert.equal(o.assets.find((x) => x.id === id).kind, 'emplacement');
+  // clearing the override removes the field entirely
+  o = tuneAsset(o, id, { symbol: '' });
+  assert.equal('symbol' in o.assets.find((x) => x.id === id), false);
+});
+
+// US2 — confidence
+test('confidence round-trips and drives opacity; absent ⇒ full emphasis (FR-004)', () => {
+  let o = addAsset(emptyOrbat('s'), { allegiance: 'green', position: pos(1) });
+  const id = o.id;
+  assert.equal(confidenceOpacity(o.orbat.assets[0]), 1);                      // absent → full
+  o = tuneAsset(o.orbat, id, { confidence: 'low' });
+  const a = o.assets.find((x) => x.id === id);
+  assert.equal(a.confidence, 'low');
+  assert.equal(confidenceOpacity(a) < 1, true);
+  // unknown confidence ignored
+  o = tuneAsset(o, id, { confidence: 'bogus' });
+  assert.equal(o.assets.find((x) => x.id === id).confidence, 'low');
+});
+
+// US3 — red dual range
+test('red dual-range clamps and reconciles engagement ≤ detection (FR-005/006)', () => {
+  let o = addAsset(emptyOrbat('s'), { allegiance: 'red', position: pos(1) });
+  const id = o.id;
+  // engagement set larger than detection → reconciled down to detection
+  o = tuneAsset(o.orbat, id, { red: { detection_range_m: 3000, engagement_range_m: 9999 } });
+  let a = o.assets.find((x) => x.id === id);
+  assert.equal(a.red.detection_range_m, 3000);
+  assert.equal(a.red.engagement_range_m, 3000);                              // reconciled ≤ detection
+  // out-of-bounds detection clamps
+  o = tuneAsset(o, id, { red: { detection_range_m: 9_999_999 } });
+  assert.equal(o.assets.find((x) => x.id === id).red.detection_range_m, BOUNDS.extent_m[1]);
+});
+
+test('normalize migrates a spec-004 red draft (extent_m → detection) and is idempotent (FR-010)', () => {
+  // A spec-004-shaped red asset: single extent, no dual range.
+  const legacy = { id: '', name: 's', version: 1, assets: [
+    { id: 'asset-1', allegiance: 'red', extent_m: 2400, red: { severity: 4, active_windows: [] } },
+    { id: 'asset-2', allegiance: 'green', extent_m: 1000, green: { sensitivity: 3, protection: 'keep_out' } },
+  ], lineage: {} };
+  const n1 = normalize(legacy);
+  const red = n1.assets.find((a) => a.id === 'asset-1');
+  assert.equal(red.red.detection_range_m, 2400);                             // migrated from extent_m
+  assert.equal(red.red.engagement_range_m <= 2400, true);
+  // green untouched (still single extent, no dual range)
+  assert.equal(n1.assets.find((a) => a.id === 'asset-2').red, undefined);
+  // idempotent: re-normalising yields identical canonical bytes
+  assert.equal(canonical(n1), canonical(normalize(n1)));
+});
+
+// US4 — descriptive detail
+test('descriptive fields round-trip, trim, and drop when empty; category vocab-checked (FR-012/013/014)', () => {
+  let o = addAsset(emptyOrbat('s'), { allegiance: 'red', position: pos(1) });
+  const rid = o.id;
+  o = tuneAsset(o.orbat, rid, { strength: '  ×2  ', notes: 'dug in', red: { threat_type: ' SAM ' } });
+  let r = o.assets.find((x) => x.id === rid);
+  assert.equal(r.strength, '×2');                                            // trimmed
+  assert.equal(r.notes, 'dug in');
+  assert.equal(r.red.threat_type, 'SAM');
+  // clearing notes drops the key
+  o = tuneAsset(o, rid, { notes: '   ' });
+  assert.equal('notes' in o.assets.find((x) => x.id === rid), false);
+
+  // green category (vocab) + blue role
+  let g = addAsset(o, { allegiance: 'green', position: pos(2) });
+  o = tuneAsset(g.orbat, g.id, { green: { category: 'hospital' } });
+  assert.equal(o.assets.find((x) => x.id === g.id).green.category, 'hospital');
+  o = tuneAsset(o, g.id, { green: { category: 'not-a-category' } });        // ignored
+  assert.equal(o.assets.find((x) => x.id === g.id).green.category, 'hospital');
+
+  let b = addAsset(o, { allegiance: 'blue', position: pos(3) });
+  o = tuneAsset(b.orbat, b.id, { blue: { role: 'recce' } });
+  assert.equal(o.assets.find((x) => x.id === b.id).blue.role, 'recce');
 });

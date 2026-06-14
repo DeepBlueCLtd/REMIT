@@ -41,6 +41,27 @@ export const BOUNDS = {
 /** Allowed green protection rules (the Protection enum). */
 export const PROTECTIONS = /** @type {const} */ (['keep_out', 'minimise_effect']);
 
+/** Platform kinds (the PlatformKind enum) — drive the map symbol (spec 005, FR-001). */
+export const PLATFORM_KINDS = /** @type {const} */ (['infantry', 'vehicle', 'aircraft', 'vessel', 'sensor', 'emplacement', 'structure']);
+
+/** Green protected-place categories (the GreenCategory enum, FR-013). */
+export const GREEN_CATEGORIES = /** @type {const} */ (['hospital', 'school', 'utility', 'place_of_worship', 'residential', 'other']);
+
+/** Intel confidence levels (the existing ConfidenceLevel vocabulary, FR-004). */
+export const CONFIDENCE_LEVELS = /** @type {const} */ (['high', 'medium', 'low']);
+
+/** Map symbol glyph per platform kind (display/UI carve-out, ADR-0012). Unicode/emoji —
+ *  no icon-atlas asset, rendered via the existing deck.gl TextLayer (research D1). */
+export const SYMBOLS = {
+  infantry: '👤', vehicle: '🚙', aircraft: '✈', vessel: '🚢',
+  sensor: '📡', emplacement: '🛡', structure: '🏢',
+};
+/** Fallback glyph when no kind is set (today's dot). */
+export const GENERIC_SYMBOL = '●';
+
+/** Marker emphasis per confidence (FR-004); absent ⇒ full emphasis. */
+export const CONFIDENCE_OPACITY = { high: 1, medium: 0.6, low: 0.35 };
+
 /** Default extent (metres) per allegiance. */
 const DEFAULT_EXTENT = { blue: 800, red: 1500, green: 1000 };
 
@@ -50,12 +71,55 @@ const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 /** @param {number} v @param {[number, number]} bounds */
 const clampInt = (v, bounds) => Math.round(clamp(v, bounds));
 
+/** Trim a free-text value; empty ⇒ undefined (so empties are dropped, not stored blank, FR-014). */
+const cleanStr = (/** @type {any} */ v) => { const s = String(v ?? '').trim(); return s || undefined; };
+
+/** Set `obj[key]` to a free-text `value` when non-empty, else delete the key — so cleared
+ *  fields are dropped, never stored blank (FR-014). @param {any} obj @param {string} key @param {any} value */
+function setOrDrop(obj, key, value) {
+  if (value === undefined || value === null || value === '') delete obj[key]; else obj[key] = value;
+}
+
+/** Set a controlled-vocabulary field: empty ⇒ clear; a valid member ⇒ set; an invalid value ⇒
+ *  IGNORE (keep the last valid value), never store garbage (FR-013).
+ *  @param {any} obj @param {string} key @param {any} value @param {readonly string[]} vocab */
+function setVocab(obj, key, value, vocab) {
+  if (value === '' || value == null) { delete obj[key]; return; }
+  if (vocab.includes(value)) obj[key] = value;   // else: ignore
+}
+
 /** Default per-allegiance parameter group.
  *  @param {'blue'|'red'|'green'} allegiance */
 function defaultParams(allegiance) {
   if (allegiance === 'blue') return { blue: { availability: 'available', capabilities: [] } };
-  if (allegiance === 'red') return { red: { severity: 3, active_windows: [] } };
+  if (allegiance === 'red') return {
+    red: {
+      severity: 3, active_windows: [],
+      detection_range_m: DEFAULT_EXTENT.red,
+      engagement_range_m: Math.round(0.5 * DEFAULT_EXTENT.red),   // engagement ≤ detection
+    },
+  };
   return { green: { sensitivity: 3, protection: 'keep_out' } };
+}
+
+/**
+ * Backward-compat normalisation (FR-010): default absent fields and **migrate** spec-004
+ * red assets — a red asset with no dual range adopts `detection_range_m` from its prior
+ * single `extent_m`, seeding `engagement_range_m ≈ 0.5×` (clamped, ≤ detection). Pure +
+ * idempotent: an already-migrated asset is returned unchanged (same reference), so canonical
+ * bytes/identity are preserved (NF3).
+ * @param {Asset} a @returns {Asset}
+ */
+function normalizeAsset(a) {
+  if (a.allegiance !== 'red' || a.red?.detection_range_m != null) return a;
+  const det = clamp(Number(a.extent_m ?? DEFAULT_EXTENT.red), BOUNDS.extent_m);
+  const eng = Math.min(clamp(Math.round(0.5 * det), BOUNDS.extent_m), det);
+  return { ...a, red: { ...(a.red ?? {}), detection_range_m: det, engagement_range_m: eng } };
+}
+
+/** Normalise an ORBAT for loading (FR-010); pure + idempotent. @param {Orbat} orbat @returns {Orbat} */
+export function normalize(orbat) {
+  return { ...orbat, assets: (orbat.assets ?? []).map(normalizeAsset) };
 }
 
 /** Default human label for a new asset of an allegiance.
@@ -142,20 +206,36 @@ export function tuneAsset(orbat, id, patch, opts = {}) {
       next.position = patch.position;
     }
     if (patch.extent_m !== undefined) next.extent_m = clamp(Number(patch.extent_m), BOUNDS.extent_m);
+    // Enrichment (spec 005): kind/symbol/confidence + descriptive strength/notes. Vocab-checked
+    // where applicable; free-text is trimmed and empties are dropped (FR-014), never stored blank.
+    if ('kind' in patch) setVocab(next, 'kind', /** @type {any} */ (patch).kind, PLATFORM_KINDS);
+    if ('symbol' in patch) setOrDrop(next, 'symbol', cleanStr(/** @type {any} */ (patch).symbol));
+    if ('confidence' in patch) setVocab(next, 'confidence', /** @type {any} */ (patch).confidence, CONFIDENCE_LEVELS);
+    if ('strength' in patch) setOrDrop(next, 'strength', cleanStr(/** @type {any} */ (patch).strength));
+    if ('notes' in patch) setOrDrop(next, 'notes', cleanStr(/** @type {any} */ (patch).notes));
     if (patch.red && next.allegiance === 'red') {
       next.red = { ...next.red };
-      if (patch.red.severity !== undefined) next.red.severity = clampInt(Number(patch.red.severity), BOUNDS.severity);
-      if (patch.red.active_windows !== undefined) next.red.active_windows = sanitizeWindows(patch.red.active_windows);
+      const pr = /** @type {any} */ (patch.red);
+      if (pr.severity !== undefined) next.red.severity = clampInt(Number(pr.severity), BOUNDS.severity);
+      if (pr.active_windows !== undefined) next.red.active_windows = sanitizeWindows(pr.active_windows);
+      if (pr.detection_range_m !== undefined) next.red.detection_range_m = clamp(Number(pr.detection_range_m), BOUNDS.extent_m);
+      if (pr.engagement_range_m !== undefined) next.red.engagement_range_m = clamp(Number(pr.engagement_range_m), BOUNDS.extent_m);
+      // Reconcile the engagement ring to be ≤ the detection ring (FR-006) — never an invalid state.
+      if (next.red.detection_range_m != null && next.red.engagement_range_m != null && next.red.engagement_range_m > next.red.detection_range_m)
+        next.red.engagement_range_m = next.red.detection_range_m;
+      if ('threat_type' in pr) setOrDrop(next.red, 'threat_type', cleanStr(pr.threat_type));
     }
     if (patch.green && next.allegiance === 'green') {
       next.green = { ...next.green };
-      if (patch.green.sensitivity !== undefined) next.green.sensitivity = clampInt(Number(patch.green.sensitivity), BOUNDS.sensitivity);
-      if (patch.green.protection !== undefined && PROTECTIONS.includes(/** @type {any} */ (patch.green.protection)))
-        next.green.protection = patch.green.protection;
+      const pg = /** @type {any} */ (patch.green);
+      if (pg.sensitivity !== undefined) next.green.sensitivity = clampInt(Number(pg.sensitivity), BOUNDS.sensitivity);
+      if (pg.protection !== undefined && PROTECTIONS.includes(pg.protection)) next.green.protection = pg.protection;
+      if ('category' in pg) setVocab(next.green, 'category', pg.category, GREEN_CATEGORIES);
     }
     if (patch.blue && next.allegiance === 'blue') {
       next.blue = { ...next.blue };
       if (patch.blue.availability !== undefined) next.blue.availability = String(patch.blue.availability);
+      if ('role' in patch.blue) setOrDrop(next.blue, 'role', cleanStr(/** @type {any} */ (patch.blue).role));
       if (patch.blue.capabilities !== undefined)
         next.blue.capabilities = (patch.blue.capabilities ?? []).map(String).filter(Boolean);
       if ('availability_window' in patch.blue) {
@@ -248,6 +328,14 @@ export function validate(asset, opts = {}) {
     issues.push(`sensitivity out of bounds ${BOUNDS.sensitivity.join('..')}`);
   for (const w of asset.red?.active_windows ?? [])
     if (Number(w.start_min) > Number(w.end_min)) issues.push('active window start_min must be ≤ end_min');
+  // Enrichment (spec 005): vocab + red dual-range bounds + engagement ≤ detection.
+  if (asset.kind !== undefined && !PLATFORM_KINDS.includes(/** @type {any} */ (asset.kind))) issues.push('unknown platform kind');
+  if (asset.confidence !== undefined && !CONFIDENCE_LEVELS.includes(/** @type {any} */ (asset.confidence))) issues.push('unknown confidence level');
+  if (asset.green?.category !== undefined && !GREEN_CATEGORIES.includes(/** @type {any} */ (asset.green.category))) issues.push('unknown green category');
+  const dr = asset.red?.detection_range_m, er = asset.red?.engagement_range_m;
+  if (dr !== undefined && (dr < BOUNDS.extent_m[0] || dr > BOUNDS.extent_m[1])) issues.push(`detection_range_m out of bounds ${BOUNDS.extent_m.join('..')}`);
+  if (er !== undefined && (er < BOUNDS.extent_m[0] || er > BOUNDS.extent_m[1])) issues.push(`engagement_range_m out of bounds ${BOUNDS.extent_m.join('..')}`);
+  if (dr !== undefined && er !== undefined && er > dr) issues.push('engagement_range_m must be ≤ detection_range_m');
   if (asset.position && opts.inAO && !opts.inAO(asset.position)) issues.push('position is outside the AO');
   return { ok: issues.length === 0, issues };
 }
@@ -293,15 +381,30 @@ export function saveDraft(orbat) {
   }
 }
 
-/** Restore the draft (or a fresh empty ORBAT when none is stored). @returns {Orbat} */
+/** Restore the draft (or a fresh empty ORBAT when none is stored), normalised so spec-004
+ *  drafts migrate cleanly (FR-010). @returns {Orbat} */
 export function loadDraft() {
   if (hasStorage()) {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) return /** @type {Orbat} */ ({ id: '', ...JSON.parse(raw) });
+      if (raw) return normalize(/** @type {Orbat} */ ({ id: '', ...JSON.parse(raw) }));
     } catch { /* corrupt — fall through to empty */ }
   }
   return emptyOrbat();
+}
+
+/** The map symbol glyph for an asset: explicit override → kind glyph → generic dot (FR-002/003).
+ *  Display/UI carve-out (ADR-0012). @param {Asset} asset @returns {string} */
+export function symbolOf(asset) {
+  if (asset.symbol) return asset.symbol;
+  const k = /** @type {keyof typeof SYMBOLS} */ (asset.kind);
+  return (k && SYMBOLS[k]) || GENERIC_SYMBOL;
+}
+
+/** Marker emphasis (opacity 0..1) for an asset's confidence; absent ⇒ full (FR-004).
+ *  @param {Asset} asset @returns {number} */
+export function confidenceOpacity(asset) {
+  return CONFIDENCE_OPACITY[/** @type {keyof typeof CONFIDENCE_OPACITY} */ (asset.confidence)] ?? 1;
 }
 
 // --- live draft store (same-page surfaces share one draft) ----------------------

@@ -71,6 +71,18 @@ classes:
         description: >-
           true on the single blue asset reconciled from the existing planned own-force (ROVER-1);
           it drives the plan via the existing machinery and is protected from removal.
+      kind:
+        range: PlatformKind
+        description: platform type (DEC-60); drives the map symbol. Absent ⇒ generic marker.
+      symbol:
+        description: optional per-asset symbol override (a glyph); absent ⇒ derived from kind + allegiance
+      confidence:
+        range: ConfidenceLevel
+        description: intel reliability of this asset (DEC-19); rendered as marker emphasis + a roster badge
+      strength:
+        description: free-text strength descriptor (e.g. "×3", "platoon"); display-only
+      notes:
+        description: free-text operator notes; display-only
   BlueParams:
     description: >-
       Own-force pool member (capability-matched ALLOCATION deferred to H2; display-only in v1 — does
@@ -88,6 +100,8 @@ classes:
         range: TimeWindow
         inlined: true
         description: mission-minute window the asset is available (display-only Sync-Matrix track)
+      role:
+        description: free-text own-force role (e.g. recce, C2, fires); display-only
   RedParams:
     description: Hostile threat picture (threat SOURCE only in v1; reactive behaviour deferred, DEC-51).
     attributes:
@@ -99,6 +113,14 @@ classes:
         multivalued: true
         inlined_as_list: true
         description: mission-minute windows the threat is active (Sync-Matrix track)
+      detection_range_m:
+        range: float
+        description: outer reach the threat can DETECT within (metres); the faint outer ring
+      engagement_range_m:
+        range: float
+        description: inner reach the threat can ENGAGE within (metres); the bold inner ring (≤ detection)
+      threat_type:
+        description: free-text threat / weapon type (e.g. SAM, MG, armour); display-only
   GreenParams:
     description: Neutral / collateral picture (ROE & collateral emission deferred; inert in v1, DEC-60 J3).
     attributes:
@@ -108,6 +130,9 @@ classes:
       protection:
         range: Protection
         description: nature of the rule (tagged for the future hard/soft split)
+      category:
+        range: GreenCategory
+        description: kind of protected place (hospital / school / …); display-only
 enums:
   Protection:
     description: The nature of a green asset's protection rule (tagged for the future DEC-60 J3 hard/soft split).

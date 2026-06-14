@@ -121,6 +121,44 @@ export enum Allegiance {
     green = "green",
 };
 /**
+* The platform/type class of an ORBAT asset (DEC-60). Orthogonal to allegiance; drives the map symbol. Display-only in v1 (NF9). v1 set, pluggable like ActivityType (NF7).
+*/
+export enum PlatformKind {
+    
+    /** dismounted personnel */
+    infantry = "infantry",
+    /** ground vehicle */
+    vehicle = "vehicle",
+    /** fixed / rotary wing */
+    aircraft = "aircraft",
+    /** surface / sub-surface craft */
+    vessel = "vessel",
+    /** sensor / radar / observation post */
+    sensor = "sensor",
+    /** fixed weapon / SAM / fortified position */
+    emplacement = "emplacement",
+    /** building / installation / facility */
+    structure = "structure",
+};
+/**
+* The category of a neutral / green protected place (DEC-60 J3); display-only in v1.
+*/
+export enum GreenCategory {
+    
+    /** medical facility */
+    hospital = "hospital",
+    /** educational facility */
+    school = "school",
+    /** power / water / comms infrastructure */
+    utility = "utility",
+    /** religious site */
+    place_of_worship = "place_of_worship",
+    /** populated residential area */
+    residential = "residential",
+    /** uncategorised protected place */
+    other = "other",
+};
+/**
 * The render-class of one time-varying facet of an entity (DEC-52/53).
 */
 export enum AspectType {
@@ -765,6 +803,16 @@ export interface Asset {
     green?: GreenParams,
     /** true on the single blue asset reconciled from the existing planned own-force (ROVER-1); it drives the plan via the existing machinery and is protected from removal. */
     canonical_own_force?: boolean,
+    /** platform type (DEC-60); drives the map symbol. Absent ⇒ generic marker. */
+    kind?: string,
+    /** optional per-asset symbol override (a glyph); absent ⇒ derived from kind + allegiance */
+    symbol?: string,
+    /** intel reliability of this asset (DEC-19); rendered as marker emphasis + a roster badge */
+    confidence?: string,
+    /** free-text strength descriptor (e.g. "×3", "platoon"); display-only */
+    strength?: string,
+    /** free-text operator notes; display-only */
+    notes?: string,
 }
 
 
@@ -778,6 +826,8 @@ export interface BlueParams {
     capabilities?: string[],
     /** mission-minute window the asset is available (display-only Sync-Matrix track) */
     availability_window?: TimeWindow,
+    /** free-text own-force role (e.g. recce, C2, fires); display-only */
+    role?: string,
 }
 
 
@@ -789,6 +839,12 @@ export interface RedParams {
     severity?: number,
     /** mission-minute windows the threat is active (Sync-Matrix track) */
     active_windows?: TimeWindow[],
+    /** outer reach the threat can DETECT within (metres); the faint outer ring */
+    detection_range_m?: number,
+    /** inner reach the threat can ENGAGE within (metres); the bold inner ring (≤ detection) */
+    engagement_range_m?: number,
+    /** free-text threat / weapon type (e.g. SAM, MG, armour); display-only */
+    threat_type?: string,
 }
 
 
@@ -800,6 +856,8 @@ export interface GreenParams {
     sensitivity?: number,
     /** nature of the rule (tagged for the future hard/soft split) */
     protection?: string,
+    /** kind of protected place (hospital / school / …); display-only */
+    category?: string,
 }
 
 
