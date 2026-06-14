@@ -422,3 +422,37 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
   .da-side { position: static; }
   .da-index { max-height: none; }
 }
+
+/* --- ORBAT authoring panel (spec 004, DEC-60) ----------------------------- */
+.orbat-panel { padding: 1rem 1.1rem; display: grid; gap: 1rem; }
+.orbat-head h2 { margin: 0 0 .2rem; }
+.orbat-head .orbat-actions { margin-top: .6rem; }
+.orbat-group { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: .7rem .9rem; }
+.orbat-group-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.orbat-group-head h3 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: .45rem; }
+.orbat-group-head .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.orbat-none { margin: .5rem 0 .1rem; }
+.orbat-rows { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: .55rem; }
+.orbat-row { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: .55rem .7rem; display: grid; gap: .45rem; }
+.orbat-row-sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.orbat-row-top { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.orbat-row-top .orbat-label { flex: 1 1 9rem; min-width: 7rem; }
+.orbat-row-top button { padding: .15em .5em; }
+.orbat-canon { color: var(--accent); border-color: rgba(68,147,248,.5); }
+.orbat-tuners { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: center; font-size: .85rem; }
+.orbat-tuners label { display: inline-flex; align-items: center; gap: .35rem; }
+.orbat-tuners input[type="range"] { width: 8rem; }
+.orbat-tuners .orbat-win-num { width: 4.4rem; }
+.orbat-window { gap: .3rem; }
+.orbat-msg { font-size: .8rem; min-height: 0; }
+.orbat-msg-err { color: var(--warn); }
+.orbat-select { background: transparent; }
+
+/* ORBAT enrichment (spec 005) — compact descriptive inputs + symbol/select sizing. */
+.orbat-tuners select { padding: .15em .3em; }
+.orbat-tuners .orbat-icon { width: 2.6rem; text-align: center; }
+.orbat-tuners .orbat-desc { width: 5.5rem; }
+.orbat-tuners .orbat-notes { width: 9rem; }
+.orbat-tuners [data-act="symbol-clear"] { padding: .1em .4em; }
+.orbat-tuners .orbat-icon { width: 4.2rem; }
+.orbat-tuners .orbat-caps { min-width: 8rem; vertical-align: top; }

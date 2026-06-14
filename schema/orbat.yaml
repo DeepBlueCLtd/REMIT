@@ -1,0 +1,143 @@
+# orbat.yaml — GENERATED MODULE of the REMIT data model.
+# Part of schema/remit.yaml (the entry schema). Edit here, then run schema/generate.sh.
+
+id: https://deepbluecltd.github.io/REMIT/schema/remit/orbat
+name: remit-orbat
+title: REMIT — orbat
+description: 'The ORBAT roster (DEC-60): the participants and potential participants of a scenario — own force (blue), hostile (red), neutral (green) — as first-class, allegiance-typed, independently-tunable Assets. Display-only authoring scaffolding in v1 (NF9 honest floor): no Asset drives kernel routing; the existing planned own-force is reconciled, not re-implemented.'
+prefixes:
+  linkml: https://w3id.org/linkml/
+  remit: https://deepbluecltd.github.io/REMIT/schema/remit/
+default_prefix: remit
+default_range: string
+imports:
+- linkml:types
+- common
+- requirement
+classes:
+  Orbat:
+    description: >-
+      The roster of participants & potential participants for a scenario — the authoring root
+      (DEC-60). Versioned & immutable when committed (lineage); the editable working draft mirrors
+      to localStorage. v1 authors the red & green sides; blue is the existing own force.
+    attributes:
+      id:
+        identifier: true
+        description: content id of the canonical form (DEC-35)
+      name: {}
+      version:
+        range: integer
+      assets:
+        range: Asset
+        multivalued: true
+        inlined_as_list: true
+      lineage:
+        range: Lineage
+        inlined: true
+  Asset:
+    description: >-
+      One ORBAT entry — a first-class located thing (DEC-52) typed by allegiance, with
+      independently-tunable parameters. Display-only in v1.
+    attributes:
+      id:
+        identifier: true
+        description: stable per-instance identity (not the label)
+      allegiance:
+        range: Allegiance
+        required: true
+      label:
+        description: human label; need not be unique
+      position:
+        range: Waypoint
+        inlined: true
+        description: AO location (H3 cell / lat-lon)
+      extent_m:
+        range: float
+        description: reach / footprint radius in metres
+      blue:
+        range: BlueParams
+        inlined: true
+        description: present iff allegiance = blue
+      red:
+        range: RedParams
+        inlined: true
+        description: present iff allegiance = red
+      green:
+        range: GreenParams
+        inlined: true
+        description: present iff allegiance = green
+      canonical_own_force:
+        range: boolean
+        description: >-
+          true on the single blue asset reconciled from the existing planned own-force (ROVER-1);
+          it drives the plan via the existing machinery and is protected from removal.
+      kind:
+        range: PlatformKind
+        description: platform type (DEC-60); drives the map symbol. Absent ⇒ generic marker.
+      symbol:
+        description: optional per-asset symbol override (a glyph); absent ⇒ derived from kind + allegiance
+      confidence:
+        range: ConfidenceLevel
+        description: intel reliability of this asset (DEC-19); rendered as marker emphasis + a roster badge
+      strength:
+        description: free-text strength descriptor (e.g. "×3", "platoon"); display-only
+      notes:
+        description: free-text operator notes; display-only
+  BlueParams:
+    description: >-
+      Own-force pool member (capability-matched ALLOCATION deferred to H2; display-only in v1 — does
+      not drive routing). The capability vocabulary is the seam a future Scheme matches to a
+      requirement's activity needs (DEC-59/60).
+    attributes:
+      availability:
+        range: string
+        description: '"available | down" (own State mirror, DEC-52)'
+      capabilities:
+        range: string
+        multivalued: true
+        description: capability tags a future Scheme matches to activity needs (stub)
+      availability_window:
+        range: TimeWindow
+        inlined: true
+        description: mission-minute window the asset is available (display-only Sync-Matrix track)
+      role:
+        description: free-text own-force role (e.g. recce, C2, fires); display-only
+  RedParams:
+    description: Hostile threat picture (threat SOURCE only in v1; reactive behaviour deferred, DEC-51).
+    attributes:
+      severity:
+        range: integer
+        description: graded threat severity (e.g. 1..5)
+      active_windows:
+        range: TimeWindow
+        multivalued: true
+        inlined_as_list: true
+        description: mission-minute windows the threat is active (Sync-Matrix track)
+      detection_range_m:
+        range: float
+        description: outer reach the threat can DETECT within (metres); the faint outer ring
+      engagement_range_m:
+        range: float
+        description: inner reach the threat can ENGAGE within (metres); the bold inner ring (≤ detection)
+      threat_type:
+        description: free-text threat / weapon type (e.g. SAM, MG, armour); display-only
+  GreenParams:
+    description: Neutral / collateral picture (ROE & collateral emission deferred; inert in v1, DEC-60 J3).
+    attributes:
+      sensitivity:
+        range: integer
+        description: graded collateral weight (e.g. 1..5)
+      protection:
+        range: Protection
+        description: nature of the rule (tagged for the future hard/soft split)
+      category:
+        range: GreenCategory
+        description: kind of protected place (hospital / school / …); display-only
+enums:
+  Protection:
+    description: The nature of a green asset's protection rule (tagged for the future DEC-60 J3 hard/soft split).
+    permissible_values:
+      keep_out:
+        description: no-go / no-strike area (future HARD constraint)
+      minimise_effect:
+        description: collateral to be minimised (future SOFT objective)

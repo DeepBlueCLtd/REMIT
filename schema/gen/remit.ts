@@ -6,6 +6,8 @@ export type ExcursionId = string;
 export type ProfileId = string;
 export type EntityId = string;
 export type AspectName = string;
+export type OrbatId = string;
+export type AssetId = string;
 export type PlanId = string;
 export type ConflictId = string;
 export type SelectionRationaleId = string;
@@ -105,6 +107,56 @@ export enum ConfidenceLevel {
     high = "high",
     medium = "medium",
     low = "low",
+};
+/**
+* Side typing on an entity (DEC-60). Selects the kernel STANCE — plan-for (blue) / avoid-assess (red) / respect (green). v1 is display-only (NF9 honest floor).
+*/
+export enum Allegiance {
+    
+    /** own force */
+    blue = "blue",
+    /** hostile / adversary (threat source; passive in v1) */
+    red = "red",
+    /** neutral / host-nation / civilian (ROE & collateral; inert in v1) */
+    green = "green",
+};
+/**
+* The platform/type class of an ORBAT asset (DEC-60). Orthogonal to allegiance; drives the map symbol. Display-only in v1 (NF9). v1 set, pluggable like ActivityType (NF7).
+*/
+export enum PlatformKind {
+    
+    /** dismounted personnel */
+    infantry = "infantry",
+    /** ground vehicle */
+    vehicle = "vehicle",
+    /** fixed / rotary wing */
+    aircraft = "aircraft",
+    /** surface / sub-surface craft */
+    vessel = "vessel",
+    /** sensor / radar / observation post */
+    sensor = "sensor",
+    /** fixed weapon / SAM / fortified position */
+    emplacement = "emplacement",
+    /** building / installation / facility */
+    structure = "structure",
+};
+/**
+* The category of a neutral / green protected place (DEC-60 J3); display-only in v1.
+*/
+export enum GreenCategory {
+    
+    /** medical facility */
+    hospital = "hospital",
+    /** educational facility */
+    school = "school",
+    /** power / water / comms infrastructure */
+    utility = "utility",
+    /** religious site */
+    place_of_worship = "place_of_worship",
+    /** populated residential area */
+    residential = "residential",
+    /** uncategorised protected place */
+    other = "other",
 };
 /**
 * The render-class of one time-varying facet of an entity (DEC-52/53).
@@ -222,6 +274,16 @@ export enum ExecutionEventKind {
     obstruction = "obstruction",
     /** a cell ahead declared impassable, forcing an in-flight re-route around it */
     block = "block",
+};
+/**
+* The nature of a green asset's protection rule (tagged for the future DEC-60 J3 hard/soft split).
+*/
+export enum Protection {
+    
+    /** no-go / no-strike area (future HARD constraint) */
+    keep_out = "keep_out",
+    /** collateral to be minimised (future SOFT objective) */
+    minimise_effect = "minimise_effect",
 };
 
 
@@ -685,6 +747,8 @@ export interface Entity {
     /** conceptual kind (DEC-52) — one of: self, actor, feature, phenomenon. Optional; the skeleton folds this into provenance.kind. A documented string rather than an enum (see the AspectType note). */
     kind?: string,
     provenance?: DataProvenance,
+    /** side typing (DEC-60); absent ⇒ unaligned / own-context as today */
+    allegiance?: string,
     aspects?: Aspect[],
 }
 
@@ -702,6 +766,98 @@ export interface Aspect {
     domain?: number[],
     /** the source channel, if any */
     channel_ref?: ChannelId,
+}
+
+
+/**
+ * The roster of participants & potential participants for a scenario — the authoring root (DEC-60). Versioned & immutable when committed (lineage); the editable working draft mirrors to localStorage. v1 authors the red & green sides; blue is the existing own force.
+ */
+export interface Orbat {
+    /** content id of the canonical form (DEC-35) */
+    id: string,
+    name?: string,
+    version?: number,
+    assets?: Asset[],
+    lineage?: Lineage,
+}
+
+
+/**
+ * One ORBAT entry — a first-class located thing (DEC-52) typed by allegiance, with independently-tunable parameters. Display-only in v1.
+ */
+export interface Asset {
+    /** stable per-instance identity (not the label) */
+    id: string,
+    allegiance: string,
+    /** human label; need not be unique */
+    label?: string,
+    /** AO location (H3 cell / lat-lon) */
+    position?: Waypoint,
+    /** reach / footprint radius in metres */
+    extent_m?: number,
+    /** present iff allegiance = blue */
+    blue?: BlueParams,
+    /** present iff allegiance = red */
+    red?: RedParams,
+    /** present iff allegiance = green */
+    green?: GreenParams,
+    /** true on the single blue asset reconciled from the existing planned own-force (ROVER-1); it drives the plan via the existing machinery and is protected from removal. */
+    canonical_own_force?: boolean,
+    /** platform type (DEC-60); drives the map symbol. Absent ⇒ generic marker. */
+    kind?: string,
+    /** optional per-asset symbol override (a glyph); absent ⇒ derived from kind + allegiance */
+    symbol?: string,
+    /** intel reliability of this asset (DEC-19); rendered as marker emphasis + a roster badge */
+    confidence?: string,
+    /** free-text strength descriptor (e.g. "×3", "platoon"); display-only */
+    strength?: string,
+    /** free-text operator notes; display-only */
+    notes?: string,
+}
+
+
+/**
+ * Own-force pool member (capability-matched ALLOCATION deferred to H2; display-only in v1 — does not drive routing). The capability vocabulary is the seam a future Scheme matches to a requirement's activity needs (DEC-59/60).
+ */
+export interface BlueParams {
+    /** "available | down" (own State mirror, DEC-52) */
+    availability?: string,
+    /** capability tags a future Scheme matches to activity needs (stub) */
+    capabilities?: string[],
+    /** mission-minute window the asset is available (display-only Sync-Matrix track) */
+    availability_window?: TimeWindow,
+    /** free-text own-force role (e.g. recce, C2, fires); display-only */
+    role?: string,
+}
+
+
+/**
+ * Hostile threat picture (threat SOURCE only in v1; reactive behaviour deferred, DEC-51).
+ */
+export interface RedParams {
+    /** graded threat severity (e.g. 1..5) */
+    severity?: number,
+    /** mission-minute windows the threat is active (Sync-Matrix track) */
+    active_windows?: TimeWindow[],
+    /** outer reach the threat can DETECT within (metres); the faint outer ring */
+    detection_range_m?: number,
+    /** inner reach the threat can ENGAGE within (metres); the bold inner ring (≤ detection) */
+    engagement_range_m?: number,
+    /** free-text threat / weapon type (e.g. SAM, MG, armour); display-only */
+    threat_type?: string,
+}
+
+
+/**
+ * Neutral / collateral picture (ROE & collateral emission deferred; inert in v1, DEC-60 J3).
+ */
+export interface GreenParams {
+    /** graded collateral weight (e.g. 1..5) */
+    sensitivity?: number,
+    /** nature of the rule (tagged for the future hard/soft split) */
+    protection?: string,
+    /** kind of protected place (hospital / school / …); display-only */
+    category?: string,
 }
 
 

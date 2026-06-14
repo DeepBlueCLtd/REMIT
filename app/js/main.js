@@ -14,6 +14,7 @@ import { makeMap } from './views/map.js';
 import { makeSyncMatrix } from './views/sync-matrix.js';
 import { buildEntities, syncCatalogue, satOverhead, coincidenceRules, coincidenceWindows } from './entities/entities.js';
 import { contentId, shortId } from './shapes/canonical.js';
+import { getDraft, setDraft, subscribeDraft, reconcileOwnForce } from './orbat/orbat.js';
 // The shared app context — one store/seam/world/playhead, shared with every
 // other role surface (tab) so they all project the same objects (DEC-61).
 import { objects, logs, seam, world, playhead } from './shell/context.js';
@@ -76,9 +77,28 @@ const map = makeMap(mapEl, world.baseline, world.ao, world.places);
 /** @type {((cell: {h3: string, id: number}) => void) | null} */ let mapOnCellClick = null;  // active map-click handler (set by Plan in no-go mode)
 const syncHost = /** @type {HTMLElement} */ (document.getElementById('sync-matrix-host'));
 const syncMatrix = makeSyncMatrix(syncHost, playhead);
-const entities = buildEntities();
-const catalogue = syncCatalogue();
+// Authored ORBAT assets (DEC-60) fold into the entity set + Sync-Matrix catalogue. They are
+// rebuilt whenever the live draft changes (panel edits, own-force reconciliation), and the
+// projection re-renders — display-only, so no asset ever touches the kernel/plan (NF9).
+/** @type {any[]} */ let orbatAssets = (getDraft().assets ?? []);
+/** @type {string|null} */ let selectedAsset = null;
+let entities = buildEntities(orbatAssets);
+let catalogue = syncCatalogue(orbatAssets);
 const coincRules = coincidenceRules();
+
+/** Rebuild entities/catalogue from the current ORBAT draft and re-project. */
+function refreshOrbat(/** @type {any} */ draft) {
+  orbatAssets = draft?.assets ?? [];
+  entities = buildEntities(orbatAssets);
+  catalogue = syncCatalogue(orbatAssets);
+  renderProjection();
+}
+subscribeDraft(refreshOrbat);
+// Panel → map/Sync-Matrix selection highlight (US5): a selected row glows in both views.
+window.addEventListener('remit:orbat-select', (/** @type {any} */ e) => {
+  selectedAsset = e.detail?.id ?? null;
+  renderProjection();
+});
 const slider = /** @type {HTMLInputElement} */ (document.getElementById('playhead-slider'));
 const readout = /** @type {HTMLElement} */ (document.getElementById('projection-readout'));
 
@@ -102,6 +122,7 @@ function renderProjection() {
     target: mapTarget, rv: mapRv,
     candidates: mapCandidates, highlight: mapHighlight,
     obstructions: mapObstructions, nogo: mapNogo, blocked: mapBlocked,
+    assets: orbatAssets, selectedAsset,   // authored ORBAT roster (display-only, DEC-60)
     follow: state.stage === 'execute',   // Execute follow-cam: pan to keep the vehicle in view
   });
   // The Sync Matrix (D6) is the temporal projection — tide + satellite tracks
@@ -378,6 +399,12 @@ function mountWorld() {
     state.ids.configCore = c.id;
     state.configCoreHash = await contentId(world.configCore);
     worldProvisioned = true;
+    // Surface the planned own-force (ROVER-1) as the canonical blue ORBAT asset (idempotent,
+    // display-only): it keeps driving the plan via the pre-existing machinery (NF9/FR-012).
+    const ownBase = world.places.base;
+    setDraft(reconcileOwnForce(getDraft(), {
+      label: 'Own force · ROVER-1', position: { h3: ownBase.h3, lat: ownBase.lat, lng: ownBase.lng },
+    }));
     // With the AO on the map, show the candidate OPs so Capture can point at
     // features it can see; the chosen target/RV are set when Capture commits.
     mapCandidates = world.places.ops;

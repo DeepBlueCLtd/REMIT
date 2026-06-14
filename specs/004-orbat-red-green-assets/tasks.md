@@ -28,12 +28,12 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 **Purpose**: Extend the LinkML data model (Principle I — source of truth) and scaffold the new module. Regenerated artefacts are outputs; never hand-edited.
 
-- [ ] T001 Add `Allegiance` enum (`blue|red|green`, with stance notes) to `schema/common.yaml`
-- [ ] T002 Add optional `allegiance` attribute (range `Allegiance`) to `Entity` in `schema/entities.yaml`
-- [ ] T003 Create `schema/orbat.yaml` module — `Orbat`, `Asset` (+ `canonical_own_force`), `BlueParams`, `RedParams`, `GreenParams`, `TimeWindow` classes + `Protection` enum (per [data-model.md](./data-model.md)); reuse existing `Waypoint`/`Lineage`
-- [ ] T004 Import the `orbat` module in the entry schema `schema/remit.yaml`
-- [ ] T005 Regenerate artefacts: `bash schema/generate.sh` → verify `schema/gen/remit.schema.json` + `schema/gen/remit.ts` include `Orbat`/`Asset`/`Allegiance`/`BlueParams`; do NOT hand-edit generated files
-- [ ] T006 [P] Create `app/js/orbat/orbat.js` skeleton (`// @ts-check`) importing the generated types from `schema/gen/remit.ts`
+- [X] T001 Add `Allegiance` enum (`blue|red|green`, with stance notes) to `schema/common.yaml`
+- [X] T002 Add optional `allegiance` attribute (range `Allegiance`) to `Entity` in `schema/entities.yaml`
+- [X] T003 Create `schema/orbat.yaml` module — `Orbat`, `Asset` (+ `canonical_own_force`), `BlueParams`, `RedParams`, `GreenParams`, `TimeWindow` classes + `Protection` enum (per [data-model.md](./data-model.md)); reuse existing `Waypoint`/`Lineage`
+- [X] T004 Import the `orbat` module in the entry schema `schema/remit.yaml`
+- [X] T005 Regenerate artefacts: `bash schema/generate.sh` → verify `schema/gen/remit.schema.json` + `schema/gen/remit.ts` include `Orbat`/`Asset`/`Allegiance`/`BlueParams`; do NOT hand-edit generated files
+- [X] T006 [P] Create `app/js/orbat/orbat.js` skeleton (`// @ts-check`) importing the generated types from `schema/gen/remit.ts`
 
 **Checkpoint**: schema regenerated, allegiance/asset shapes available as generated types.
 
@@ -45,15 +45,15 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 **⚠️ CRITICAL**: No user-story work begins until this phase is complete.
 
-- [ ] T007 Implement `emptyOrbat(name)` + `canonical(orbat)` (assets sorted by `id`, canonical JSON, DEC-35) in `app/js/orbat/orbat.js`
-- [ ] T008 Implement `validate(asset)` — bounds clamp for `extent_m`/`severity`/`sensitivity`, `start_min ≤ end_min`, position-in-AO, allegiance↔param-group match for all three allegiances — in `app/js/orbat/orbat.js`
-- [ ] T009 Implement persistence `saveDraft`/`loadDraft` (localStorage key `remit.orbat.M-001`, canonical JSON) in `app/js/orbat/orbat.js`
-- [ ] T010 Implement display-only `assetToEntity(asset)` adapter (allegiance-typed Entity; `provenance.kind='self'` for the canonical own-force else `'actor'`; position; no kernel reference — NF9) in `app/js/orbat/orbat.js`
-- [ ] T011 Implement `reconcileOwnForce(orbat, self)` — surface the existing planned own-force (ROVER-1) as the single `canonical_own_force` blue asset, idempotent — in `app/js/orbat/orbat.js`
-- [ ] T012 Extend `buildEntities()` to fold authored ORBAT assets into the entity set in `app/js/entities/entities.js`
-- [ ] T013 Extend `map.render` to draw an allegiance-coloured asset marker layer (point + faint extent ring + label) in `app/js/views/map.js`
-- [ ] T014 Register the ORBAT authoring panel as a config-declared role-tab (home: `sme-int`) in `app/js/shell/roles.js` and scaffold `app/js/shell/orbat-panel.js` with `mount(container, ctx)`
-- [ ] T015 Wire the panel + authored assets into the render loop (feed assets to `map.render` and `buildEntities`; reconcile own-force on load) in `app/js/main.js`
+- [X] T007 Implement `emptyOrbat(name)` + `canonical(orbat)` (assets sorted by `id`, canonical JSON, DEC-35) in `app/js/orbat/orbat.js`
+- [X] T008 Implement `validate(asset)` — bounds clamp for `extent_m`/`severity`/`sensitivity`, `start_min ≤ end_min`, position-in-AO, allegiance↔param-group match for all three allegiances — in `app/js/orbat/orbat.js`
+- [X] T009 Implement persistence `saveDraft`/`loadDraft` (localStorage key `remit.orbat.M-001`, canonical JSON) in `app/js/orbat/orbat.js`
+- [X] T010 Implement display-only `assetToEntity(asset)` adapter (allegiance-typed Entity; `provenance.kind='self'` for the canonical own-force else `'actor'`; position; no kernel reference — NF9) in `app/js/orbat/orbat.js`
+- [X] T011 Implement `reconcileOwnForce(orbat, self)` — surface the existing planned own-force (ROVER-1) as the single `canonical_own_force` blue asset, idempotent — in `app/js/orbat/orbat.js`
+- [X] T012 Extend `buildEntities()` to fold authored ORBAT assets into the entity set in `app/js/entities/entities.js`
+- [X] T013 Extend `map.render` to draw an allegiance-coloured asset marker layer (point + faint extent ring + label) in `app/js/views/map.js`
+- [X] T014 Register the ORBAT authoring panel as a config-declared role-tab (home: `sme-int`) in `app/js/shell/roles.js` and scaffold `app/js/shell/orbat-panel.js` with `mount(container, ctx)`
+- [X] T015 Wire the panel + authored assets into the render loop (feed assets to `map.render` and `buildEntities`; reconcile own-force on load) in `app/js/main.js`
 
 **Checkpoint**: an asset added in code renders on the map; the panel mounts; ROVER-1 shows as the canonical blue asset. Stories can now begin.
 
@@ -67,16 +67,16 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 1
 
-- [ ] T016 [P] [US1] Unit tests — deterministic `addAsset` (fresh unique id), `tuneAsset` red clamp (`extent_m`, `severity`), per-asset isolation, `canonical` stability — in `test/orbat.test.mjs`
-- [ ] T017 [P] [US1] e2e — add two red assets, tune one, assert both visible + isolation + no fabricated adversary motion (honest floor) — in `e2e/orbat.spec.ts`
+- [X] T016 [P] [US1] Unit tests — deterministic `addAsset` (fresh unique id), `tuneAsset` red clamp (`extent_m`, `severity`), per-asset isolation, `canonical` stability — in `test/orbat.test.mjs`
+- [X] T017 [P] [US1] e2e — add two red assets, tune one, assert both visible + isolation + no fabricated adversary motion (honest floor) — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] Implement `addAsset(orbat, {allegiance:'red', position})` with red defaults + fresh id; reject out-of-AO positions — in `app/js/orbat/orbat.js`
-- [ ] T019 [US1] Implement `tuneAsset(orbat, id, patch)` applying clamped `RedParams` (severity) + `extent_m`/`label` to only the targeted asset — in `app/js/orbat/orbat.js`
-- [ ] T020 [US1] Render the **Red (hostile)** roster group, **Add red**, and per-row tuners (label, extent, severity) in `app/js/shell/orbat-panel.js`
-- [ ] T021 [US1] Red marker styling (`#ff7b72` family) + extent ring + click-to-pick-hex placement in `app/js/views/map.js`
-- [ ] T022 [US1] Inline validation feedback (clamp/reject with message) in `app/js/shell/orbat-panel.js`; capture evidence screenshots → `specs/004-orbat-red-green-assets/evidence/screenshots/`
+- [X] T018 [US1] Implement `addAsset(orbat, {allegiance:'red', position})` with red defaults + fresh id; reject out-of-AO positions — in `app/js/orbat/orbat.js`
+- [X] T019 [US1] Implement `tuneAsset(orbat, id, patch)` applying clamped `RedParams` (severity) + `extent_m`/`label` to only the targeted asset — in `app/js/orbat/orbat.js`
+- [X] T020 [US1] Render the **Red (hostile)** roster group, **Add red**, and per-row tuners (label, extent, severity) in `app/js/shell/orbat-panel.js`
+- [X] T021 [US1] Red marker styling (`#ff7b72` family) + extent ring + click-to-pick-hex placement in `app/js/views/map.js`
+- [X] T022 [US1] Inline validation feedback (clamp/reject with message) in `app/js/shell/orbat-panel.js`; capture evidence screenshots → `specs/004-orbat-red-green-assets/evidence/screenshots/`
 
 **Checkpoint**: red ORBAT is authorable, tunable, and visible — the MVP.
 
@@ -90,14 +90,14 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Unit tests — green defaults, `GreenParams` clamp (`sensitivity`, `protection`), isolation — in `test/orbat.test.mjs`
-- [ ] T024 [P] [US2] e2e — add two green assets, tune one, assert distinct green styling vs red/own-force — in `e2e/orbat.spec.ts`
+- [X] T023 [P] [US2] Unit tests — green defaults, `GreenParams` clamp (`sensitivity`, `protection`), isolation — in `test/orbat.test.mjs`
+- [X] T024 [P] [US2] e2e — add two green assets, tune one, assert distinct green styling vs red/own-force — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Extend `addAsset`/`tuneAsset` with green defaults + `GreenParams` (`sensitivity`, `protection`) in `app/js/orbat/orbat.js`
-- [ ] T026 [US2] Render the **Green (neutral)** roster group, **Add green**, and per-row tuners (label, extent, sensitivity, protection) in `app/js/shell/orbat-panel.js`
-- [ ] T027 [US2] Green marker styling (`#38d39f` family) visually distinct from red and own-force in `app/js/views/map.js`
+- [X] T025 [US2] Extend `addAsset`/`tuneAsset` with green defaults + `GreenParams` (`sensitivity`, `protection`) in `app/js/orbat/orbat.js`
+- [X] T026 [US2] Render the **Green (neutral)** roster group, **Add green**, and per-row tuners (label, extent, sensitivity, protection) in `app/js/shell/orbat-panel.js`
+- [X] T027 [US2] Green marker styling (`#38d39f` family) visually distinct from red and own-force in `app/js/views/map.js`
 
 **Checkpoint**: red and green sides are independently authorable and visible.
 
@@ -111,14 +111,14 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 3
 
-- [ ] T028 [P] [US3] Unit tests — blue defaults + `BlueParams` clamp, `reconcileOwnForce` idempotent + single `canonical_own_force`, duplicate never copies the canonical flag — in `test/orbat.test.mjs`
-- [ ] T029 [P] [US3] e2e — add + tune blue, assert blue styling + **route/plan unchanged** by tuning (display-only proof) + ROVER-1 shown reconciled — in `e2e/orbat.spec.ts`
+- [X] T028 [P] [US3] Unit tests — blue defaults + `BlueParams` clamp, `reconcileOwnForce` idempotent + single `canonical_own_force`, duplicate never copies the canonical flag — in `test/orbat.test.mjs`
+- [X] T029 [P] [US3] e2e — add + tune blue, assert blue styling + **route/plan unchanged** by tuning (display-only proof) + ROVER-1 shown reconciled — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] Extend `addAsset`/`tuneAsset` with blue defaults + `BlueParams` (`availability`, `capabilities`) in `app/js/orbat/orbat.js`
-- [ ] T031 [US3] Render the **Blue (own force)** roster group, **Add blue**, per-row tuners (label, extent, availability, capabilities), and show the canonical own-force row marked with its **remove disabled** in `app/js/shell/orbat-panel.js`
-- [ ] T032 [US3] Blue marker styling distinct from red/green in `app/js/views/map.js`; assert in the e2e/honest-floor path that a blue tune leaves the route unchanged (no kernel coupling)
+- [X] T030 [US3] Extend `addAsset`/`tuneAsset` with blue defaults + `BlueParams` (`availability`, `capabilities`) in `app/js/orbat/orbat.js`
+- [X] T031 [US3] Render the **Blue (own force)** roster group, **Add blue**, per-row tuners (label, extent, availability, capabilities), and show the canonical own-force row marked with its **remove disabled** in `app/js/shell/orbat-panel.js`
+- [X] T032 [US3] Blue marker styling distinct from red/green in `app/js/views/map.js`; assert in the e2e/honest-floor path that a blue tune leaves the route unchanged (no kernel coupling)
 
 **Checkpoint**: all three allegiances are independently authorable and visible; blue stays display-only.
 
@@ -132,14 +132,14 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 4
 
-- [ ] T033 [P] [US4] Unit tests — `duplicateAsset` (new id, independent copy, no canonical flag), `removeAsset` (others unaffected; canonical own-force protected), `commit` immutability + lineage — in `test/orbat.test.mjs`
-- [ ] T034 [P] [US4] e2e — duplicate + remove, reload page, assert roster + tuned values restored; canonical own-force not removable — in `e2e/orbat.spec.ts`
+- [X] T033 [P] [US4] Unit tests — `duplicateAsset` (new id, independent copy, no canonical flag), `removeAsset` (others unaffected; canonical own-force protected), `commit` immutability + lineage — in `test/orbat.test.mjs`
+- [X] T034 [P] [US4] e2e — duplicate + remove, reload page, assert roster + tuned values restored; canonical own-force not removable — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] Implement `duplicateAsset(orbat, id)` (deep-copy under new id, drop canonical flag) + `removeAsset(orbat, id)` (refuse the canonical own-force) in `app/js/orbat/orbat.js`; wire duplicate/remove controls in `app/js/shell/orbat-panel.js`
-- [ ] T036 [US4] Mirror `saveDraft` on every mutating op and `loadDraft` on panel mount in `app/js/shell/orbat-panel.js`
-- [ ] T037 [US4] Implement `commit(orbat, objects)` — immutable content-addressed `Orbat` version with `lineage.previous_version` — in `app/js/orbat/orbat.js`; add a **Commit ORBAT** action to the panel
+- [X] T035 [US4] Implement `duplicateAsset(orbat, id)` (deep-copy under new id, drop canonical flag) + `removeAsset(orbat, id)` (refuse the canonical own-force) in `app/js/orbat/orbat.js`; wire duplicate/remove controls in `app/js/shell/orbat-panel.js`
+- [X] T036 [US4] Mirror `saveDraft` on every mutating op and `loadDraft` on panel mount in `app/js/shell/orbat-panel.js`
+- [X] T037 [US4] Implement `commit(orbat, objects)` — immutable content-addressed `Orbat` version with `lineage.previous_version` — in `app/js/orbat/orbat.js`; add a **Commit ORBAT** action to the panel
 
 **Checkpoint**: roster management + persistence across sessions work.
 
@@ -153,13 +153,13 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ### Tests for User Story 5
 
-- [ ] T038 [P] [US5] e2e — asset with `active_windows` shows a Sync-Matrix track aligned with the playhead; selection syncs across views — in `e2e/orbat.spec.ts`
+- [X] T038 [P] [US5] e2e — asset with `active_windows` shows a Sync-Matrix track aligned with the playhead; selection syncs across views — in `e2e/orbat.spec.ts`
 
 ### Implementation for User Story 5
 
-- [ ] T039 [US5] Add an `active_windows` (`TimeWindow[]`) tuner for red assets and an availability-window tuner for blue assets in `app/js/shell/orbat-panel.js`
-- [ ] T040 [US5] Emit a `window`-type aspect from `assetToEntity` (reuse the satellite-pass render path) and add the catalogue row in `app/js/entities/entities.js` so the asset appears as a Sync-Matrix track
-- [ ] T041 [US5] Bind shared selection across panel ↔ map ↔ Sync-Matrix in `app/js/main.js`
+- [X] T039 [US5] Add an `active_windows` (`TimeWindow[]`) tuner for red assets and an availability-window tuner for blue assets in `app/js/shell/orbat-panel.js`
+- [X] T040 [US5] Emit a `window`-type aspect from `assetToEntity` (reuse the satellite-pass render path) and add the catalogue row in `app/js/entities/entities.js` so the asset appears as a Sync-Matrix track
+- [X] T041 [US5] Bind shared selection across panel ↔ map ↔ Sync-Matrix in `app/js/main.js`
 
 **Checkpoint**: all five user stories are independently functional.
 
@@ -167,10 +167,10 @@ Single static web app: schema in `schema/`, app in `app/js/`, unit tests in `tes
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T042 [P] Record project memory: new ADR (ORBAT blue/red/green authoring scaffolding, blue display-only) in `docs/project_notes/decisions.md`; allegiance palette + localStorage key in `docs/project_notes/key_facts.md`; work-log entry in `docs/project_notes/issues.md`
-- [ ] T043 [P] Author the blog post `specs/004-orbat-red-green-assets/blog/post.md` from `docs/blog-post-template.md` (problem/options/strategy/results/screenshots + "at a glance") and add `blog/screenshots/`
-- [ ] T044 Run `quickstart.md` end-to-end and collect evidence screenshots into `specs/004-orbat-red-green-assets/evidence/screenshots/`
-- [ ] T045 Run `npm run test:unit` + `npm run test:e2e`; ensure `// @ts-check` is clean across the new modules
+- [X] T042 [P] Record project memory: new ADR (ORBAT blue/red/green authoring scaffolding, blue display-only) in `docs/project_notes/decisions.md`; allegiance palette + localStorage key in `docs/project_notes/key_facts.md`; work-log entry in `docs/project_notes/issues.md`
+- [X] T043 [P] Author the blog post `specs/004-orbat-red-green-assets/blog/post.md` from `docs/blog-post-template.md` (problem/options/strategy/results/screenshots + "at a glance") and add `blog/screenshots/`
+- [X] T044 Run `quickstart.md` end-to-end and collect evidence screenshots into `specs/004-orbat-red-green-assets/evidence/screenshots/`
+- [X] T045 Run `npm run test:unit` + `npm run test:e2e`; ensure `// @ts-check` is clean across the new modules
 
 ---
 

@@ -83,6 +83,51 @@ enums:
       high: {}
       medium: {}
       low: {}
+  Allegiance:
+    description: >-
+      Side typing on an entity (DEC-60). Selects the kernel STANCE — plan-for (blue) /
+      avoid-assess (red) / respect (green). v1 is display-only (NF9 honest floor).
+    permissible_values:
+      blue:
+        description: own force
+      red:
+        description: hostile / adversary (threat source; passive in v1)
+      green:
+        description: neutral / host-nation / civilian (ROE & collateral; inert in v1)
+  PlatformKind:
+    description: >-
+      The platform/type class of an ORBAT asset (DEC-60). Orthogonal to allegiance; drives the
+      map symbol. Display-only in v1 (NF9). v1 set, pluggable like ActivityType (NF7).
+    permissible_values:
+      infantry:
+        description: dismounted personnel
+      vehicle:
+        description: ground vehicle
+      aircraft:
+        description: fixed / rotary wing
+      vessel:
+        description: surface / sub-surface craft
+      sensor:
+        description: sensor / radar / observation post
+      emplacement:
+        description: fixed weapon / SAM / fortified position
+      structure:
+        description: building / installation / facility
+  GreenCategory:
+    description: The category of a neutral / green protected place (DEC-60 J3); display-only in v1.
+    permissible_values:
+      hospital:
+        description: medical facility
+      school:
+        description: educational facility
+      utility:
+        description: power / water / comms infrastructure
+      place_of_worship:
+        description: religious site
+      residential:
+        description: populated residential area
+      other:
+        description: uncategorised protected place
   AspectType:
     description: The render-class of one time-varying facet of an entity (DEC-52/53).
     permissible_values:

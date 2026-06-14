@@ -26,6 +26,9 @@ classes:
       provenance:
         range: DataProvenance
         inlined: true
+      allegiance:
+        range: Allegiance
+        description: side typing (DEC-60); absent ⇒ unaligned / own-context as today
       aspects:
         range: Aspect
         multivalued: true
