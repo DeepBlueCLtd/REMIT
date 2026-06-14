@@ -50,6 +50,15 @@ Each build-plan §4 exit criterion is asserted by `e2e/skeleton.spec.ts` and cap
 
 ## Local deviations & build discoveries (hold for the gate, DEC-47)
 
+> **Gate outcome (2026-06-14, DEC-47 → register DEC-62, issue #3):** the three candidate
+> register items below were ratified. **Item 1** (no-build ES modules) — ratified as DEC-41's
+> TypeScript realisation now that its revisit-trigger landed (ADR-0024 `tsc --checkJs` + DEC-57
+> generated `.ts`). **Item 2** (stamp `profile_version`+`start`) — adopted into stamp identity
+> (refines DEC-29/35). **Item 3** (`Plan.id = hash(Stamp ⊕ strategy)`) — adopted as the
+> within-handful discriminator (clarifies DEC-29). All three were already in the LinkML schema.
+> Items 0/4/5/7 reviewed and held as-is (no register change); item 6 was reconciled mid-stream.
+> See `docs/project_notes/decisions.md` ADR-0028.
+
 0. **World provisioned before Capture (tool order).** The spine narrative is
    capture→model-world (DEC-2/5), but Capture points at map features, so the tool runs
    **World first** and renders the candidate OPs on the AO map for Capture to choose from.
