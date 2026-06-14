@@ -454,3 +454,5 @@ input:focus, select:focus, button:focus-visible { outline: 1.5px solid var(--acc
 .orbat-tuners .orbat-desc { width: 5.5rem; }
 .orbat-tuners .orbat-notes { width: 9rem; }
 .orbat-tuners [data-act="symbol-clear"] { padding: .1em .4em; }
+.orbat-tuners .orbat-icon { width: 4.2rem; }
+.orbat-tuners .orbat-caps { min-width: 8rem; vertical-align: top; }

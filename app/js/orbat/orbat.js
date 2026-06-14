@@ -59,6 +59,19 @@ export const SYMBOLS = {
 /** Fallback glyph when no kind is set (today's dot). */
 export const GENERIC_SYMBOL = '●';
 
+/** Icon choices offered by the panel's symbol-override dropdown (UI carve-out): the kind
+ *  glyphs plus a few generic markers. The model keeps `symbol` free-text, so a draft may
+ *  still carry a glyph outside this list. */
+export const ICON_CHOICES = /** @type {const} */ ([
+  '👤', '🚙', '✈', '🚢', '📡', '🛡', '🏢', '★', '⚑', '⬢', '✚', '⚠', '❓',
+]);
+
+/** Capability tags offered by the blue capabilities multi-select (UI carve-out). The model
+ *  keeps capabilities as open string tags (NF7), so legacy/custom tags still round-trip. */
+export const CAPABILITY_CHOICES = /** @type {const} */ ([
+  'recce', 'comms', 'fires', 'medical', 'ew', 'logistics', 'c2', 'engineer', 'air-defence', 'transport',
+]);
+
 /** Marker emphasis per confidence (FR-004); absent ⇒ full emphasis. */
 export const CONFIDENCE_OPACITY = { high: 1, medium: 0.6, low: 0.35 };
 

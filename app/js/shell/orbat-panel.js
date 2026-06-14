@@ -14,7 +14,7 @@ import {
   getDraft, setDraft, subscribeDraft, reconcileOwnForce,
   addAsset, tuneAsset, duplicateAsset, removeAsset, validate, commit,
   ALLEGIANCES, BOUNDS, PROTECTIONS, ALLEGIANCE_COLOR,
-  PLATFORM_KINDS, GREEN_CATEGORIES, CONFIDENCE_LEVELS, symbolOf,
+  PLATFORM_KINDS, GREEN_CATEGORIES, CONFIDENCE_LEVELS, ICON_CHOICES, CAPABILITY_CHOICES, symbolOf,
 } from '../orbat/orbat.js';
 import { latLngToId } from '../kernel/hexgrid.js';
 import { shortId } from '../shapes/canonical.js';
@@ -175,9 +175,10 @@ export function mountOrbatPanel(container, ctx) {
         </select>
       </label>
       <label>icon
-        <input data-act="symbol" class="orbat-icon" type="text" maxlength="3" value="${esc(a.symbol ?? '')}"
-          placeholder="${esc(symbolOf(a))}" data-testid="orbat-symbol-${a.id}" aria-label="icon override" />
-        <button data-act="symbol-clear" title="Clear icon override" data-testid="orbat-symbol-clear-${a.id}">⌫</button>
+        <select data-act="symbol" class="orbat-icon" data-testid="orbat-symbol-${a.id}" aria-label="icon override">
+          <option value="">— ${esc(symbolOf({ ...a, symbol: undefined }))}</option>
+          ${ICON_CHOICES.map((g) => `<option value="${esc(g)}" ${a.symbol === g ? 'selected' : ''}>${esc(g)}</option>`).join('')}
+        </select>
       </label>
       <label>confidence
         <select data-act="confidence" data-testid="orbat-confidence-${a.id}">
@@ -268,8 +269,10 @@ export function mountOrbatPanel(container, ctx) {
         </select>
       </label>
       <label>capabilities
-        <input data-act="capabilities" type="text" value="${esc((a.blue?.capabilities ?? []).join(', '))}"
-          placeholder="recce, comms" data-testid="orbat-capabilities-${a.id}" />
+        <select data-act="capabilities" class="orbat-caps" multiple size="4" data-testid="orbat-capabilities-${a.id}">
+          ${[...new Set([...CAPABILITY_CHOICES, ...(a.blue?.capabilities ?? [])])]
+            .map((c) => `<option value="${esc(c)}" ${(a.blue?.capabilities ?? []).includes(c) ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+        </select>
       </label>
       <label>role
         <input data-act="role" type="text" class="orbat-desc" value="${esc(a.blue?.role ?? '')}"
@@ -302,8 +305,7 @@ export function mountOrbatPanel(container, ctx) {
 
     // Shared enrichment (spec 005): kind / icon override / confidence / strength / notes.
     on('kind', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { kind: el.value }), msg));
-    on('symbol', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { symbol: el.value }), msg));
-    row.querySelector('[data-act="symbol-clear"]')?.addEventListener('click', () => apply(() => tuneAsset(getDraft(), a.id, { symbol: '' }), msg));
+    on('symbol', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { symbol: el.value }), msg));   // '' ⇒ revert to default
     on('confidence', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { confidence: el.value }), msg));
     on('strength', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { strength: el.value }), msg));
     on('notes', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { notes: el.value }), msg));
@@ -331,7 +333,7 @@ export function mountOrbatPanel(container, ctx) {
     if (a.allegiance === 'blue') {
       on('availability', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { blue: { availability: el.value } }), msg));
       on('role', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { blue: { role: el.value } }), msg));
-      on('capabilities', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { blue: { capabilities: el.value.split(',').map((/** @type {string} */ s) => s.trim()).filter(Boolean) } }), msg));
+      on('capabilities', 'change', (el) => apply(() => tuneAsset(getDraft(), a.id, { blue: { capabilities: [...el.selectedOptions].map((/** @type {any} */ o) => o.value) } }), msg));
       const bwin = () => {
         const onEl = /** @type {HTMLInputElement} */ (row.querySelector('[data-act="bluewin-on"]'));
         if (!onEl.checked) return undefined;

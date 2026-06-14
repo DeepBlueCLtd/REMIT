@@ -124,8 +124,7 @@ test('US3 — own-force reconciled & protected; blue tune leaves the route uncha
   const d0 = await draft(page);
   const blue = d0.assets.find((a: any) => a.allegiance === 'blue' && !a.canonical_own_force);
   await page.getByTestId(`orbat-availability-${blue.id}`).selectOption('down');
-  await page.getByTestId(`orbat-capabilities-${blue.id}`).fill('recce, comms');
-  await page.getByTestId(`orbat-capabilities-${blue.id}`).dispatchEvent('change');
+  await page.getByTestId(`orbat-capabilities-${blue.id}`).selectOption(['recce', 'comms']);
 
   // Display-only proof (NF9): the committed Plans are byte-for-byte the same set.
   const plansAfter = await page.evaluate(() =>
@@ -220,12 +219,11 @@ test('US1 (005) — platform kind drives the map symbol; icon override + clear',
   await page.getByTestId('tab-overview').click();
   await expect(page.getByTestId('map')).toHaveAttribute('data-assets', new RegExp(`${id}:red:emplacement`));
 
-  // Icon override then clear (asserted on the persisted draft).
+  // Icon override (dropdown) then clear via the "—" option (asserted on the persisted draft).
   await page.getByTestId('tab-sme-int').click();
-  await page.getByTestId(`orbat-symbol-${id}`).fill('★');
-  await page.getByTestId(`orbat-symbol-${id}`).dispatchEvent('change');
+  await page.getByTestId(`orbat-symbol-${id}`).selectOption('★');
   expect((await draft(page)).assets.find((a: any) => a.id === id).symbol).toBe('★');
-  await page.getByTestId(`orbat-symbol-clear-${id}`).click();
+  await page.getByTestId(`orbat-symbol-${id}`).selectOption('');     // — = revert to kind default
   expect('symbol' in (await draft(page)).assets.find((a: any) => a.id === id)).toBe(false);
 
   // Honest floor: authoring created no plan.
