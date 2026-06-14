@@ -31,8 +31,9 @@
 
 ## Notes
 
-- Scope is **two independently-shippable slices**: A (kind + icons + confidence, P1) and
-  B (red dual-range rings, P2). Each delivers value alone; A is the recommended MVP.
+- Scope is **three independently-shippable slices**: A (kind + icons + confidence, P1), B (red dual-range
+  rings, P2), and C (descriptive detail — strength, notes, red threat-type / green category / blue role,
+  P3). Each delivers value alone; A is the recommended MVP.
 - Entirely **display-only and additive** (NF9 honest floor): no new attribute touches routing or the
   kernel — asserted by FR-009/SC-004. New fields are schema-defined and regenerated (Principle I,
   ADR-0012/0026), reusing the existing `ConfidenceLevel` vocabulary.

@@ -6,15 +6,16 @@ remain pure/deterministic and display-only (NF9): no addition here is read by th
 
 ## Types (regenerated from the schema — do not redeclare)
 
-`Asset` gains `kind: PlatformKind?`, `symbol: string?`, `confidence: ConfidenceLevel?`.
-`RedParams` gains `detection_range_m: number?`, `engagement_range_m: number?`.
-`PlatformKind` is a new enum; `ConfidenceLevel` is the existing one.
+`Asset` gains `kind: PlatformKind?`, `symbol: string?`, `confidence: ConfidenceLevel?`, `strength:
+string?`, `notes: string?`. `RedParams` gains `detection_range_m: number?`, `engagement_range_m:
+number?`, `threat_type: string?`. `GreenParams` gains `category: GreenCategory?`. `BlueParams` gains
+`role: string?`. `PlatformKind` and `GreenCategory` are new enums; `ConfidenceLevel` is the existing one.
 
 ## Model operations (additions / changes)
 
 | Function | Change | Guarantees |
 |---|---|---|
-| `tuneAsset(orbat, id, patch)` | accepts `kind`, `symbol`, `confidence` on the asset, and `detection_range_m`/`engagement_range_m` inside `patch.red` | clamps both ranges to `BOUNDS.extent_m`; reconciles `engagement_range_m ≤ detection_range_m` (FR-006); validates `kind`/`confidence` against their vocabularies; touches only the targeted asset (SC-003). |
+| `tuneAsset(orbat, id, patch)` | accepts `kind`, `symbol`, `confidence`, `strength`, `notes` on the asset; `detection_range_m`/`engagement_range_m`/`threat_type` inside `patch.red`; `category` inside `patch.green`; `role` inside `patch.blue` | clamps both ranges to `BOUNDS.extent_m`; reconciles `engagement_range_m ≤ detection_range_m` (FR-006); validates `kind`/`confidence`/`category` against their vocabularies; trims free-text + drops empties; touches only the targeted asset (SC-003). |
 | `normalize(orbat)` (new, applied by `loadDraft`/`getDraft`) | defaults absent fields; **migrates** a red asset's single `extent_m` → `detection_range_m`, seeding `engagement_range_m` ≤ it | pure + idempotent; preserves canonical bytes/identity for already-migrated rosters (NF3/FR-010). |
 | `addAsset(orbat, { allegiance, … })` | red seeds `detection_range_m`/`engagement_range_m` defaults; all allegiances may carry `kind`/`confidence` | unchanged id/isolation guarantees. |
 | `validate(asset)` | also checks `kind ∈ PlatformKind`, `confidence ∈ ConfidenceLevel`, range bounds + `engagement ≤ detection` | `{ ok, issues[] }`; display feedback, never blocks. |
@@ -31,6 +32,8 @@ new fields deep-copy, persist, and canonicalise like any other asset field.
 | **Icon/symbol picker** | choose an override glyph for one asset; a **clear** affordance reverts to the kind+allegiance default. | FR-003, US1 |
 | **Confidence selector** | per-row high/medium/low; map emphasis + roster badge update live. | FR-004, US2 |
 | **Red dual-range tuners** | red rows show **detection** and **engagement** range inputs (replacing the single extent); the single extent tuner remains for green/blue. | FR-005/006/007, US3 |
+| **Strength + notes** | per-row strength descriptor and free-text notes; shown in the roster, omitted when empty. | FR-012/014, US4 |
+| **Per-allegiance descriptor** | red **threat type** (text), green **category** (select over `GreenCategory`), blue **role** (text). | FR-013, US4 |
 
 ## Projection contract (display-only)
 

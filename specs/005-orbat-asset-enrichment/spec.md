@@ -16,12 +16,14 @@ This feature makes the picture **read like a recognised operational picture** ra
 dots — without crossing the honest floor. It is **purely additive and display-only** (NF9): every
 new attribute is authored intel that the operator sees; nothing influences routing or the kernel.
 
-Two slices, each independently shippable:
+Three slices, each independently shippable:
 
 - **Slice A — platform kind, icons, confidence** (the recognised-picture upgrade): a shared `kind`
   vocabulary, allegiance-framed symbols on the map, and intel confidence shown on every asset.
 - **Slice B — red dual range rings**: a hostile asset's reach is split into a *detection* radius and
   an *engagement/weapon* radius, each tunable and drawn as its own ring.
+- **Slice C — descriptive detail**: lightweight strength, notes, and a per-allegiance descriptor (red
+  threat type, green category, blue role) that turn a typed symbol into an identifiable unit.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -97,6 +99,33 @@ ring changes; confirm green/blue assets are unaffected and keep their single ext
 
 ---
 
+### User Story 4 — Describe an asset (strength, notes, type/category/role) (Priority: P3)
+
+A planner records lightweight **descriptive** detail on an asset: a **strength** (e.g. "×3", "platoon"),
+free-text **notes**, and a per-allegiance descriptor — a red **threat type** (e.g. SAM, MG, armour), a
+green **category** (hospital, school, utility, place-of-worship, residential), and a blue **role** (e.g.
+recce, C2, fires). These show in the roster (and on the marker tooltip/label where natural), turning a
+typed symbol into an identifiable unit.
+
+**Why this priority**: these are the highest-value-per-effort *descriptive* additions — trivial,
+purely-additive fields with obvious roster controls — but they refine rather than transform the picture,
+so they land after the visual slices (US1–US3).
+
+**Independent Test**: set a strength, a note, and the allegiance-specific descriptor on one asset of each
+side; confirm each appears in the roster and round-trips through reload, duplicate and commit; confirm no
+routing effect.
+
+**Acceptance Scenarios**:
+
+1. **Given** a red asset, **When** its threat type is set to "SAM" and strength to "×2", **Then** the
+   roster row shows both and they persist across reload.
+2. **Given** a green asset, **When** its category is set to "hospital", **Then** the roster shows the
+   category (and it is available to the map tooltip/label).
+3. **Given** any descriptive edit, **When** a course of action is selected, **Then** the route/plan is
+   unchanged (display-only, NF9).
+
+---
+
 ### Edge Cases
 
 - **Unknown / unset kind**: an asset with no kind chosen falls back to a generic allegiance-framed
@@ -110,6 +139,8 @@ ring changes; confirm green/blue assets are unaffected and keep their single ext
   detection = the prior single extent with engagement defaulting within it.
 - **Confidence absent**: an asset with no confidence set renders at full emphasis (treated as the
   highest/unflagged default) rather than appearing erroneously faded.
+- **Empty descriptive fields**: an asset with no strength / notes / type / category / role is valid;
+  the roster simply omits the empty descriptor (never a blank "undefined" line).
 
 ## Requirements *(mandatory)*
 
@@ -144,14 +175,26 @@ ring changes; confirm green/blue assets are unaffected and keep their single ext
 - **FR-011**: The authoring panel MUST offer, per asset, a **kind selector**, an **icon picker** (with
   a clear-override affordance), a **confidence selector**, and — for red assets — **detection and
   engagement range tuners**.
+- **FR-012**: Every asset MUST carry an optional **strength** descriptor and free-text **notes**, shown
+  in the roster (and available to the marker tooltip/label) and editable per asset.
+- **FR-013**: Each allegiance MUST carry an optional descriptive type: red a **threat type**, green a
+  **category** (from a controlled vocabulary — e.g. hospital / school / utility / place-of-worship /
+  residential), and blue a **role**.
+- **FR-014**: All descriptive fields (strength, notes, threat type, category, role) MUST be part of the
+  persisted, serialisable asset shape (schema-defined + regenerated) and MUST round-trip through draft
+  persistence, duplicate and commit; absent values MUST be omitted from the roster, not shown blank.
+- **FR-015**: No descriptive field MAY influence routing or any plan (honest floor, NF9).
 
 ### Key Entities *(include if feature involves data)*
 
 - **Asset (extended)**: gains `kind` (platform vocabulary), an optional symbol/icon override,
-  `confidence` (reusing the existing confidence levels), and — for the hostile parameter group — a
-  `detection_range_m` and an `engagement_range_m` (the dual rings), alongside the spec-004 fields.
+  `confidence` (reusing the existing confidence levels), a **strength** descriptor and free-text
+  **notes**, and — for the hostile parameter group — a `detection_range_m` and an `engagement_range_m`
+  (the dual rings), alongside the spec-004 fields.
 - **Platform kind vocabulary**: the controlled set of platform types that maps to symbols.
 - **Symbol**: the rendered marker for an asset, derived from kind + allegiance, overridable per asset.
+- **Allegiance descriptors**: red **threat type**, green **category** (controlled vocabulary), blue
+  **role** — lightweight per-allegiance descriptive detail on the respective parameter group.
 
 ## Success Criteria *(mandatory)*
 
@@ -167,6 +210,8 @@ ring changes; confirm green/blue assets are unaffected and keep their single ext
   routing effect), and re-projecting an unchanged roster is **identical** (NF3).
 - **SC-005**: An ORBAT authored under spec 004 **loads without error** after this feature ships, with
   every prior asset still visible and editable.
+- **SC-006**: An operator can read an asset's **strength, notes and type/category/role** from the roster,
+  and every descriptive value persists across reload, duplicate and commit at 100% fidelity.
 
 ## Assumptions
 
@@ -183,5 +228,9 @@ ring changes; confirm green/blue assets are unaffected and keep their single ext
 - **Placement, persistence, duplicate/remove and commit are unchanged** from spec 004 and are reused.
 - **Backward compatibility.** Spec-004 drafts in localStorage must keep loading; defaults fill the new
   fields. Red assets migrate their single `extent_m` to the detection range.
+- **Descriptive fields are lightweight and display-only.** `strength`, `notes`, red `threat_type` and
+  blue `role` are free-text; green `category` is a small controlled vocabulary. They are shown in the
+  roster (and available to the marker tooltip/label) and never influence routing.
 - **Map placement remains the spec-004 default-position model** (the panel and map live in different
-  role-tabs); a richer place-on-map interaction is explicitly out of scope for this feature.
+  role-tabs); a richer **place-on-map** interaction and true **NATO affiliation frame shapes**
+  (diamond/square/rectangle) are explicitly out of scope for this feature (candidates for a later slice).

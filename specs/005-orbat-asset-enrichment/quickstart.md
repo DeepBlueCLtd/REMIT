@@ -40,6 +40,13 @@ npm run dev        # Vite dev server
    an invalid state).
 3. Confirm a **green/blue** asset still shows a single extent control and single ring.
 
+### US4 — Descriptive detail (P3)
+1. On a red asset set **strength** "×2", **notes** "dug in", and **threat type** "SAM" → all three show
+   in the roster and persist across reload.
+2. Set a green asset's **category** to "hospital" and a blue asset's **role** to "recce" → each shows in
+   its roster row; clearing a field removes it (no blank line).
+3. Confirm a selected COA's route/plan is unchanged by any descriptive edit (honest floor).
+
 ### Backward compatibility (FR-010)
 1. With a spec-004 ORBAT draft already in localStorage (assets without kind/confidence/dual-range),
    load the app → every prior asset still renders (generic symbol, full emphasis) and a red asset shows

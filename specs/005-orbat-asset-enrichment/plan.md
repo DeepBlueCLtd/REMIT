@@ -7,11 +7,13 @@
 ## Summary
 
 Make the ORBAT map read like a recognised operational picture rather than coloured dots, without
-crossing the honest floor (NF9). Three **display-only, additive** enrichments to the spec-004 `Asset`:
+crossing the honest floor (NF9). **Display-only, additive** enrichments to the spec-004 `Asset`:
 a shared **platform `kind`** vocabulary that drives an allegiance-framed **map symbol** (with a
 per-asset override), an intel **`confidence`** level (reusing the existing `ConfidenceLevel`) reflected
-as marker emphasis + a roster badge, and — for red (hostile) assets — **dual range rings**
-(`detection_range_m` / `engagement_range_m`) replacing the single extent. The serialisable shape is
+as marker emphasis + a roster badge, for red (hostile) assets **dual range rings**
+(`detection_range_m` / `engagement_range_m`) replacing the single extent, and lightweight **descriptive
+detail** (`strength`, `notes`, and a per-allegiance descriptor — red threat type, green category, blue
+role). The serialisable shape is
 added to the **LinkML schema** (Principle I) and regenerated; the *glyph lookup* (kind → symbol) is the
 documented UI/behaviour carve-out and stays hand-written. Map rendering reuses the existing deck.gl
 layers (a `TextLayer` glyph over the allegiance-coloured marker; a second `ScatterplotLayer` ring for
@@ -46,7 +48,8 @@ identical authoring ⇒ identical projection; additive + backward-compatible (FR
 load with defaults, red migrates `extent_m` → `detection_range_m`; no new build machinery / runtime dep.
 
 **Scale/Scope**: one ORBAT per scenario; seven platform kinds; three confidence levels; two extra red
-radii. Builds directly on spec 004; reuses its model/panel/projection.
+radii; lightweight descriptive fields (strength, notes, red threat-type, green category, blue role).
+Builds directly on spec 004; reuses its model/panel/projection.
 
 ## Constitution Check
 
@@ -85,14 +88,15 @@ specs/005-orbat-asset-enrichment/
 
 ```text
 schema/
-├── common.yaml          # + PlatformKind enum (infantry|vehicle|aircraft|vessel|sensor|emplacement|structure)
-├── orbat.yaml           # + Asset.kind / Asset.symbol / Asset.confidence; RedParams.detection_range_m / engagement_range_m
+├── common.yaml          # + PlatformKind enum + GreenCategory enum
+├── orbat.yaml           # + Asset.kind/symbol/confidence/strength/notes; RedParams.detection_range_m/engagement_range_m/threat_type;
+│                        #   GreenParams.category; BlueParams.role
 └── gen/                 # REGENERATED (remit.schema.json, remit.ts) — do not hand-edit
 
 app/js/
-├── orbat/orbat.js       # tuneAsset: kind/symbol/confidence + red dual-range clamp (engagement ≤ detection);
-│                        #   defaults + spec-004 migration (extent_m → detection_range_m); SYMBOLS glyph table (UI carve-out)
-├── shell/orbat-panel.js # + kind selector, icon picker (with clear-override), confidence selector, red detection/engagement tuners
+├── orbat/orbat.js       # tuneAsset: kind/symbol/confidence/strength/notes + per-allegiance descriptor + red dual-range clamp
+│                        #   (engagement ≤ detection); defaults + spec-004 migration (extent_m → detection_range_m); SYMBOLS (UI carve-out)
+├── shell/orbat-panel.js # + kind/icon/confidence + strength/notes + threat-type/category/role + red detection/engagement tuners
 └── views/map.js         # symbol glyph (TextLayer) over allegiance marker; confidence → opacity; red two-ring rendering
 
 test/orbat.test.mjs      # + kind/confidence round-trip, dual-range clamp/invariant, draft migration

@@ -27,6 +27,21 @@ enums:
 
 > `ConfidenceLevel` (high|medium|low) already exists in `common.yaml` — reused, not redefined.
 
+### `common.yaml` — green category enum
+
+```yaml
+enums:
+  GreenCategory:
+    description: The category of a neutral/green protected place (DEC-60 J3); display-only in v1.
+    permissible_values:
+      hospital:         { description: medical facility }
+      school:           { description: educational facility }
+      utility:          { description: power / water / comms infrastructure }
+      place_of_worship: { description: religious site }
+      residential:      { description: populated residential area }
+      other:            { description: uncategorised protected place }
+```
+
 ### `orbat.yaml` — three attributes on `Asset`
 
 ```yaml
@@ -40,9 +55,13 @@ enums:
       confidence:
         range: ConfidenceLevel
         description: intel reliability of this asset (DEC-19); rendered as marker emphasis + a roster badge
+      strength:
+        description: free-text strength descriptor (e.g. "×3", "platoon"); display-only
+      notes:
+        description: free-text operator notes; display-only
 ```
 
-### `orbat.yaml` — two attributes on `RedParams`
+### `orbat.yaml` — descriptive + dual-range attributes on the param groups
 
 ```yaml
   RedParams:
@@ -55,6 +74,24 @@ enums:
       engagement_range_m:
         range: float
         description: inner reach the threat can ENGAGE within (metres); the bold inner ring (≤ detection)
+      threat_type:
+        description: free-text threat/weapon type (e.g. SAM, MG, armour); display-only
+
+  GreenParams:
+    attributes:
+      sensitivity: { ... }               # unchanged
+      protection:  { ... }               # unchanged
+      category:
+        range: GreenCategory
+        description: kind of protected place (hospital/school/…); display-only
+
+  BlueParams:
+    attributes:
+      availability:        { ... }       # unchanged
+      capabilities:        { ... }       # unchanged
+      availability_window: { ... }       # unchanged (spec 004 fix)
+      role:
+        description: free-text own-force role (e.g. recce, C2, fires); display-only
 ```
 
 > `Asset.extent_m` is retained for green/blue (their single ring). For red it is superseded by the dual
@@ -64,8 +101,10 @@ enums:
 
 | Entity | New fields | Notes |
 |---|---|---|
-| **Asset** | `kind` (PlatformKind), `symbol` (string override), `confidence` (ConfidenceLevel) | all optional, additive; display-only |
-| **RedParams** | `detection_range_m`, `engagement_range_m` (float) | red-only dual rings; `engagement ≤ detection` |
+| **Asset** | `kind` (PlatformKind), `symbol` (string override), `confidence` (ConfidenceLevel), `strength` (string), `notes` (string) | all optional, additive; display-only |
+| **RedParams** | `detection_range_m`, `engagement_range_m` (float), `threat_type` (string) | red-only dual rings (`engagement ≤ detection`) + threat descriptor |
+| **GreenParams** | `category` (GreenCategory) | protected-place kind |
+| **BlueParams** | `role` (string) | own-force role descriptor |
 
 ## Validation rules (from the spec)
 
@@ -76,8 +115,11 @@ enums:
   (`BOUNDS.extent_m`, 100..20000 m); `engagement_range_m` is reconciled to be ≤ `detection_range_m`
   (clamp + inline feedback), never silently dropped.
 - **FR-007**: dual ranges apply to **red only**; green/blue validate/render the single `extent_m`.
-- **FR-009/NF9**: none of `kind`/`symbol`/`confidence`/`detection_range_m`/`engagement_range_m` is read
-  by the kernel or any plan term — display-only.
+- **FR-013**: green `category` ∈ the `GreenCategory` vocabulary (or unset); red `threat_type`, blue
+  `role`, and shared `strength`/`notes` are free text (trimmed; empty ⇒ omitted, FR-014).
+- **FR-009/015/NF9**: none of `kind`/`symbol`/`confidence`/`strength`/`notes`/`detection_range_m`/
+  `engagement_range_m`/`threat_type`/`category`/`role` is read by the kernel or any plan term —
+  display-only.
 
 ## Lifecycle / migration (FR-010, backward compatibility)
 
@@ -103,5 +145,7 @@ load draft / committed Orbat ─► normalise(asset):
   Red assets draw **two** `ScatterplotLayer` rings — faint outer `detection_range_m`, bold inner
   `engagement_range_m`; green/blue keep the single `extent_m` ring.
 - `orbat-panel.js`: each row gains a **kind** selector, an **icon/symbol** picker with a clear-override
-  affordance, a **confidence** selector, and — for red rows — **detection** and **engagement** range
-  tuners (the single extent tuner stays for green/blue).
+  affordance, a **confidence** selector, **strength** + **notes** inputs, a per-allegiance descriptor
+  control (red **threat type** text, green **category** select, blue **role** text), and — for red rows —
+  **detection** and **engagement** range tuners (the single extent tuner stays for green/blue). Empty
+  descriptive values are omitted from the roster display, not shown blank.
