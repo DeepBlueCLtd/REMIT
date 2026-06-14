@@ -730,3 +730,33 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   (an e2e re-asserts tune ⇒ committed Plan ids unchanged); spec-004 drafts load intact. **Out of scope
   (deferred):** a richer place-on-map interaction and true NATO frame shapes (a later slice); any
   routing/kernel influence (the avoid-assess capability, DEC-51).
+
+## ADR-0028 (2026-06-14) — Skeleton-gate reconciliation (DEC-47 → register DEC-62)
+
+- **Context:** the DEC-44 walking skeleton (PR #2, issue [#3](https://github.com/DeepBlueCLtd/REMIT/issues/3))
+  surfaced three build discoveries that out-ran or contradicted the register, held as local deviations under
+  DEC-47's batch-reconciliation policy for the skeleton-complete gate. All three had since been **baked into the
+  LinkML source of truth** (DEC-57) when the schema was reconciled against the skeleton's real object shapes — but
+  the **Doc-owned register** (DEC-37) and the prose spine `docs/remit-data-model.md` §6/§7 still showed the
+  pre-skeleton wording. The maintainer asked to close the gate.
+- **Decision:** record **DEC-62** in `docs/remit-register.md` ratifying the three, and bring the prose spine into
+  line with the schema. **(A) Stamp gains a platform/start axis** — `profile_version` (own-force profile, DEC-19)
+  + `start{x,y,clock_min}` are identity inputs (a plan depends on both; identical stamps with different profiles
+  would collide, breaking NF3); refines DEC-29/35. **(B) Plan-id within-handful discriminator** — one stamp
+  legitimately yields a handful (DEC-22/40-C), so `Plan.id = hash(Stamp ⊕ strategy)`, not `hash(Stamp)`; the stamp
+  stays the comparability basis (A3), the strategy distinguishes siblings; clarifies DEC-29. **(C) No-build
+  `// @ts-check`+JSDoc ratified as DEC-41's TypeScript realisation** — a mechanism note, not a reversal: v1 keeps
+  the no-build deploy/preview contract (Principle II, ADR-0001/0005, DEC-58) and meets DEC-41's typing intent via
+  JSDoc checked by `tsc --checkJs --noEmit` (ADR-0024) consuming the LinkML-generated `.ts` types (DEC-57).
+- **Why ratify, not reverse:** (A) and (B) are NF3 necessities the schema already enforces — the only open work
+  was recording them so the register ≡ the generated source. (C)'s register revisit-trigger ("when DEC-57's
+  generated TS lands") had fired, and the no-build constitution is now firmly established (Principle II; ADR-0024
+  enforces TypeScript-grade checking *without* a build), so the gate conclusion is ratify, following DEC-40's
+  caveat-not-reversal pattern.
+- **Scope — docs/governance only:** `remit-register.md` (DEC-62 + version → v28), `remit-data-model.md` §6/§7
+  squared to the schema, the skeleton spec's deviations section annotated with the gate outcome, project memory.
+  **No schema or code change** — the schema already carries `profile_version`/`start`/`StartState` and
+  `Plan.strategy` / `id = hash(Stamp, strategy)`; `schema/gen/` untouched, no regenerate needed.
+- **Remaining skeleton notes:** World-before-Capture tool-order, mock band-calibration, and the `entities/` vs
+  `views/projection/` module placement were reviewed and **held as-is** (no register change); the mid-stream
+  coincidence H2→H1-lite edit (ADR-0009/DEC-53) was already reconciled. Closes issue #3.

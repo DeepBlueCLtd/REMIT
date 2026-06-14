@@ -166,7 +166,7 @@ Aspect {
 //   Full planning-AGAINST entities (multi-actor) = C9/H3; v1 entities are display-only.
 ```
 
-## 6. Stamp (plan identity) — DEC-23/24/29
+## 6. Stamp (plan identity) — DEC-23/24/29/62
 
 ```
 Stamp {
@@ -174,18 +174,21 @@ Stamp {
   baseline_version, excursions: [excursion_version]
   config_core_hash                          // DEC-48: world-defining config core (medium/channels/
                                             //   movement-model/providers/vocabulary); instance shell excluded
+  profile_version, start: { x, y, clock_min } // DEC-62: own-force profile (DEC-19) + start state — the plan
+                                            //   depends on both, so both are identity inputs (NF3)
   appetites: { axis → setting }             // implementer's, DEC-6
   steering: [Constraint]                    // interpreted gestures, DEC-24
   kernel_version, strategy_seed             // DEC-29: part of identity
 }
 ```
 
-## 7. Plan — DEC-5/22/29
+## 7. Plan — DEC-5/22/29/62
 
 ```
 Plan {
-  id = hash(Stamp)                          // stamp IS the identity (DEC-29)
-  stamp: Stamp                              // authoritative
+  id = hash(Stamp, strategy)                // stamp ⊕ strategy: one stamp yields a handful (DEC-62/29)
+  strategy: Strategy                        // the candidate's axis within the handful (the discriminator)
+  stamp: Stamp                              // authoritative — the comparability basis (A3)
   materialisation: {                        // cached, regenerable
     schedule: [ { activity_ref | leg, start: t, end: t } ]
     trajectory: [ (cell, t) ]
