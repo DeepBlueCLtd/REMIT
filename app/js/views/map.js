@@ -15,6 +15,28 @@ import { latLngToId } from '../kernel/hexgrid.js';
 import { STRAT_COLORS } from './render.js';
 import { ALLEGIANCE_COLOR, symbolOf, confidenceOpacity } from '../orbat/orbat.js';
 
+/** @typedef {import('../../../schema/gen/remit').Plan} Plan */
+/** @typedef {import('../../../schema/gen/remit').Asset} Asset */
+/** @typedef {import('../../../schema/gen/remit').HexCell} HexCell */
+/**
+ * The projection inputs (display-only; DEC-24/NF1). `plans`/`selected`/`assets`
+ * are the serialisable data (generated types); the rest are transient view-state.
+ * @typedef {object} RenderOpts
+ * @property {Plan[]} [plans]
+ * @property {Plan|null} [selected]
+ * @property {number} [t]
+ * @property {(HexCell & {id?: number})|null} [target]
+ * @property {(HexCell & {id?: number})|null} [rv]
+ * @property {(HexCell & {key?: string})[]|null} [candidates]
+ * @property {HexCell|null} [highlight]
+ * @property {HexCell[]} [obstructions]
+ * @property {{h3: string, id?: number}[]} [nogo]
+ * @property {({h3?: string, id?: number}|number)[]} [blocked]
+ * @property {Asset[]} [assets]
+ * @property {string|null} [selectedAsset]
+ * @property {boolean} [follow]
+ */
+
 const ALLEGIANCE_RGB = Object.fromEntries(Object.entries(ALLEGIANCE_COLOR).map(([k, v]) => [k, [parseInt(v.slice(1, 3), 16), parseInt(v.slice(3, 5), 16), parseInt(v.slice(5, 7), 16)]]));
 
 const rgb = (/** @type {string} */ h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -109,7 +131,7 @@ export function makeMap(el, baseline, ao, places) {
     return null;
   };
 
-  function buildLayers(/** @type {any} */ opts) {
+  function buildLayers(/** @type {RenderOpts} */ opts) {
     const { plans = [], selected = null, t = 0, target = null, rv = null,
             candidates = null, highlight = null, obstructions = [], nogo = [], blocked = [],
             assets = [], selectedAsset = null } = opts;
@@ -125,6 +147,10 @@ export function makeMap(el, baseline, ao, places) {
     // Hex-grid overlay (terrain + situational no-go / blocked highlights). Toggleable:
     // when hidden, the basemap shows through and the operational overlay (routes,
     // markers, vehicle ghost) below still renders.
+    // deck.gl's typed accessor props (Accessor<DataT, …>) don't accept a plain
+    // JSDoc-typed callback, so the get* functions below are cast at this library
+    // boundary (as with the MapOptions cast above). Their PARAMETERS are typed, so
+    // the accessor bodies stay checked — only the deck.gl prop shape is asserted.
     const layers = [];
     if (showHexes) {
       layers.push(new H3HexagonLayer({
@@ -137,13 +163,13 @@ export function makeMap(el, baseline, ao, places) {
     }
 
     // Routes — non-selected faint, selected bold (or all bold in compare mode).
-    const path = (/** @type {any} */ p) => p.materialisation.trajectory.map((/** @type {any} */ q) => [q.lng, q.lat]);
+    const path = (/** @type {Plan} */ p) => (p.materialisation?.trajectory ?? []).map((q) => [q.lng, q.lat]);
     for (const p of plans) {
       if (!p.materialisation) continue;
       const isSel = selected && p.id === selected.id;
       const base = STRAT_RGB[p.strategy.key] || [200, 200, 200];
       layers.push(new PathLayer({
-        id: 'route-' + p.strategy.key, data: [p], getPath: path,
+        id: 'route-' + p.strategy.key, data: [p], getPath: /** @type {any} */ (path),
         getColor: /** @type {any} */ (selected && !isSel ? [base[0], base[1], base[2], 110] : base),
         getWidth: isSel ? 3.6 : (selected ? 2 : 3), widthUnits: 'pixels', capRounded: true, jointRounded: true,
       }));
@@ -171,10 +197,10 @@ export function makeMap(el, baseline, ao, places) {
     // marker, range ring(s) (red: faint detection + bold engagement; others: one extent), and a
     // label. Intel CONFIDENCE sets marker/symbol emphasis (opacity). Display-only (NF9): drawn
     // from the authored roster, never derived. The selected asset's marker is enlarged/outlined.
-    const placed = assets.map((/** @type {any} */ a) => ({ a, pos: assetLngLat(a) })).filter((/** @type {any} */ x) => x.pos);
+    const placed = assets.map((a) => ({ a, pos: assetLngLat(a) })).filter((x) => x.pos);
     if (placed.length) {
-      const col = (/** @type {any} */ a) => ALLEGIANCE_RGB[a.allegiance] ?? [200, 210, 220];
-      const alpha = (/** @type {any} */ a, /** @type {number} */ base) => Math.round(base * confidenceOpacity(a));
+      const col = (/** @type {Asset} */ a) => ALLEGIANCE_RGB[a.allegiance] ?? [200, 210, 220];
+      const alpha = (/** @type {Asset} */ a, /** @type {number} */ base) => Math.round(base * confidenceOpacity(a));
 
       // Range rings: red draws an outer (faint) detection ring + an inner (bold) engagement ring;
       // green/blue draw their single extent ring.
@@ -222,19 +248,19 @@ export function makeMap(el, baseline, ao, places) {
     return layers;
   }
 
-  function setData(/** @type {any} */ opts) {
+  function setData(/** @type {RenderOpts} */ opts) {
     const { selected = null, t = 0, plans = [], highlight = null, nogo = [], blocked = [], obstructions = [], assets = [] } = opts;
     el.dataset.fordState = fordOpenAt(t) ? 'open' : 'closed';
     // Expose the placed ORBAT roster to the e2e suite: "id:allegiance:kind:confidence" per asset.
-    const placedAssets = assets.filter((/** @type {any} */ a) => assetLngLat(a));
-    el.dataset.assets = placedAssets.map((/** @type {any} */ a) => `${a.id}:${a.allegiance}:${a.kind ?? ''}:${a.confidence ?? ''}`).join('|');
+    const placedAssets = assets.filter((a) => assetLngLat(a));
+    el.dataset.assets = placedAssets.map((a) => `${a.id}:${a.allegiance}:${a.kind ?? ''}:${a.confidence ?? ''}`).join('|');
     el.dataset.assetCount = String(placedAssets.length);
     if (selected) { const g = stateAt(selected, t); el.dataset.ghost = g ? `${g.lng.toFixed(4)},${g.lat.toFixed(4)},${g.phase}` : ''; }
-    else el.dataset.ghost = plans.filter((/** @type {any} */ p) => p.materialisation).map((/** @type {any} */ p) => { const g = stateAt(p, t); return g ? `${p.strategy.key}:${g.lng.toFixed(4)},${g.lat.toFixed(4)}` : ''; }).filter(Boolean).join('|');
+    else el.dataset.ghost = plans.filter((p) => p.materialisation).map((p) => { const g = stateAt(p, t); return g ? `${p.strategy.key}:${g.lng.toFixed(4)},${g.lat.toFixed(4)}` : ''; }).filter(Boolean).join('|');
     el.dataset.highlight = highlight ? shortH3(highlight.h3) : '';
-    el.dataset.nogo = nogo.map((/** @type {any} */ c) => shortH3(c.h3)).join('|');
-    el.dataset.blocked = blocked.map((/** @type {any} */ c) => shortH3(c.h3 ?? ao.indexes[c.id ?? c])).join('|');
-    el.dataset.obstructions = obstructions.map((/** @type {any} */ o) => shortH3(o.h3)).join('|');
+    el.dataset.nogo = nogo.map((c) => shortH3(c.h3)).join('|');
+    el.dataset.blocked = blocked.map((c) => shortH3(typeof c === 'number' ? ao.indexes[c] : c.h3 ?? ao.indexes[c.id ?? 0])).join('|');
+    el.dataset.obstructions = obstructions.map((o) => shortH3(o.h3)).join('|');
   }
 
   // Execute-mode follow-cam: keep the live vehicle comfortably on screen (esp. when zoomed
@@ -251,7 +277,7 @@ export function makeMap(el, baseline, ao, places) {
     }
   }
 
-  function render(/** @type {any} */ opts = {}) {
+  function render(/** @type {RenderOpts} */ opts = {}) {
     lastOpts = opts;
     overlay.setProps({ layers: buildLayers(opts) });   // deck overlay renders above the basemap
     setData(opts);

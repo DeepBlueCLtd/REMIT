@@ -2973,10 +2973,7 @@
             "description": "One sampled point on the platform's path (H3 hex per ADR-0016); time/fuel rounded to 1 dp for IEEE stability.",
             "properties": {
                 "fuel_pct": {
-                    "type": [
-                        "number",
-                        "null"
-                    ]
+                    "type": "number"
                 },
                 "h3": {
                     "description": "the H3 cell index (res 9)",
@@ -2984,28 +2981,23 @@
                 },
                 "lat": {
                     "description": "cell-centre latitude",
-                    "type": [
-                        "number",
-                        "null"
-                    ]
+                    "type": "number"
                 },
                 "lng": {
                     "description": "cell-centre longitude",
-                    "type": [
-                        "number",
-                        "null"
-                    ]
+                    "type": "number"
                 },
                 "t": {
                     "description": "mission minutes",
-                    "type": [
-                        "number",
-                        "null"
-                    ]
+                    "type": "number"
                 }
             },
             "required": [
-                "h3"
+                "h3",
+                "lat",
+                "lng",
+                "t",
+                "fuel_pct"
             ],
             "title": "TrajectoryPoint",
             "type": "object"

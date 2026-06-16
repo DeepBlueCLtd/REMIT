@@ -997,12 +997,12 @@ export interface TrajectoryPoint {
     /** the H3 cell index (res 9) */
     h3: string,
     /** cell-centre latitude */
-    lat?: number,
+    lat: number,
     /** cell-centre longitude */
-    lng?: number,
+    lng: number,
     /** mission minutes */
-    t?: number,
-    fuel_pct?: number,
+    t: number,
+    fuel_pct: number,
 }
 
 
