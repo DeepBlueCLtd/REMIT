@@ -17,9 +17,9 @@ const hashTab = () => location.hash.match(HASH_RE)?.[1] ?? null;
 /** @param {string} id */
 const setHash = (id) => history.replaceState(null, '', `#tab=${id}`);
 /** @param {string} m */
-const fault = (m) => /** @type {any} */ (window).__remitFault?.(m);
+const fault = (m) => window.__remitFault?.(m);
 /** @param {unknown} err */
-const msg = (err) => (err && /** @type {any} */ (err).message ? /** @type {any} */ (err).message : String(err));
+const msg = (err) => (err instanceof Error ? err.message : String(err));
 
 const defs = roles();
 const mounted = new Set();
@@ -36,7 +36,7 @@ export function boot() {
   tabsHost.addEventListener('keydown', onKeydown);
   window.addEventListener('hashchange', () => { const id = hashTab(); if (id) activate(id, false); });
   // Minimal API a popped-out child calls to pop itself back in on close.
-  /** @type {any} */ (window).__remitShell = { popIn };
+  window.__remitShell = { popIn };
   activate(hashTab() ?? 'overview', false);
 }
 

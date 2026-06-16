@@ -10,12 +10,12 @@
 import { roles } from './roles.js';
 
 /** @param {string} m */
-const fault = (m) => /** @type {any} */ (window).__remitFault?.(m);
+const fault = (m) => window.__remitFault?.(m);
 
 export function boot() {
   const root = /** @type {HTMLElement} */ (document.getElementById('popout-root'));
   const id = location.hash.match(/tab=([\w-]+)/)?.[1] ?? null;
-  const opener = /** @type {any} */ (window.opener);
+  const opener = window.opener;
   const ctx = opener && opener.__remit;
 
   if (!ctx) {
@@ -42,7 +42,7 @@ export function boot() {
 
   // Ask the opener to pop us back in when this window closes.
   window.addEventListener('beforeunload', () => {
-    try { opener.__remitShell?.popIn?.(id, true); } catch (_) { /* opener gone */ }
+    try { if (id) opener?.__remitShell?.popIn?.(id, true); } catch (_) { /* opener gone */ }
   });
 }
 

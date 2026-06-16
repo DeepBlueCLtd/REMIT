@@ -154,7 +154,7 @@ export function mountDataAnalysis(container, ctx) {
       ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      /** @type {any} */ (window).__remitFault?.(`provisioning: ${msg}`);
+      window.__remitFault?.(`provisioning: ${msg}`);
     }
     refresh();
   }

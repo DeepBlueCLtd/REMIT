@@ -62,7 +62,7 @@ const state = {
 // Debug/test handle (read-only use; not part of any contract). The context
 // module seeds window.__remit = {objects, logs, seam, world, playhead}; attach
 // the Overview's mission state so existing tooling can read window.__remit.state.
-/** @type {any} */ (window).__remit.state = state;
+window.__remit.state = state;
 
 // --- projection surface (map + timeline + playhead) ------------------------
 const mapEl = /** @type {HTMLElement} */ (document.getElementById('map'));
@@ -260,7 +260,7 @@ function showStage(/** @type {string} */ key) {
 
 /** Surface a failure in the banner — nothing fails silently. */
 function showFault(/** @type {string} */ msg) {
-  /** @type {any} */ (window).__remitFault?.(msg);
+  window.__remitFault?.(msg);
 }
 
 /**
@@ -448,7 +448,7 @@ function mountCaptureStage() {
 // `constraints` payload is the schema's Constraint shape (DEC-24); the delta
 // envelope (scope + attribution) is the DEC-61 stamped-delta scaffolding that
 // becomes a first-class Delta type in the writes phase.
-let steeringShareTimer = 0;
+/** @type {ReturnType<typeof setTimeout> | undefined} */ let steeringShareTimer;
 let lastSharedNogoKey = '';
 function shareSteering() {
   // Hex world: no-go cells are H3 ids (the kernel reads `cell.h3`), not square x/y.
@@ -472,7 +472,7 @@ function shareSteering() {
 }
 function scheduleShareSteering() {
   clearTimeout(steeringShareTimer);
-  steeringShareTimer = /** @type {any} */ (setTimeout(shareSteering, 450));
+  steeringShareTimer = setTimeout(shareSteering, 450);
 }
 
 function mountPlan() {

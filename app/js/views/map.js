@@ -53,7 +53,7 @@ export function makeMap(el, baseline, ao, places) {
 
   // Author-time terrain sampling (tools/sample-terrain.mjs) sets window.__REMIT_SAMPLE
   // before load: keep the basemap framebuffer readable and expose the map. Inert otherwise.
-  const sampling = typeof window !== 'undefined' && /** @type {any} */ (window).__REMIT_SAMPLE;
+  const sampling = typeof window !== 'undefined' && window.__REMIT_SAMPLE;
   // maplibre's MapOptions type is stricter/narrower than the runtime options
   // (e.g. it omits preserveDrawingBuffer); cast the options blob at this library
   // boundary — the map instance itself stays fully typed.
@@ -63,7 +63,7 @@ export function makeMap(el, baseline, ao, places) {
     preserveDrawingBuffer: sampling,
   }));
   map.on('error', () => {});
-  if (sampling) /** @type {any} */ (window).__map = map;
+  if (sampling) window.__map = map;
   // Hovering an ORBAT asset marker surfaces its descriptive detail (spec 005 / T023) — a
   // display-only readout (kind, confidence, strength, notes, threat-type/category/role).
   const assetTooltip = (/** @type {any} */ info) => {
