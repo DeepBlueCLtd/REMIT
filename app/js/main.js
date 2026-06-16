@@ -461,12 +461,9 @@ function shareSteering() {
   /** @type {import('../../schema/gen/remit').SteeringDelta} */
   const delta = {
     scope: 'steering',
-    // Schema drift (DEC-57): the app moved to hex H3 ids, but the generated
-    // Constraint.cells is still square-grid Waypoint{x,y}. Cast until the LinkML
-    // schema grows a hex cell type and is regenerated.
-    constraints: cells.length
-      ? [{ type: 'no-go', cells: /** @type {import('../../schema/gen/remit').Waypoint[]} */ (/** @type {unknown} */ (cells)) }]
-      : [],
+    // The generated Constraint.cells is HexCell[] (h3) since the Waypoint→HexCell
+    // migration (ADR-0030), so the app's hex no-go cells fit directly — no cast.
+    constraints: cells.length ? [{ type: 'no-go', cells }] : [],
     by: 'operator',
     role: 'duty-officer-plans',
     at: new Date().toISOString(),

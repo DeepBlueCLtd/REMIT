@@ -798,3 +798,32 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
 - **Consequences:** Principle I is now enforced, not just stated — generated files are labelled, drift fails CI
   two ways (regen + adherence), and the schema's real gaps are visible and tracked. Scope: tooling/CI/test only;
   the sole schema-output change is the banner text. No `app/`/kernel code changed.
+
+## ADR-0030 (2026-06-14) — Waypoint→HexCell migration: restore schema ≡ code, empty the adherence DRIFT map
+
+- **Context:** the ADR-0029 adherence guard surfaced that the LinkML schema still modelled several persisted
+  shapes as the **square-grid `Waypoint{x,y}`** even though the app went hex (H3) at ADR-0016 — `Asset.position`,
+  `Constraint.cells`, `StartState`, `Materialisation.trajectory` — plus two non-hex drifts: `appetites` is a
+  runtime `{axis:setting}` map vs the schema's `Appetite[]`, and `TideDecision` carried a runtime `rv_min` the
+  schema lacked. The guard had to *strip* these (its `DRIFT` map). This closes them so the schema describes reality.
+- **Decision:** migrate the schema source (the modules, then regenerate) to match the real shapes — the DEC-57
+  direction is *schema follows the skeleton's real code* (the runtime is authoritative for v1):
+  - **Hex coordinates →** repoint `Asset.position` (orbat) and `Constraint.cells` (plan) to the existing
+    **`HexCell`** (`{h3, lat?, lng?}`, the ADR-0016 successor to `Waypoint`); rebuild `StartState` and
+    `TrajectoryPoint` on `h3`(+`lat`/`lng`) instead of `x`/`y`.
+  - **`TideDecision`** gains `rv_min` (the chosen route's RV arrival the runtime publishes).
+  - **`appetites`** is modelled as an **`axis→setting` map** — `Appetite.axis` made the LinkML `identifier` and
+    `Stamp.appetites` `inlined` (not `inlined_as_list`), so gen-json-schema emits the compact dict form that
+    validates `{tempo:'balanced', exposure:'balanced'}` directly. Chosen over changing the kernel to emit
+    `Appetite[]`, which would have altered the Stamp's canonical bytes → **moved every golden plan id** (NF3).
+- **Payoff:** the documented interim **cast is deleted** — `main.js`'s `SteeringDelta` write no longer casts hex
+  cells `as unknown as Waypoint[]` (bugs.md); they're `HexCell`s now. The adherence test drops its `DRIFT`/strip
+  machinery and **validates the instances whole**; an undeclared-field assertion still proves it catches new drift.
+- **Verification:** regenerate is idempotent + byte-reproducible (the ADR-0029 regen-no-diff check passes); 32 unit
+  tests green; **golden plan ids unchanged** (the schema is validation-only — it never touches the runtime canonical
+  form, so NF3 holds); 0 typecheck errors. `Waypoint` itself is retained in the schema (still the generic grid
+  location type) but is no longer referenced by these persisted shapes.
+- **Consequences:** Principle I's "schema ≡ code" is restored for the serialisable core; the adherence guard is now
+  strict (nothing stripped). Out of scope (unchanged): the broader "app imports the generated TS" migration
+  (ADR-0012, its own spec) — the app still hand-writes most shapes; only the `SteeringDelta` binding consumes
+  generated types today.

@@ -1,20 +1,15 @@
 // Schema-adherence guard (ADR-0011/0012, Principle I / DEC-57).
 //
-// Real skeleton instances — a committed ORBAT and a kernel Plan — are validated
-// against the GENERATED JSON Schema (schema/gen/remit.schema.json). This proves
-// the constitution's "schema ≡ code" for the serialisable object core, and fails
-// the build the moment code or schema drift apart (the gap a hand-written type
-// would hide). Build-free: imports the pure app modules directly, like the other
-// node --test suites.
+// Real skeleton instances — a committed ORBAT and the kernel's Plan handful — are
+// validated against the GENERATED JSON Schema (schema/gen/remit.schema.json). This
+// proves the constitution's "schema ≡ code" for the serialisable object core and
+// fails the build the moment code or schema drift apart (the gap a hand-written
+// type would hide). Build-free: imports the pure app modules directly, like the
+// other node --test suites.
 //
-// Known, pre-existing drifts are listed in DRIFT (each tracked in
-// docs/project_notes/bugs.md) and stripped before strict validation, so the guard
-// stays green while still catching any NEW drift in the surrounding fields. Drop
-// an entry here when its schema fix lands — the two open ones are:
-//   • Waypoint/StartState/TrajectoryPoint are still square-grid {x,y}; the app is
-//     hex {h3,lat,lng} since ADR-0016 (the Waypoint→HexCell migration).
-//   • the kernel carries appetites as a {axis:setting} map; the schema models
-//     Appetite[] {axis,setting}. TideDecision likewise shapes differently.
+// History: the first cut of this guard had to strip documented drifts (square-grid
+// Waypoint vs hex; appetites map-vs-list; TideDecision). The Waypoint→HexCell
+// migration (ADR-0030) closed them, so it now validates the instances whole.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,25 +32,10 @@ function validatorFor(cls) {
   return v;
 }
 
-// Documented schema↔code drifts (docs/project_notes/bugs.md), stripped per class.
-const DRIFT = {
-  Asset: ['position'],
-  Stamp: ['start', 'appetites'],
-  Materialisation: ['trajectory', 'tide'],
-  Plan: ['tide_decision'],
-};
-
-const clone = (x) => JSON.parse(JSON.stringify(x));
-function strip(cls, inst) {
-  const c = clone(inst);
-  for (const f of DRIFT[cls] ?? []) delete c[f];
-  return c;
-}
-
-/** Assert `instance` validates against `#/$defs/<cls>` once documented drift is stripped. */
+/** Assert `instance` validates against `#/$defs/<cls>`. */
 function adheres(cls, instance) {
   const v = validatorFor(cls);
-  const ok = v(strip(cls, instance));
+  const ok = v(instance);
   const detail = ok ? '' : '\n' + v.errors.map((e) => `  ${e.instancePath || '(root)'} ${e.message}`).join('\n');
   assert.ok(ok, `${cls} does not adhere to the generated JSON Schema:${detail}`);
 }
@@ -69,11 +49,8 @@ test('ORBAT — a committed Orbat (red + green + own-force blue) adheres to the 
   const { id } = await commit(o, new ObjectStore());
 
   // The full Orbat (content id reattached to the id-free canonical body, DEC-35),
-  // with each asset's drifting position stripped, must validate strictly.
-  const orbat = { id, ...JSON.parse(canonical(o)) };
-  orbat.assets = orbat.assets.map((a) => strip('Asset', a));
-  const v = validatorFor('Orbat');
-  assert.ok(v(orbat), 'Orbat: ' + (v.errors || []).map((e) => `${e.instancePath} ${e.message}`).join(' | '));
+  // hex positions and all.
+  adheres('Orbat', { id, ...JSON.parse(canonical(o)) });
 
   assert.equal(o.assets.length, 3);
   for (const a of o.assets) adheres('Asset', a); // red, green, blue individually
@@ -81,7 +58,7 @@ test('ORBAT — a committed Orbat (red + green + own-force blue) adheres to the 
 
 // ---- Plan / kernel output (spec 002/003) ----------------------------------------
 
-test('Plan — a kernel plan, its Stamp, Scores and Materialisation adhere to the schema', async () => {
+test('Plan — the kernel handful, its Stamp, Scores and Materialisation adhere to the schema', async () => {
   const world = buildWorld();
   const OP = world.places.ops[0];
   const RV = world.places.rvEast;
@@ -96,18 +73,17 @@ test('Plan — a kernel plan, its Stamp, Scores and Materialisation adhere to th
     state: world.state, config_core: await contentId(world.configCore),
     appetites: { tempo: 'balanced', exposure: 'balanced' }, steering: [], strategy_seed: 1337, ao: world.ao,
   });
+
+  // Every plan in the handful — exercises both tide modes (detour + wait).
+  for (const p of plans) adheres('Plan', p);
+
   const p = plans[0];
-
-  adheres('Stamp', p.stamp);
+  adheres('Stamp', p.stamp);                     // hex start + axis→setting appetites map
   adheres('Scores', p.scores);
-  adheres('Materialisation', p.materialisation);
+  adheres('Materialisation', p.materialisation); // hex trajectory
 
-  // The whole Plan, with drift stripped from its nested Stamp + Materialisation.
-  const plan = strip('Plan', p);
-  plan.stamp = strip('Stamp', plan.stamp);
-  plan.materialisation = strip('Materialisation', plan.materialisation);
-  const v = validatorFor('Plan');
-  assert.ok(v(plan), 'Plan: ' + (v.errors || []).map((e) => `${e.instancePath} ${e.message}`).join(' | '));
+  // A no-go steering constraint — its cells are HexCells since ADR-0030.
+  adheres('Constraint', { type: 'no-go', cells: [{ h3: '89195436313ffff' }] });
 
   // The guard guards: corrupting a clean object with an undeclared field must fail
   // (additionalProperties:false), so NEW drift cannot slip past.

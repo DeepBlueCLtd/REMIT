@@ -13,6 +13,7 @@ export type EntityId = string;
 export type AspectName = string;
 export type OrbatId = string;
 export type AssetId = string;
+export type AppetiteAxis = string;
 export type PlanId = string;
 export type ConflictId = string;
 export type SelectionRationaleId = string;
@@ -796,8 +797,8 @@ export interface Asset {
     allegiance: string,
     /** human label; need not be unique */
     label?: string,
-    /** AO location (H3 cell / lat-lon) */
-    position?: Waypoint,
+    /** AO location (H3 hex cell + lat-lon centre, ADR-0016) */
+    position?: HexCell,
     /** reach / footprint radius in metres */
     extent_m?: number,
     /** present iff allegiance = blue */
@@ -882,8 +883,8 @@ export interface Stamp {
     profile_version?: ProfileId,
     /** the starting state (skeleton addition, DEC-47) */
     start?: StartState,
-    /** the implementer's risk dials (DEC-6) */
-    appetites?: Appetite[],
+    /** the implementer's risk dials (DEC-6), as an axis→setting map */
+    appetites?: {[index: AppetiteAxis]: Appetite },
     /** interpreted operator gestures / no-go constraints (DEC-24) */
     steering?: Constraint[],
     /** e.g. "mock-0.1" — part of identity (DEC-29) */
@@ -894,21 +895,26 @@ export interface Stamp {
 
 
 /**
- * The starting position and clock baked into a Stamp (skeleton, DEC-47).
+ * The starting position (H3 hex) and clock baked into a Stamp (skeleton, DEC-47; hex per ADR-0016).
  */
 export interface StartState {
-    x?: number,
-    y?: number,
+    /** the H3 cell index (res 9) of the start cell */
+    h3: string,
+    /** cell-centre latitude (optional, for rendering) */
+    lat?: number,
+    /** cell-centre longitude (optional, for rendering) */
+    lng?: number,
+    /** mission clock at start (minutes) */
     clock_min?: number,
 }
 
 
 /**
- * One risk-appetite dial setting (DEC-6) — e.g. tempo = rapid, exposure = cautious.
+ * One risk-appetite dial setting (DEC-6) — e.g. tempo = rapid, exposure = cautious. Keyed by axis, so a Stamp's appetites serialise as an axis→setting map.
  */
 export interface Appetite {
     /** "e.g. tempo, exposure" */
-    axis?: string,
+    axis: string,
     /** "e.g. deliberate/balanced/rapid, bold/balanced/cautious" */
     setting?: string,
 }
@@ -920,7 +926,7 @@ export interface Appetite {
 export interface Constraint {
     /** "e.g. no-go" */
     type?: string,
-    cells?: Waypoint[],
+    cells?: HexCell[],
 }
 
 
@@ -985,11 +991,15 @@ export interface ScheduleLeg {
 
 
 /**
- * One sampled point on the platform's path; coordinates may be fractional, time/fuel rounded to 1 dp for IEEE stability.
+ * One sampled point on the platform's path (H3 hex per ADR-0016); time/fuel rounded to 1 dp for IEEE stability.
  */
 export interface TrajectoryPoint {
-    x?: number,
-    y?: number,
+    /** the H3 cell index (res 9) */
+    h3: string,
+    /** cell-centre latitude */
+    lat?: number,
+    /** cell-centre longitude */
+    lng?: number,
     /** mission minutes */
     t?: number,
     fuel_pct?: number,
@@ -1038,6 +1048,8 @@ export interface TideDecision {
     ford_rv?: number,
     /** mission minutes the detour route reaches the RV; null when no detour exists */
     detour_rv?: number,
+    /** mission minutes the chosen route reaches the RV (the committed arrival) */
+    rv_min?: number,
     /** the choice, in words */
     narrative?: string,
 }

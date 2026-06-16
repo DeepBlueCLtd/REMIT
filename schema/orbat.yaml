@@ -48,9 +48,9 @@ classes:
       label:
         description: human label; need not be unique
       position:
-        range: Waypoint
+        range: HexCell
         inlined: true
-        description: AO location (H3 cell / lat-lon)
+        description: AO location (H3 hex cell + lat-lon centre, ADR-0016)
       extent_m:
         range: float
         description: reach / footprint radius in metres

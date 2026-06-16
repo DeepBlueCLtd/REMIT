@@ -43,8 +43,8 @@ classes:
       appetites:
         range: Appetite
         multivalued: true
-        inlined_as_list: true
-        description: the implementer's risk dials (DEC-6)
+        inlined: true
+        description: the implementer's risk dials (DEC-6), as an axis→setting map
       steering:
         range: Constraint
         multivalued: true
@@ -56,18 +56,25 @@ classes:
         range: integer
         description: RNG seed for strategy ordering — part of identity (DEC-29)
   StartState:
-    description: The starting position and clock baked into a Stamp (skeleton, DEC-47).
+    description: The starting position (H3 hex) and clock baked into a Stamp (skeleton, DEC-47; hex per ADR-0016).
     attributes:
-      x:
-        range: integer
-      y:
-        range: integer
+      h3:
+        required: true
+        description: the H3 cell index (res 9) of the start cell
+      lat:
+        range: float
+        description: cell-centre latitude (optional, for rendering)
+      lng:
+        range: float
+        description: cell-centre longitude (optional, for rendering)
       clock_min:
         range: integer
+        description: mission clock at start (minutes)
   Appetite:
-    description: One risk-appetite dial setting (DEC-6) — e.g. tempo = rapid, exposure = cautious.
+    description: One risk-appetite dial setting (DEC-6) — e.g. tempo = rapid, exposure = cautious. Keyed by axis, so a Stamp's appetites serialise as an axis→setting map.
     attributes:
       axis:
+        identifier: true
         description: '"e.g. tempo, exposure"'
       setting:
         description: '"e.g. deliberate/balanced/rapid, bold/balanced/cautious"'
@@ -77,7 +84,7 @@ classes:
       type:
         description: '"e.g. no-go"'
       cells:
-        range: Waypoint
+        range: HexCell
         multivalued: true
         inlined_as_list: true
   Strategy:
@@ -158,12 +165,17 @@ classes:
         inlined: false
         description: the commitment this leg serves (visit/exfil legs)
   TrajectoryPoint:
-    description: One sampled point on the platform's path; coordinates may be fractional, time/fuel rounded to 1 dp for IEEE stability.
+    description: One sampled point on the platform's path (H3 hex per ADR-0016); time/fuel rounded to 1 dp for IEEE stability.
     attributes:
-      x:
+      h3:
+        required: true
+        description: the H3 cell index (res 9)
+      lat:
         range: float
-      y:
+        description: cell-centre latitude
+      lng:
         range: float
+        description: cell-centre longitude
       t:
         range: float
         description: mission minutes
@@ -214,6 +226,9 @@ classes:
       detour_rv:
         range: float
         description: mission minutes the detour route reaches the RV; null when no detour exists
+      rv_min:
+        range: float
+        description: mission minutes the chosen route reaches the RV (the committed arrival)
       narrative:
         description: the choice, in words
   Conflict:

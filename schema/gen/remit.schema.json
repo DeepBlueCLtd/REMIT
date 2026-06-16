@@ -353,14 +353,11 @@
         },
         "Appetite": {
             "additionalProperties": false,
-            "description": "One risk-appetite dial setting (DEC-6) \u2014 e.g. tempo = rapid, exposure = cautious.",
+            "description": "One risk-appetite dial setting (DEC-6) \u2014 e.g. tempo = rapid, exposure = cautious. Keyed by axis, so a Stamp's appetites serialise as an axis\u2192setting map.",
             "properties": {
                 "axis": {
                     "description": "\"e.g. tempo, exposure\"",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
+                    "type": "string"
                 },
                 "setting": {
                     "description": "\"e.g. deliberate/balanced/rapid, bold/balanced/cautious\"",
@@ -370,6 +367,29 @@
                     ]
                 }
             },
+            "required": [
+                "axis"
+            ],
+            "title": "Appetite",
+            "type": "object"
+        },
+        "Appetite__identifier_optional": {
+            "additionalProperties": false,
+            "description": "One risk-appetite dial setting (DEC-6) \u2014 e.g. tempo = rapid, exposure = cautious. Keyed by axis, so a Stamp's appetites serialise as an axis\u2192setting map.",
+            "properties": {
+                "axis": {
+                    "description": "\"e.g. tempo, exposure\"",
+                    "type": "string"
+                },
+                "setting": {
+                    "description": "\"e.g. deliberate/balanced/rapid, bold/balanced/cautious\"",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [],
             "title": "Appetite",
             "type": "object"
         },
@@ -499,13 +519,13 @@
                 "position": {
                     "anyOf": [
                         {
-                            "$ref": "#/$defs/Waypoint"
+                            "$ref": "#/$defs/HexCell"
                         },
                         {
                             "type": "null"
                         }
                     ],
-                    "description": "AO location (H3 cell / lat-lon)"
+                    "description": "AO location (H3 hex cell + lat-lon centre, ADR-0016)"
                 },
                 "red": {
                     "anyOf": [
@@ -1188,7 +1208,7 @@
             "properties": {
                 "cells": {
                     "items": {
-                        "$ref": "#/$defs/Waypoint"
+                        "$ref": "#/$defs/HexCell"
                     },
                     "type": [
                         "array",
@@ -2551,12 +2571,23 @@
             "description": "Every input that determines a plan, bundled into one identity (DEC-23/24/29): which requirement, which world, which config core, what appetites and steering, which kernel and seed. A plan's id IS the hash of its Stamp, so two plans are comparable only when their stamps share a basis (the comparability guard). Skeleton additions (DEC-47): `profile_version` and `start` are part of identity because the plan depends on the platform and the starting state.",
             "properties": {
                 "appetites": {
-                    "description": "the implementer's risk dials (DEC-6)",
-                    "items": {
-                        "$ref": "#/$defs/Appetite"
+                    "additionalProperties": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/$defs/Appetite__identifier_optional"
+                            },
+                            {
+                                "description": "\"e.g. deliberate/balanced/rapid, bold/balanced/cautious\"",
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
+                    "description": "the implementer's risk dials (DEC-6), as an axis\u2192setting map",
                     "type": [
-                        "array",
+                        "object",
                         "null"
                     ]
                 },
@@ -2639,27 +2670,37 @@
         },
         "StartState": {
             "additionalProperties": false,
-            "description": "The starting position and clock baked into a Stamp (skeleton, DEC-47).",
+            "description": "The starting position (H3 hex) and clock baked into a Stamp (skeleton, DEC-47; hex per ADR-0016).",
             "properties": {
                 "clock_min": {
+                    "description": "mission clock at start (minutes)",
                     "type": [
                         "integer",
                         "null"
                     ]
                 },
-                "x": {
+                "h3": {
+                    "description": "the H3 cell index (res 9) of the start cell",
+                    "type": "string"
+                },
+                "lat": {
+                    "description": "cell-centre latitude (optional, for rendering)",
                     "type": [
-                        "integer",
+                        "number",
                         "null"
                     ]
                 },
-                "y": {
+                "lng": {
+                    "description": "cell-centre longitude (optional, for rendering)",
                     "type": [
-                        "integer",
+                        "number",
                         "null"
                     ]
                 }
             },
+            "required": [
+                "h3"
+            ],
             "title": "StartState",
             "type": "object"
         },
@@ -2851,6 +2892,13 @@
                         "null"
                     ]
                 },
+                "rv_min": {
+                    "description": "mission minutes the chosen route reaches the RV (the committed arrival)",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
                 "wait_min": {
                     "description": "minutes held at the bank before crossing",
                     "type": [
@@ -2938,9 +2986,27 @@
         },
         "TrajectoryPoint": {
             "additionalProperties": false,
-            "description": "One sampled point on the platform's path; coordinates may be fractional, time/fuel rounded to 1 dp for IEEE stability.",
+            "description": "One sampled point on the platform's path (H3 hex per ADR-0016); time/fuel rounded to 1 dp for IEEE stability.",
             "properties": {
                 "fuel_pct": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "h3": {
+                    "description": "the H3 cell index (res 9)",
+                    "type": "string"
+                },
+                "lat": {
+                    "description": "cell-centre latitude",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "lng": {
+                    "description": "cell-centre longitude",
                     "type": [
                         "number",
                         "null"
@@ -2952,20 +3018,11 @@
                         "number",
                         "null"
                     ]
-                },
-                "x": {
-                    "type": [
-                        "number",
-                        "null"
-                    ]
-                },
-                "y": {
-                    "type": [
-                        "number",
-                        "null"
-                    ]
                 }
             },
+            "required": [
+                "h3"
+            ],
             "title": "TrajectoryPoint",
             "type": "object"
         },

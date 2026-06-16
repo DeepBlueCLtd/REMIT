@@ -174,8 +174,8 @@ Stamp {
   baseline_version, excursions: [excursion_version]
   config_core_hash                          // DEC-48: world-defining config core (medium/channels/
                                             //   movement-model/providers/vocabulary); instance shell excluded
-  profile_version, start: { x, y, clock_min } // DEC-62: own-force profile (DEC-19) + start state — the plan
-                                            //   depends on both, so both are identity inputs (NF3)
+  profile_version, start: { h3, clock_min }   // DEC-62: own-force profile (DEC-19) + start state (H3 hex,
+                                            //   ADR-0030) — the plan depends on both, so both are identity inputs (NF3)
   appetites: { axis → setting }             // implementer's, DEC-6
   steering: [Constraint]                    // interpreted gestures, DEC-24
   kernel_version, strategy_seed             // DEC-29: part of identity

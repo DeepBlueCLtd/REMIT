@@ -249,6 +249,8 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
 - **Prevention / real fix:** update the LinkML source (a hex cell type, or `Waypoint.h3`) and
   re-run `schema/generate.sh`, then drop the cast. Enforced type-checking (ADR-0024) now
   catches this class of schema/code drift at build time instead of silently.
+- **Resolved (2026-06-14, ADR-0030):** done — `Constraint.cells` repointed to `HexCell`, regenerated, and the
+  `unknown`→`Waypoint[]` cast deleted from `main.js` (typecheck stays green without it).
 
 ## Schema-adherence guard surfaces the full extent of the schema↔code drift (2026-06-14)
 
@@ -268,5 +270,10 @@ Each entry records: date, symptom, root cause, fix, and how to prevent recurrenc
   `Constraint.cells`, `StartState`, `TrajectoryPoint`), reconcile `appetites`→`Appetite[]` and `TideDecision`,
   re-run `schema/generate.sh`, then empty the test's `DRIFT` map. The regen-no-diff + adherence checks (ADR-0029)
   now make this class of drift impossible to reintroduce silently.
+- **Resolved (2026-06-14, ADR-0030):** done — `Asset.position`/`Constraint.cells`/`StartState`/`TrajectoryPoint`
+  repointed to hex (`HexCell` / `h3`), `TideDecision` gained `rv_min`, and `appetites` is now modelled as an
+  `axis→setting` map (LinkML inlined dict, `Appetite.axis` identifier) — so it matches the runtime *without*
+  changing the kernel (golden plan ids unchanged, NF3). The adherence test's `DRIFT` map is now **empty**: it
+  validates the instances whole.
 
 <!-- Add new entries above this line. -->
