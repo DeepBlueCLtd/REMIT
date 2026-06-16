@@ -107,6 +107,7 @@ classes:
       strategy:
         range: Strategy
         inlined: true
+        required: true
       stamp:
         range: Stamp
         inlined: true
@@ -118,6 +119,7 @@ classes:
       scores:
         range: Scores
         inlined: true
+        required: true
       tide_decision:
         range: TideDecision
         inlined: true
@@ -134,10 +136,12 @@ classes:
         range: ScheduleLeg
         multivalued: true
         inlined_as_list: true
+        required: true
       trajectory:
         range: TrajectoryPoint
         multivalued: true
         inlined_as_list: true
+        required: true
       state_curves:
         range: StateCurves
         inlined: true
@@ -193,6 +197,7 @@ classes:
         range: Satisfaction
         multivalued: true
         inlined_as_list: true
+        required: true
       cost_band:
         range: Band
       robustness_band:

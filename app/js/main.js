@@ -19,6 +19,10 @@ import { getDraft, setDraft, subscribeDraft, reconcileOwnForce } from './orbat/o
 // other role surface (tab) so they all project the same objects (DEC-61).
 import { objects, logs, seam, world, playhead } from './shell/context.js';
 
+/** @typedef {import('../../schema/gen/remit').Requirement} Requirement */
+/** @typedef {import('../../schema/gen/remit').Plan} Plan */
+/** @typedef {import('../../schema/gen/remit').Constraint} Constraint */
+
 const MISSION_ID = 'M-001';
 const STRATEGY_SEED = 1337;
 
@@ -43,19 +47,19 @@ const state = {
   stage: 'world',
   unlocked: new Set(['world']),
   done: new Set(),
-  requirement: /** @type {any} */ (null),
+  requirement: /** @type {Requirement | null} */ (null),
   ids: { requirement: '', baseline: '', profile: '', configCore: '', stamp: '', rationale: '' },
   configCoreHash: '',
   bandUnit: bandUnitFor(world.baseline.channels[0]),
   appetites: { tempo: 'balanced', exposure: 'balanced' },
-  steering: /** @type {any[]} */ ([]),   // operator no-go constraints (Plan)
-  handful: /** @type {any[]} */ ([]),
-  selectedPlan: /** @type {any} */ (null),
-  previewPlan: /** @type {any} */ (null),  // COA highlighted (radio) in Compare, before commit
-  execPlan: /** @type {any} */ (null),   // live clone played back (and re-routed) in Execute
-  execSummary: /** @type {any} */ (null),
+  steering: /** @type {Constraint[]} */ ([]),   // operator no-go constraints (Plan)
+  handful: /** @type {Plan[]} */ ([]),
+  selectedPlan: /** @type {Plan | null} */ (null),
+  previewPlan: /** @type {Plan | null} */ (null),  // COA highlighted (radio) in Compare, before commit
+  execPlan: /** @type {Plan | null} */ (null),   // live clone played back (and re-routed) in Execute
+  execSummary: /** @type {unknown} */ (null),
   horizonMin: 180,
-  lastPlanRequest: /** @type {any} */ (null),
+  lastPlanRequest: /** @type {unknown} */ (null),
   nextHint: /** @type {string|null} */ (null),
 };
 
@@ -308,16 +312,17 @@ function mountStage(/** @type {string} */ key) {
   if (key === 'capture') mountCaptureStage();
   if (key === 'plan') mountPlan();
   if (key === 'compare') {
+    if (!state.requirement) return;
     mountCompare(panel('compare'), {
       seam, handful: state.handful, commitments: state.requirement.commitments,
       onPreview(planId) {
         // Highlighting a COA (radio) previews it everywhere — map + Sync Matrix
         // own-force tracks — before the rationale is committed.
-        state.previewPlan = state.handful.find((p) => p.id === planId);
+        state.previewPlan = state.handful.find((p) => p.id === planId) ?? null;
         renderProjection();
       },
       onSelected(planId, _rationale, rationaleId) {
-        state.selectedPlan = state.handful.find((p) => p.id === planId);
+        state.selectedPlan = state.handful.find((p) => p.id === planId) ?? null;
         state.ids.rationale = rationaleId;
         renderProjection();
         advance('compare');
@@ -325,6 +330,7 @@ function mountStage(/** @type {string} */ key) {
     });
   }
   if (key === 'execute') {
+    if (!state.requirement) return;
     // The wingman plays back (and may re-route) a live clone, so the committed
     // plan stays immutable. Reset the shared playhead to H+0 (the removed Views
     // interstitial used to do this on the way through).
@@ -553,7 +559,7 @@ function mountPlan() {
         <h4 style="color:${STRAT_COLORS[/** @type {keyof typeof STRAT_COLORS} */ (p.strategy.key)]}">${p.strategy.label}</h4>
         <div class="muted">${p.strategy.blurb}</div>
         ${p.tide_decision ? `<div class="tide-note" data-testid="tide-${p.strategy.key}">≋ ${p.tide_decision.narrative}</div>` : ''}
-        <div>observe <span class="band band-${obs.margin_band}">${obs.margin_band} ${obs.margin_min}m</span></div>
+        <div>observe <span class="band band-${obs?.margin_band ?? 'crossed'}">${obs?.margin_band ?? 'n/a'}${obs ? ` ${obs.margin_min}m` : ''}</span></div>
         <div>exfil ${rv ? `H+${rv.end_min} ` : ''}<span class="band band-${exf?.margin_band ?? 'crossed'}">${exf?.margin_band ?? 'n/a'}${exf ? ` ${exf.margin_min}m` : ''}</span>
              <span class="band band-${p.scores.cost_band}">cost ${p.scores.cost_band}</span></div>
         <div class="muted">id <code class="hash">${shortId(p.id)}</code> = hash(stamp ⊕ strategy)</div>

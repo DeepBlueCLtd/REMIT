@@ -382,7 +382,7 @@ export interface Requirement {
     /** issuing role/authority + time */
     provenance?: Attribution,
     /** the promises it decomposes into */
-    commitments?: Commitment[],
+    commitments: Commitment[],
     lineage?: Lineage,
 }
 
@@ -949,12 +949,12 @@ export interface Strategy {
 export interface Plan {
     /** "= hash(Stamp, strategy)" */
     id: string,
-    strategy?: Strategy,
+    strategy: Strategy,
     /** authoritative — the plan's identity basis */
     stamp?: Stamp,
     /** cached, regenerable; null when infeasible */
     materialisation?: Materialisation,
-    scores?: Scores,
+    scores: Scores,
     /** the exfil wait-vs-detour weighing (ADR-0006); null when no ford */
     tide_decision?: TideDecision,
     /** first-class, named clashes (C1) */
@@ -966,8 +966,8 @@ export interface Plan {
  * The cached, regenerable working-out of a plan; absent when the plan is infeasible.
  */
 export interface Materialisation {
-    schedule?: ScheduleLeg[],
-    trajectory?: TrajectoryPoint[],
+    schedule: ScheduleLeg[],
+    trajectory: TrajectoryPoint[],
     state_curves?: StateCurves,
     /** the tide decision at plan time */
     tide?: TideDecision,
@@ -1018,7 +1018,7 @@ export interface StateCurves {
  * A plan's comparable scores, read under the comparability guard (A2/C2/C6, NF10).
  */
 export interface Scores {
-    satisfaction?: Satisfaction[],
+    satisfaction: Satisfaction[],
     cost_band?: string,
     robustness_band?: string,
 }

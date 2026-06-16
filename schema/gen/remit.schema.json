@@ -1805,10 +1805,7 @@
                     "items": {
                         "$ref": "#/$defs/ScheduleLeg"
                     },
-                    "type": [
-                        "array",
-                        "null"
-                    ]
+                    "type": "array"
                 },
                 "state_curves": {
                     "anyOf": [
@@ -1835,10 +1832,7 @@
                     "items": {
                         "$ref": "#/$defs/TrajectoryPoint"
                     },
-                    "type": [
-                        "array",
-                        "null"
-                    ]
+                    "type": "array"
                 },
                 "verified": {
                     "type": [
@@ -1847,6 +1841,10 @@
                     ]
                 }
             },
+            "required": [
+                "schedule",
+                "trajectory"
+            ],
             "title": "Materialisation",
             "type": "object"
         },
@@ -2027,14 +2025,7 @@
                     "description": "cached, regenerable; null when infeasible"
                 },
                 "scores": {
-                    "anyOf": [
-                        {
-                            "$ref": "#/$defs/Scores"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
+                    "$ref": "#/$defs/Scores"
                 },
                 "stamp": {
                     "anyOf": [
@@ -2048,14 +2039,7 @@
                     "description": "authoritative \u2014 the plan's identity basis"
                 },
                 "strategy": {
-                    "anyOf": [
-                        {
-                            "$ref": "#/$defs/Strategy"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
+                    "$ref": "#/$defs/Strategy"
                 },
                 "tide_decision": {
                     "anyOf": [
@@ -2070,7 +2054,9 @@
                 }
             },
             "required": [
-                "id"
+                "id",
+                "strategy",
+                "scores"
             ],
             "title": "Plan",
             "type": "object"
@@ -2288,10 +2274,7 @@
                     "items": {
                         "$ref": "#/$defs/Commitment"
                     },
-                    "type": [
-                        "array",
-                        "null"
-                    ]
+                    "type": "array"
                 },
                 "id": {
                     "description": "content id (sha256:\u2026) of the canonical form (DEC-35)",
@@ -2332,7 +2315,8 @@
             },
             "required": [
                 "id",
-                "intent"
+                "intent",
+                "commitments"
             ],
             "title": "Requirement",
             "type": "object"
@@ -2434,12 +2418,12 @@
                     "items": {
                         "$ref": "#/$defs/Satisfaction"
                     },
-                    "type": [
-                        "array",
-                        "null"
-                    ]
+                    "type": "array"
                 }
             },
+            "required": [
+                "satisfaction"
+            ],
             "title": "Scores",
             "type": "object"
         },
