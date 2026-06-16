@@ -45,6 +45,7 @@ classes:
         range: Commitment
         multivalued: true
         inlined_as_list: true
+        required: true
         description: the promises it decomposes into
       lineage:
         range: Lineage

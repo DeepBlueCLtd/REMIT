@@ -827,3 +827,40 @@ consequences. Link evidence (e.g. `specs/<feature>/evidence/`) where relevant.
   strict (nothing stripped). Out of scope (unchanged): the broader "app imports the generated TS" migration
   (ADR-0012, its own spec) — the app still hand-writes most shapes; only the `SteeringDelta` binding consumes
   generated types today.
+
+## ADR-0031 (2026-06-16) — Type from origin: eliminate `any`/cast smells (maintainer-directed)
+
+- **Context:** the maintainer flagged type-casting as a code smell — "data should be correctly typed from origin."
+  An audit found the loudest casts already absent (zero `@type {unknown}` double-casts, zero `@ts-ignore`/`@ts-nocheck`,
+  zero `as` casts), leaving ~133 `@type` assertions: a large idiomatic bucket (DOM narrowing, `const`/tuple literals
+  — not smells) and a real-smell bucket dominated by `any`. Five fixes (P1–P5).
+- **Decision — type the data at its source, never assert over it:**
+  - **P1 (main.js serialisable state):** typed `requirement`/`handful`/`selected|preview|execPlan`/`steering` with
+    the generated `Requirement`/`Plan`/`Constraint`. Reading them revealed the generated types marked always-present
+    fields optional (LinkML declares few required), which would have forced read-site casts — so the real invariants
+    were declared **`required` at the origin (the schema):** `Requirement.commitments`, `Plan.strategy`, `Plan.scores`,
+    `Scores.satisfaction`, `Materialisation.schedule`/`trajectory`, `TrajectoryPoint.lat`/`lng`/`t`/`fuel_pct`
+    (regenerated). Genuine null-safety via guards / `?? null` / optional-chaining — no casts. `tsconfig` lib → ES2023
+    (the cards use `Array.findLast`).
+  - **P2 (orbat.js):** removed the `(patch).x` / `(next.blue).y` casts (vestigial — `Partial<Asset>` + the generated
+    `*Params` carry every field); an `inVocab(vocab, string)` helper replaces `VOCAB.includes(/** any */ (x))`
+    (LinkML emits enum slots as `string`); explicit allegiance branch instead of a dynamic-index cast. 18 → 0.
+  - **P3 (globals):** one `app/js/globals.d.ts` declares the debug/test window handles + shared context (DEC-61),
+    dropping ~11 `(window)`/`(globalThis)`/`(window.opener)` casts across six files.
+  - **P4 (timers):** `ReturnType<typeof setTimeout|setInterval>` declaration annotations instead of casting the
+    handle to `any` (the `@types/node` leak in bugs.md persists).
+  - **P5 (views/map.js):** a `RenderOpts` typedef types the data into the view (plans/assets/selected), so the
+    plan/asset iterations infer real types; accessor **parameters** annotated with `Asset`/`Plan`/`HexCell`.
+- **The acceptable residue (documented, not chased):** DOM element narrowing (`getElementById` → `HTMLElement`) is the
+  required idiom, not a smell; deck.gl's typed accessor **props** (`Accessor<DataT,…>`) won't accept a plain JSDoc
+  callback, so the `get*` props are cast at that library boundary (like the existing MapOptions cast) — the accessor
+  bodies stay checked; `keyof typeof` index narrowing is idiomatic.
+- **Distinction honoured:** a `/** @type {T} */ (expr)` **assertion** (overriding inference) is the smell removed; a
+  `/** @type {T} */ name` **parameter/field annotation** (declaring a type) is the fix and stays.
+- **Verification:** 0 typecheck errors; 32 unit green; **golden plan ids unchanged** (the schema is validation-only —
+  marking fields required reflects the real shapes, never touches the runtime canonical form, NF3); adherence still
+  validates whole; regen idempotent. App-wide `any`-casts ~133 → ~78.
+- **Out of scope (clean follow-up):** the **consumer ctx** of `compare`/`wingman`/`learn`/`entities` still receives
+  plans via loosely-typed `ctx`, so they cast `(s) => s.label` over `scores.satisfaction` etc. Typing those ctx params
+  with the generated types (now unblocked by the `required` invariants) is the same pattern, one layer out — the
+  remaining slice of ADR-0012's "app imports the generated TS."

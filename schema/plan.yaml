@@ -107,6 +107,7 @@ classes:
       strategy:
         range: Strategy
         inlined: true
+        required: true
       stamp:
         range: Stamp
         inlined: true
@@ -118,6 +119,7 @@ classes:
       scores:
         range: Scores
         inlined: true
+        required: true
       tide_decision:
         range: TideDecision
         inlined: true
@@ -134,10 +136,12 @@ classes:
         range: ScheduleLeg
         multivalued: true
         inlined_as_list: true
+        required: true
       trajectory:
         range: TrajectoryPoint
         multivalued: true
         inlined_as_list: true
+        required: true
       state_curves:
         range: StateCurves
         inlined: true
@@ -172,15 +176,19 @@ classes:
         description: the H3 cell index (res 9)
       lat:
         range: float
+        required: true
         description: cell-centre latitude
       lng:
         range: float
+        required: true
         description: cell-centre longitude
       t:
         range: float
+        required: true
         description: mission minutes
       fuel_pct:
         range: float
+        required: true
   StateCurves:
     description: The end-state of the platform's curves over the plan (v1 carries fuel only).
     attributes:
@@ -193,6 +201,7 @@ classes:
         range: Satisfaction
         multivalued: true
         inlined_as_list: true
+        required: true
       cost_band:
         range: Band
       robustness_band:

@@ -170,7 +170,7 @@ export function mountWingman(el, ctx) {
     }
   }
 
-  /** @type {number | undefined} */
+  /** @type {ReturnType<typeof setInterval> | undefined} */
   let playTimer;
   /** Sim-minutes per real second from the slider: 2 … 512 (powers of two).
    *  Labelled "N min/s", not "×N" — 2 min/s is 120× real time. */
@@ -190,7 +190,7 @@ export function mountWingman(el, ctx) {
   $('#wx-play').addEventListener('click', () => {
     if (playTimer) { stopPlay(); return; }
     // 100 ms ticks; speed read per tick, so dragging the slider mid-play works.
-    playTimer = /** @type {any} */ (setInterval(() => tick(speedOf() / 10), 100));
+    playTimer = setInterval(() => tick(speedOf() / 10), 100);
     refreshSpeedUI();
   });
   $('#wx-restart').addEventListener('click', async () => {

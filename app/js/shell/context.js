@@ -30,4 +30,4 @@ export const context = { objects, logs, seam, world, playhead };
 
 // Debug/test handle (read-only use; not part of any contract). Seeded here so
 // it exists regardless of which tab boots first; main.js attaches `.state`.
-/** @type {any} */ (globalThis).__remit = context;
+globalThis.__remit = context;

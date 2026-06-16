@@ -17,6 +17,8 @@ import { canonicalJSON, contentId } from '../shapes/canonical.js';
 /** @typedef {import('../../../schema/gen/remit').BlueParams} BlueParams */
 /** @typedef {import('../../../schema/gen/remit').RedParams} RedParams */
 /** @typedef {import('../../../schema/gen/remit').GreenParams} GreenParams */
+/** @typedef {import('../../../schema/gen/remit').HexCell} HexCell */
+/** @typedef {import('../../../schema/gen/remit').TimeWindow} TimeWindow */
 /** @typedef {import('../entities/entities.js').Entity} Entity */
 
 /** localStorage key for the working draft (per mission). */
@@ -85,7 +87,7 @@ const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 const clampInt = (v, bounds) => Math.round(clamp(v, bounds));
 
 /** Trim a free-text value; empty ⇒ undefined (so empties are dropped, not stored blank, FR-014). */
-const cleanStr = (/** @type {any} */ v) => { const s = String(v ?? '').trim(); return s || undefined; };
+const cleanStr = (/** @type {unknown} */ v) => { const s = String(v ?? '').trim(); return s || undefined; };
 
 /** Set `obj[key]` to a free-text `value` when non-empty, else delete the key — so cleared
  *  fields are dropped, never stored blank (FR-014). @param {any} obj @param {string} key @param {any} value */
@@ -100,6 +102,10 @@ function setVocab(obj, key, value, vocab) {
   if (value === '' || value == null) { delete obj[key]; return; }
   if (vocab.includes(value)) obj[key] = value;   // else: ignore
 }
+
+/** Vocabulary membership that accepts any string — avoids the readonly-tuple
+ *  `.includes()` literal-narrowing without a cast. @param {readonly string[]} vocab @param {string} v */
+const inVocab = (vocab, v) => vocab.some((x) => x === v);
 
 /** Default per-allegiance parameter group.
  *  @param {'blue'|'red'|'green'} allegiance */
@@ -170,8 +176,8 @@ function replaceAsset(orbat, id, fn) {
  * Add a default asset of an allegiance at `position`, with a fresh unique id.
  * Rejects an out-of-AO position when an `inAO` predicate is supplied (FR-001/003).
  * @param {Orbat} orbat
- * @param {{ allegiance: 'blue'|'red'|'green', position?: any, label?: string }} seed
- * @param {{ inAO?: (pos: any) => boolean }} [opts]
+ * @param {{ allegiance: 'blue'|'red'|'green', position?: HexCell, label?: string }} seed
+ * @param {{ inAO?: (pos: HexCell) => boolean }} [opts]
  * @returns {{ orbat: Orbat, id: string }}
  */
 export function addAsset(orbat, { allegiance, position, label }, opts = {}) {
@@ -207,7 +213,7 @@ export function duplicateAsset(orbat, id) {
  * Apply `patch` to ONLY the targeted asset, clamping/validating its bounds (FR-004).
  * Other assets stay byte-identical (SC-003). Returns a new draft.
  * @param {Orbat} orbat @param {string} id @param {Partial<Asset>} patch
- * @param {{ inAO?: (pos: any) => boolean }} [opts]
+ * @param {{ inAO?: (pos: HexCell) => boolean }} [opts]
  * @returns {Orbat}
  */
 export function tuneAsset(orbat, id, patch, opts = {}) {
@@ -221,14 +227,14 @@ export function tuneAsset(orbat, id, patch, opts = {}) {
     if (patch.extent_m !== undefined) next.extent_m = clamp(Number(patch.extent_m), BOUNDS.extent_m);
     // Enrichment (spec 005): kind/symbol/confidence + descriptive strength/notes. Vocab-checked
     // where applicable; free-text is trimmed and empties are dropped (FR-014), never stored blank.
-    if ('kind' in patch) setVocab(next, 'kind', /** @type {any} */ (patch).kind, PLATFORM_KINDS);
-    if ('symbol' in patch) setOrDrop(next, 'symbol', cleanStr(/** @type {any} */ (patch).symbol));
-    if ('confidence' in patch) setVocab(next, 'confidence', /** @type {any} */ (patch).confidence, CONFIDENCE_LEVELS);
-    if ('strength' in patch) setOrDrop(next, 'strength', cleanStr(/** @type {any} */ (patch).strength));
-    if ('notes' in patch) setOrDrop(next, 'notes', cleanStr(/** @type {any} */ (patch).notes));
+    if ('kind' in patch) setVocab(next, 'kind', patch.kind, PLATFORM_KINDS);
+    if ('symbol' in patch) setOrDrop(next, 'symbol', cleanStr(patch.symbol));
+    if ('confidence' in patch) setVocab(next, 'confidence', patch.confidence, CONFIDENCE_LEVELS);
+    if ('strength' in patch) setOrDrop(next, 'strength', cleanStr(patch.strength));
+    if ('notes' in patch) setOrDrop(next, 'notes', cleanStr(patch.notes));
     if (patch.red && next.allegiance === 'red') {
       next.red = { ...next.red };
-      const pr = /** @type {any} */ (patch.red);
+      const pr = patch.red;
       if (pr.severity !== undefined) next.red.severity = clampInt(Number(pr.severity), BOUNDS.severity);
       if (pr.active_windows !== undefined) next.red.active_windows = sanitizeWindows(pr.active_windows);
       if (pr.detection_range_m !== undefined) next.red.detection_range_m = clamp(Number(pr.detection_range_m), BOUNDS.extent_m);
@@ -240,24 +246,24 @@ export function tuneAsset(orbat, id, patch, opts = {}) {
     }
     if (patch.green && next.allegiance === 'green') {
       next.green = { ...next.green };
-      const pg = /** @type {any} */ (patch.green);
+      const pg = patch.green;
       if (pg.sensitivity !== undefined) next.green.sensitivity = clampInt(Number(pg.sensitivity), BOUNDS.sensitivity);
-      if (pg.protection !== undefined && PROTECTIONS.includes(pg.protection)) next.green.protection = pg.protection;
+      if (pg.protection !== undefined && inVocab(PROTECTIONS, pg.protection)) next.green.protection = pg.protection;
       if ('category' in pg) setVocab(next.green, 'category', pg.category, GREEN_CATEGORIES);
     }
     if (patch.blue && next.allegiance === 'blue') {
       next.blue = { ...next.blue };
       if (patch.blue.availability !== undefined) next.blue.availability = String(patch.blue.availability);
-      if ('role' in patch.blue) setOrDrop(next.blue, 'role', cleanStr(/** @type {any} */ (patch.blue).role));
+      if ('role' in patch.blue) setOrDrop(next.blue, 'role', cleanStr(patch.blue.role));
       if (patch.blue.capabilities !== undefined)
         next.blue.capabilities = (patch.blue.capabilities ?? []).map(String).filter(Boolean);
       if ('availability_window' in patch.blue) {
-        const w = /** @type {any} */ (patch.blue).availability_window;
+        const w = patch.blue.availability_window;
         if (w && w.start_min != null && w.end_min != null) {
           const s = Math.round(Number(w.start_min)), e = Math.round(Number(w.end_min));
-          /** @type {any} */ (next.blue).availability_window = { start_min: Math.min(s, e), end_min: Math.max(s, e) };
+          next.blue.availability_window = { start_min: Math.min(s, e), end_min: Math.max(s, e) };
         } else {
-          delete (/** @type {any} */ (next.blue).availability_window);
+          delete next.blue.availability_window;
         }
       }
     }
@@ -266,7 +272,7 @@ export function tuneAsset(orbat, id, patch, opts = {}) {
 }
 
 /** Clamp a list of time windows to start ≤ end, dropping malformed entries (FR-004).
- *  @param {any[]} windows */
+ *  @param {TimeWindow[]} windows */
 function sanitizeWindows(windows) {
   return (windows ?? [])
     .map((w) => ({ start_min: Math.round(Number(w.start_min)), end_min: Math.round(Number(w.end_min)) }))
@@ -291,7 +297,7 @@ export function removeAsset(orbat, id) {
  * `canonical_own_force = true` (FR-012). The asset is reconciled, never duplicated — the
  * plan keeps driving from the pre-existing machinery.
  * @param {Orbat} orbat
- * @param {{ label?: string, position?: any }} self  the planned own-force entity/place
+ * @param {{ label?: string, position?: HexCell }} self  the planned own-force entity/place
  * @returns {Orbat}
  */
 export function reconcileOwnForce(orbat, self) {
@@ -299,7 +305,7 @@ export function reconcileOwnForce(orbat, self) {
     // Strip any stray canonical flag from non-canonical rows (exactly one survives).
     if (a.canonical_own_force && a.id !== OWN_FORCE_ID) {
       const { canonical_own_force, ...rest } = a;
-      return /** @type {Asset} */ (rest);
+      return rest;
     }
     return a;
   });
@@ -324,15 +330,18 @@ export function reconcileOwnForce(orbat, self) {
 /**
  * Validate one asset: allegiance ∈ {blue,red,green}, the matching param group present,
  * bounds in range, window start ≤ end, and (when `inAO` is supplied) position in the AO.
- * @param {Asset} asset @param {{ inAO?: (pos: any) => boolean }} [opts]
+ * @param {Asset} asset @param {{ inAO?: (pos: HexCell) => boolean }} [opts]
  * @returns {{ ok: boolean, issues: string[] }}
  */
 export function validate(asset, opts = {}) {
   const issues = [];
-  if (!ALLEGIANCES.includes(/** @type {any} */ (asset.allegiance)))
+  if (!inVocab(ALLEGIANCES, asset.allegiance))
     issues.push(`allegiance must be one of ${ALLEGIANCES.join('/')}`);
-  else if (!asset[/** @type {'blue'|'red'|'green'} */ (asset.allegiance)])
-    issues.push(`${asset.allegiance} asset is missing its ${asset.allegiance} parameter group`);
+  else {
+    const group = asset.allegiance === 'blue' ? asset.blue
+      : asset.allegiance === 'red' ? asset.red : asset.green;
+    if (!group) issues.push(`${asset.allegiance} asset is missing its ${asset.allegiance} parameter group`);
+  }
   if (asset.extent_m !== undefined && (asset.extent_m < BOUNDS.extent_m[0] || asset.extent_m > BOUNDS.extent_m[1]))
     issues.push(`extent_m out of bounds ${BOUNDS.extent_m.join('..')}`);
   if (asset.red?.severity !== undefined && (asset.red.severity < BOUNDS.severity[0] || asset.red.severity > BOUNDS.severity[1]))
@@ -342,9 +351,9 @@ export function validate(asset, opts = {}) {
   for (const w of asset.red?.active_windows ?? [])
     if (Number(w.start_min) > Number(w.end_min)) issues.push('active window start_min must be ≤ end_min');
   // Enrichment (spec 005): vocab + red dual-range bounds + engagement ≤ detection.
-  if (asset.kind !== undefined && !PLATFORM_KINDS.includes(/** @type {any} */ (asset.kind))) issues.push('unknown platform kind');
-  if (asset.confidence !== undefined && !CONFIDENCE_LEVELS.includes(/** @type {any} */ (asset.confidence))) issues.push('unknown confidence level');
-  if (asset.green?.category !== undefined && !GREEN_CATEGORIES.includes(/** @type {any} */ (asset.green.category))) issues.push('unknown green category');
+  if (asset.kind !== undefined && !inVocab(PLATFORM_KINDS, asset.kind)) issues.push('unknown platform kind');
+  if (asset.confidence !== undefined && !inVocab(CONFIDENCE_LEVELS, asset.confidence)) issues.push('unknown confidence level');
+  if (asset.green?.category !== undefined && !inVocab(GREEN_CATEGORIES, asset.green.category)) issues.push('unknown green category');
   const dr = asset.red?.detection_range_m, er = asset.red?.engagement_range_m;
   if (dr !== undefined && (dr < BOUNDS.extent_m[0] || dr > BOUNDS.extent_m[1])) issues.push(`detection_range_m out of bounds ${BOUNDS.extent_m.join('..')}`);
   if (er !== undefined && (er < BOUNDS.extent_m[0] || er > BOUNDS.extent_m[1])) issues.push(`engagement_range_m out of bounds ${BOUNDS.extent_m.join('..')}`);
@@ -457,7 +466,7 @@ export function subscribeDraft(fn) {
  * Any asset with a time-varying aspect (red `active_windows`, a blue availability window)
  * exposes a `window`-type aspect (reusing the satellite-pass render path) so it appears as
  * a Sync-Matrix track. Contains NO kernel reference and alters no plan (NF9).
- * @param {Asset} asset @returns {Entity & { allegiance: string, position?: any, asset: Asset }}
+ * @param {Asset} asset @returns {Entity & { allegiance: string, position?: HexCell, asset: Asset }}
  */
 export function assetToEntity(asset) {
   const windows = activeWindowsOf(asset);
@@ -466,7 +475,7 @@ export function assetToEntity(asset) {
   if (windows.length) {
     aspects.active = {
       type: 'window',
-      at: (/** @type {any} */ _plan, /** @type {number} */ t) => windows.some((w) => t >= w.start && t <= w.end),
+      at: (/** @type {unknown} */ _plan, /** @type {number} */ t) => windows.some((w) => t >= w.start && t <= w.end),
       windows: (/** @type {number} */ h) => windows
         .filter((w) => w.end >= 0 && w.start <= h)
         .map((w) => ({ start: Math.max(0, w.start), end: Math.min(h, w.end), center: (w.start + w.end) / 2 })),
@@ -489,7 +498,7 @@ function activeWindowsOf(asset) {
   if (asset.allegiance === 'red')
     return (asset.red?.active_windows ?? []).map((w) => ({ start: Number(w.start_min), end: Number(w.end_min) }));
   if (asset.allegiance === 'blue') {
-    const w = /** @type {any} */ (asset.blue)?.availability_window;
+    const w = asset.blue?.availability_window;
     if (w && w.start_min != null && w.end_min != null) return [{ start: Number(w.start_min), end: Number(w.end_min) }];
   }
   return [];

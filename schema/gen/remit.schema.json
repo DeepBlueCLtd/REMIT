@@ -1805,10 +1805,7 @@
                     "items": {
                         "$ref": "#/$defs/ScheduleLeg"
                     },
-                    "type": [
-                        "array",
-                        "null"
-                    ]
+                    "type": "array"
                 },
                 "state_curves": {
                     "anyOf": [
@@ -1835,10 +1832,7 @@
                     "items": {
                         "$ref": "#/$defs/TrajectoryPoint"
                     },
-                    "type": [
-                        "array",
-                        "null"
-                    ]
+                    "type": "array"
                 },
                 "verified": {
                     "type": [
@@ -1847,6 +1841,10 @@
                     ]
                 }
             },
+            "required": [
+                "schedule",
+                "trajectory"
+            ],
             "title": "Materialisation",
             "type": "object"
         },
@@ -2027,14 +2025,7 @@
                     "description": "cached, regenerable; null when infeasible"
                 },
                 "scores": {
-                    "anyOf": [
-                        {
-                            "$ref": "#/$defs/Scores"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
+                    "$ref": "#/$defs/Scores"
                 },
                 "stamp": {
                     "anyOf": [
@@ -2048,14 +2039,7 @@
                     "description": "authoritative \u2014 the plan's identity basis"
                 },
                 "strategy": {
-                    "anyOf": [
-                        {
-                            "$ref": "#/$defs/Strategy"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
+                    "$ref": "#/$defs/Strategy"
                 },
                 "tide_decision": {
                     "anyOf": [
@@ -2070,7 +2054,9 @@
                 }
             },
             "required": [
-                "id"
+                "id",
+                "strategy",
+                "scores"
             ],
             "title": "Plan",
             "type": "object"
@@ -2288,10 +2274,7 @@
                     "items": {
                         "$ref": "#/$defs/Commitment"
                     },
-                    "type": [
-                        "array",
-                        "null"
-                    ]
+                    "type": "array"
                 },
                 "id": {
                     "description": "content id (sha256:\u2026) of the canonical form (DEC-35)",
@@ -2332,7 +2315,8 @@
             },
             "required": [
                 "id",
-                "intent"
+                "intent",
+                "commitments"
             ],
             "title": "Requirement",
             "type": "object"
@@ -2434,12 +2418,12 @@
                     "items": {
                         "$ref": "#/$defs/Satisfaction"
                     },
-                    "type": [
-                        "array",
-                        "null"
-                    ]
+                    "type": "array"
                 }
             },
+            "required": [
+                "satisfaction"
+            ],
             "title": "Scores",
             "type": "object"
         },
@@ -2989,10 +2973,7 @@
             "description": "One sampled point on the platform's path (H3 hex per ADR-0016); time/fuel rounded to 1 dp for IEEE stability.",
             "properties": {
                 "fuel_pct": {
-                    "type": [
-                        "number",
-                        "null"
-                    ]
+                    "type": "number"
                 },
                 "h3": {
                     "description": "the H3 cell index (res 9)",
@@ -3000,28 +2981,23 @@
                 },
                 "lat": {
                     "description": "cell-centre latitude",
-                    "type": [
-                        "number",
-                        "null"
-                    ]
+                    "type": "number"
                 },
                 "lng": {
                     "description": "cell-centre longitude",
-                    "type": [
-                        "number",
-                        "null"
-                    ]
+                    "type": "number"
                 },
                 "t": {
                     "description": "mission minutes",
-                    "type": [
-                        "number",
-                        "null"
-                    ]
+                    "type": "number"
                 }
             },
             "required": [
-                "h3"
+                "h3",
+                "lat",
+                "lng",
+                "t",
+                "fuel_pct"
             ],
             "title": "TrajectoryPoint",
             "type": "object"
